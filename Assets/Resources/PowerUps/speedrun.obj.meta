@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 7ddc1813688cda92e6a064ba370d03c6
+ModelImporter:
+  serializedVersion: 22200
+  defaultReferences: []
+  fileIDToRecycleName: {}
+  externalObjects: {}
+  materials:
+    materialImportMode: 1
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+  meshes:
+    importNormals: 2
+  animations:
+    legacy: 0
+    klaba: 0
+    variableAnimation: 0

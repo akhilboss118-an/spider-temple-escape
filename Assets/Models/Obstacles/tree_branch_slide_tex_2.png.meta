@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 8a91767e3496e2b2efe0f7b09deee816
+TextureImporter:
+  fileIDToRecycleName: {}
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 1
+  bumpMap:
+    setupForNormalMap: 1
+  isReadable: 0
+  textureFormat: -3
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+  wrapU: 0
+  wrapV: 0
+  wrapW: 0
