@@ -4,6 +4,9 @@
 [![Unity](https://img.shields.io/badge/Unity-6000.6.0f1%20LTS-blue.svg)](https://unity.com/)
 [![Architecture](https://img.shields.io/badge/Architecture-ARM64%20%7C%20ARMv7-orange.svg)](https://github.com/akhilboss118-an/spider-temple-escape/releases)
 [![Release](https://img.shields.io/badge/Release-v1.0.0-brightgreen.svg)](https://github.com/akhilboss118-an/spider-temple-escape/releases/tag/v1.0.0)
+[![Website](https://img.shields.io/badge/Website-spider--temple--escape.vercel.app-black?logo=vercel)](https://spider-temple-escape.vercel.app)
+
+🌐 **Official Website:** [https://spider-temple-escape.vercel.app](https://spider-temple-escape.vercel.app)
 
 A high-fidelity, high-octane 3D Temple Run-style endless runner built natively in **Unity 6** for **Android** (portrait, 60fps). 
 
