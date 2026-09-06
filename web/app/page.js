@@ -14,40 +14,40 @@ const APK_URL     = 'https://github.com/akhilboss118-an/spider-temple-escape/rel
 // ──────────────────────────────────────────────
 const FEATURES = [
   {
-    icon: '🏃',
-    name: 'Endless Runner',
-    desc: 'Procedurally generated temple corridors that never repeat — every run is a fresh challenge.',
+    icon: '🕷️',
+    name: 'Play as Spider-Man',
+    desc: 'Step into the shoes of Spider-Man! Use swift superhero reflexes to jump, slide, and weave past temple traps.',
   },
   {
-    icon: '🕷️',
-    name: 'Beast Chaser',
-    desc: 'A monstrous spider beast pursues you relentlessly. As your score climbs, so does its speed.',
+    icon: '🧟',
+    name: 'Relentless Zombie Monster',
+    desc: 'A horrifying zombie beast pursues you with menacing speed. As your score climbs, the monster closes the gap!',
   },
   {
     icon: '⚡',
     name: 'Power-Up System',
-    desc: 'Speed boosts, shields, coin magnets and invincibility — strategic power-ups change everything.',
+    desc: 'Speed boosts, shields, coin magnets and invincibility — strategic power-ups to keep you ahead of the zombie.',
   },
   {
     icon: '🌿',
-    name: 'Cinematic World',
-    desc: 'Lush jungle ruins with real-time lighting, volumetric fog and detailed 3D environment chunks.',
+    name: 'Cinematic Jungle Temple',
+    desc: 'Lush jungle ruins with real-time lighting, atmospheric mist, and ancient stone pathways.',
   },
   {
     icon: '🎯',
     name: 'Precision Controls',
-    desc: 'Tap to jump, swipe to slide — tight, responsive controls honed for competitive high scores.',
+    desc: 'Tap to jump, swipe to slide — responsive swipe-and-tilt mechanics honed for survival.',
   },
   {
     icon: '🏆',
-    name: 'Score & Coins',
-    desc: 'Distance-based scoring with coin multipliers. Beat your best, climb the leaderboard.',
+    name: 'Score & Coin Multipliers',
+    desc: 'Distance-based scoring with coin bonuses. Push your reflexes to set the ultimate high score.',
   },
 ];
 
 const SCREENSHOTS = [
-  { src: '/ss1.jpg', label: 'Jump over obstacles' },
-  { src: '/ss2.jpg', label: 'Beast is closing in' },
+  { src: '/ss1.jpg', label: 'Spider-Man leaping over obstacles' },
+  { src: '/ss2.jpg', label: 'Zombie monster closing in' },
 ];
 
 // ──────────────────────────────────────────────
@@ -112,7 +112,7 @@ export default function Home() {
         <div className="hero-overlay" />
 
         <div className="container hero-content">
-          <div className="hero-badge">Live on Android</div>
+          <div className="hero-badge">Play as Spider-Man · Live on Android</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -120,8 +120,8 @@ export default function Home() {
           </h1>
 
           <p className="hero-subtitle">
-            Outrun the beast. Dodge deadly obstacles. Claim the highest score in the most
-            heart-pounding 3D endless runner ever built in Unity.
+            Take control of Spider-Man as you sprint through ancient jungle ruins, leap over fallen
+            logs, slide beneath crumbling barriers, and outrun the terrifying Zombie monster chasing you down!
           </p>
 
           <div className="hero-actions">
@@ -208,10 +208,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Free Download</div>
+          <div className="download-badge">Spider-Man vs Zombie Monster</div>
           <h2 className="download-title">Ready to run?</h2>
           <p className="download-sub">
-            Download the APK directly — no Play Store needed. Install and play instantly on any Android device.
+            Download the APK directly — take control of Spider-Man, outrun the terrifying Zombie monster, and claim your high score! Free on Android.
           </p>
 
           <div className="download-buttons">

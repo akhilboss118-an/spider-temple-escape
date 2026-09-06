@@ -1,14 +1,14 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Spider Temple Escape — 3D Endless Runner',
+  title: 'Spider Temple Escape — Play as Spider-Man vs Zombie Monster',
   description:
-    'Run, jump, slide and survive the ancient cursed temple in this adrenaline-pumping 3D endless runner for Android. Free download.',
-  keywords: ['spider temple escape', 'android game', 'endless runner', '3d runner', 'mobile game'],
+    'Play as Spider-Man and escape the ancient cursed temple while being hunted by a terrifying Zombie monster in this 3D endless runner for Android. Free download.',
+  keywords: ['spider temple escape', 'spiderman runner', 'zombie monster', 'android game', 'endless runner', '3d runner', 'mobile game'],
   openGraph: {
-    title: 'Spider Temple Escape',
-    description: 'Outrun the beast. Conquer the temple. Available free on Android.',
-    url: 'https://akhilboss118-an.github.io/spider-temple-escape',
+    title: 'Spider Temple Escape — Spider-Man vs Zombie Monster',
+    description: 'Play as Spider-Man! Outrun the terrifying Zombie monster in an ancient temple. Available free on Android.',
+    url: 'https://spider-temple-escape.vercel.app',
     siteName: 'Spider Temple Escape',
     type: 'website',
   },
