@@ -319,6 +319,7 @@ namespace Runner.Player
                     // Landed
                     verticalVelocity = -2.0f; // Small ground clamping force
                     State = PlayerState.Running;
+                    Runner.Audio.AudioManager.Instance?.PlayLand();
                 }
             }
             else
@@ -381,6 +382,7 @@ namespace Runner.Player
                 {
                     animator.SetTrigger("Jump");
                 }
+                Runner.Audio.AudioManager.Instance?.PlayJump();
             }
         }
 
@@ -407,6 +409,7 @@ namespace Runner.Player
             {
                 animator.SetTrigger("Slide");
             }
+            Runner.Audio.AudioManager.Instance?.PlaySlide();
         }
 
         private void HandleSwipeLeft()
@@ -724,8 +727,14 @@ namespace Runner.Player
         #endregion
 
         #region Hero Suits
+        private TrailRenderer suitTrail;
+
         /// <summary>
-        /// Applies suit visual styling (Classic, Neon Stealth, Golden Armor)
+        /// Applies suit visual styling and trail effects for 4 unique suits:
+        /// 0: Classic Red & Blue
+        /// 1: Symbiote / Shadow Stealth (Violet aura & trail)
+        /// 2: Iron Spider / Gilded Armor (Gold aura & trail)
+        /// 3: Cyber Spider 2099 (Neon cyan aura & trail)
         /// </summary>
         public void ApplySuit(int suitIndex)
         {
@@ -733,22 +742,32 @@ namespace Runner.Player
             Color suitTint = Color.white;
             float emissionBoost = 0f;
             Color emissionColor = Color.black;
+            Color trailColor = Color.clear;
 
             switch (suitIndex)
             {
                 case 0: // Classic Spider Suit
                     suitTint = Color.white;
                     emissionBoost = 0f;
+                    trailColor = Color.clear;
                     break;
-                case 1: // Neon Stealth Suit (Dark with glowing cyan accents)
-                    suitTint = new Color(0.25f, 0.45f, 0.55f);
-                    emissionBoost = 0.5f;
-                    emissionColor = new Color(0.1f, 0.9f, 0.8f);
+                case 1: // Symbiote / Shadow Stealth Suit (Midnight black with glowing violet accents)
+                    suitTint = new Color(0.12f, 0.12f, 0.16f);
+                    emissionBoost = 0.7f;
+                    emissionColor = new Color(0.65f, 0.15f, 0.95f);
+                    trailColor = new Color(0.65f, 0.15f, 0.95f, 0.5f);
                     break;
-                case 2: // Golden Aztec Armor (Rich metallic gold)
+                case 2: // Iron Spider / Gilded Aztec Armor (Rich metallic gold & crimson)
                     suitTint = new Color(1.0f, 0.85f, 0.35f);
-                    emissionBoost = 0.6f;
-                    emissionColor = new Color(0.9f, 0.65f, 0.1f);
+                    emissionBoost = 0.75f;
+                    emissionColor = new Color(1.0f, 0.75f, 0.1f);
+                    trailColor = new Color(1.0f, 0.80f, 0.2f, 0.55f);
+                    break;
+                case 3: // Spider-Man 2099 / Cyber Neon (Dark indigo with electric neon cyan)
+                    suitTint = new Color(0.10f, 0.15f, 0.35f);
+                    emissionBoost = 0.85f;
+                    emissionColor = new Color(0.05f, 0.95f, 1.0f);
+                    trailColor = new Color(0.05f, 0.95f, 1.0f, 0.6f);
                     break;
             }
 
@@ -769,6 +788,27 @@ namespace Runner.Player
                         mat.DisableKeyword("_EMISSION");
                     }
                 }
+            }
+
+            // Configure dynamic suit trail
+            if (trailColor.a > 0.05f)
+            {
+                if (suitTrail == null)
+                {
+                    suitTrail = gameObject.GetComponent<TrailRenderer>();
+                    if (suitTrail == null) suitTrail = gameObject.AddComponent<TrailRenderer>();
+                    suitTrail.time = 0.35f;
+                    suitTrail.startWidth = 0.40f;
+                    suitTrail.endWidth = 0.02f;
+                    suitTrail.material = Runner.Core.MaterialHelper.CreateSafeMaterial(trailColor);
+                }
+                suitTrail.startColor = trailColor;
+                suitTrail.endColor = new Color(trailColor.r, trailColor.g, trailColor.b, 0f);
+                suitTrail.enabled = true;
+            }
+            else if (suitTrail != null)
+            {
+                suitTrail.enabled = false;
             }
         }
         #endregion

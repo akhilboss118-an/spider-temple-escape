@@ -36,3 +36,5 @@ crash.dmp
 .utmp/
 scratch/
 build_apk.ps1
+build_webgl.ps1
+hero-section-prompt.txt

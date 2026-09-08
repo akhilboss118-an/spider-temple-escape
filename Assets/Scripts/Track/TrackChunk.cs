@@ -112,6 +112,28 @@ namespace Runner.Track
             chunkType = type;
         }
 
+        public void ApplyBiome(Material floorMat, Material curbMat)
+        {
+            if (floorMat == null) return;
+            Transform floorT = transform.Find("Floor");
+            if (floorT != null)
+            {
+                var r = floorT.GetComponent<MeshRenderer>();
+                if (r != null) r.sharedMaterial = floorMat;
+            }
+
+            if (curbMat != null)
+            {
+                foreach (var r in GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    if (r != null && (r.gameObject.name.Contains("Curb") || r.gameObject.name.Contains("Ground")))
+                    {
+                        r.sharedMaterial = curbMat;
+                    }
+                }
+            }
+        }
+
         private void OnDrawGizmos()
         {
             // Visualize chunk bounds in Editor

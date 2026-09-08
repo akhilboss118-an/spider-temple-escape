@@ -32,7 +32,7 @@ namespace Runner.CameraControl
         [SerializeField] private float baseFov = 60.0f;
 
         [Tooltip("Field of View at max speed (20 m/s)")]
-        [SerializeField] private float maxFov = 72.0f;
+        [SerializeField] private float maxFov = 78.0f;
 
         [Header("Screen Shake")]
         [SerializeField] private float stumbleShakeIntensity = 0.18f;
@@ -119,14 +119,14 @@ namespace Runner.CameraControl
             }
             else if (GameManager.Instance != null)
             {
-                // Dynamic FOV Scaling with Speed & Speedrun Powerup
+                // Dynamic FOV Scaling with Speed & Speedrun Powerup (60 deg -> 78 deg, up to 84 deg on Speedrun)
                 float speed = GameManager.Instance.CurrentSpeed;
                 float t = Mathf.InverseLerp(8.0f, 20.0f, speed);
                 targetFov = Mathf.Lerp(baseFov, maxFov, t);
 
                 if (PickupManager.Instance != null && PickupManager.Instance.IsSpeedrunActive)
                 {
-                    targetFov = 78.0f;
+                    targetFov = 84.0f; // Ultra hyper-speed FOV rush
                 }
             }
 
@@ -136,9 +136,11 @@ namespace Runner.CameraControl
             // Interpolate position smoothly (zooms into 3rd-person sprint perspective on Start Run)
             transform.position = Vector3.Lerp(transform.position, desiredPosition, dt * positionFollowSpeed);
 
-            // 2. Smoothly Slerp Rotation toward player heading + slight pitch down
+            // 2. Smoothly Slerp Rotation toward player heading + subtle banking roll on lane change
             Quaternion lookRotation = Quaternion.LookRotation((playerPos + Vector3.up * 1.2f) - transform.position);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, dt * rotationSlerpSpeed);
+            float targetRoll = (PlayerController.Instance != null) ? -PlayerController.Instance.CurrentLane * 2.2f : 0f;
+            Quaternion rollRot = Quaternion.Euler(0, 0, targetRoll);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation * rollRot, dt * rotationSlerpSpeed);
 
             // 3. Dynamic FOV Scaling
             if (cam != null)

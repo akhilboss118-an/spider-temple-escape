@@ -152,6 +152,9 @@ namespace Runner.Pickups
                 GameManager.Instance.AddCoins(1);
             }
 
+            // Play ascending coin chime
+            Runner.Audio.AudioManager.Instance?.PlayCoinChime();
+
             // Spawn pink heart pickup sparkle effect
             if (ImpactEffectManager.Instance != null)
             {

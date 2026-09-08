@@ -38,6 +38,7 @@ namespace Runner.Monster
         private float currentFollowDistance = 4.0f;
         private float targetFollowDistance = 4.0f;
         private float gallopTimer = 0.0f;
+        private float stompTimer = 0.0f;
         private bool isCatching = false;
 
         private void Awake()
@@ -192,6 +193,18 @@ namespace Runner.Monster
                 float speed = GameManager.Instance != null ? GameManager.Instance.CurrentSpeed : 8.0f;
                 animator.SetFloat("Speed", speed);
                 animator.SetBool("IsChasing", true);
+            }
+
+            // Proximity Beast Stomp Audio
+            if (currentFollowDistance < 5.0f && GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Playing)
+            {
+                stompTimer += dt * (GameManager.Instance.CurrentSpeed / 7.0f);
+                if (stompTimer >= 0.42f)
+                {
+                    stompTimer = 0f;
+                    float vol = Mathf.InverseLerp(5.0f, 1.2f, currentFollowDistance);
+                    Runner.Audio.AudioManager.Instance?.PlayBeastStomp(vol * 0.75f);
+                }
             }
 
             // 3. Procedural Gallop & Attack Animations

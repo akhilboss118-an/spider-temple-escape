@@ -82,6 +82,8 @@ namespace Runner.EditorTools
             GameObject coreObj = new GameObject("Core_Manager");
             coreObj.AddComponent<GameManager>();
             coreObj.AddComponent<PickupManager>();
+            coreObj.AddComponent<Runner.Audio.AudioManager>();
+            coreObj.AddComponent<Runner.Effects.BiomeManager>();
             coreObj.AddComponent<ImpactEffectManager>();
             UIManager uiManager = coreObj.AddComponent<UIManager>();
 

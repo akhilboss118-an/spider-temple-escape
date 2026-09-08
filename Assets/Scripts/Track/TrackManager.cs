@@ -192,6 +192,14 @@ namespace Runner.Track
             chunk.gameObject.SetActive(true);
             chunk.ResetChunk();
 
+            if (Runner.Effects.BiomeManager.Instance != null)
+            {
+                var curBiome = Runner.Effects.BiomeManager.Instance.CurrentBiome;
+                var floorMat = Runner.Effects.BiomeManager.Instance.GetFloorMaterialForBiome(curBiome);
+                var curbMat = Runner.Effects.BiomeManager.Instance.GetCurbMaterialForBiome(curBiome);
+                chunk.ApplyBiome(floorMat, curbMat);
+            }
+
             // Configure junction triggers explicitly whether fresh or recycled from object pool
             if (chunk.IsJunction)
             {
@@ -1173,12 +1181,7 @@ namespace Runner.Track
                     SpawnRandomPowerUp(chunkObj.transform, new Vector3(allLanes[puLane], puBlocked ? 1.85f : 1.0f, spawnZ));
                 }
 
-                // Large dodgeable rock boulder at Z = 8.0m in one of the open lanes or ahead
-                if (Random.value < 0.45f)
-                {
-                    float laneX = allLanes[Random.Range(0, allLanes.Length)];
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(laneX, 0, 8.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-                }
+                // Clear runway after jump hurdle to allow clean landing without secondary obstacle collisions
             }
             else if (type == ChunkType.SlideArch)
             {
@@ -1212,12 +1215,7 @@ namespace Runner.Track
                     SpawnRandomPowerUp(chunkObj.transform, new Vector3(allLanes[puLane], 1.0f, spawnZ + 2.8f));
                 }
 
-                // Optional dodgeable rock boulder further down at Z = 8.2m
-                if (Random.value < 0.40f)
-                {
-                    float laneX = allLanes[Random.Range(0, allLanes.Length)];
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(laneX, 0, 8.2f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-                }
+                // Clear runway after slide arch to allow player to recover from crouch slide safely
             }
             else if (type == ChunkType.LaneBlocker)
             {

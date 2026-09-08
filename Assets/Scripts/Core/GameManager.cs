@@ -255,13 +255,14 @@ namespace Runner.Core
             stumbleSlowdownTimer = 0.0f;
             stumbleCount = 0;
             CurrentSpeed = baseSpeed;
+            Multiplier = (SelectedSuitIndex == 3) ? 2 : 1; // Suit 3: 2099 gives 2x Score Multiplier!
 
             SetState(GameState.Playing);
             OnLivesChanged?.Invoke(CurrentLives, MaxLives);
             PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
 
-            // Level 2+ Shield upgrade perk: start run with shield ready!
-            if (ShieldLevel >= 2)
+            // Level 2+ Shield or Iron Spider Suit (Suit 2): start run with shield ready!
+            if (ShieldLevel >= 2 || SelectedSuitIndex == 2)
             {
                 PickupManager.Instance?.ActivateShield();
             }
@@ -408,6 +409,7 @@ namespace Runner.Core
             AudioListener.volume = IsAudioEnabled ? AudioVolume : 0.0f;
             PlayerPrefs.SetInt(AUDIO_KEY, IsAudioEnabled ? 1 : 0);
             PlayerPrefs.Save();
+            Runner.Audio.AudioManager.Instance?.UpdateVolumeSettings();
         }
 
         public void SetAudioVolume(float vol)
@@ -419,6 +421,7 @@ namespace Runner.Core
             }
             PlayerPrefs.SetFloat(AUDIO_VOL_KEY, AudioVolume);
             PlayerPrefs.Save();
+            Runner.Audio.AudioManager.Instance?.UpdateVolumeSettings();
         }
 
         public void SetControlScheme(int scheme)
@@ -443,9 +446,30 @@ namespace Runner.Core
 #endif
         }
 
+        private const string SUIT_UNLOCKED_PREFIX = "Runner_SuitUnlocked_";
+
+        public bool IsSuitUnlocked(int suitIndex)
+        {
+            if (suitIndex == 0) return true; // Classic suit is always free & unlocked
+            return PlayerPrefs.GetInt(SUIT_UNLOCKED_PREFIX + suitIndex, 0) == 1;
+        }
+
+        public bool UnlockSuit(int suitIndex, int cost)
+        {
+            if (IsSuitUnlocked(suitIndex)) return true;
+            if (TotalBankedCoins < cost) return false;
+
+            TotalBankedCoins -= cost;
+            PlayerPrefs.SetInt(TOTAL_COINS_KEY, TotalBankedCoins);
+            PlayerPrefs.SetInt(SUIT_UNLOCKED_PREFIX + suitIndex, 1);
+            PlayerPrefs.Save();
+            SelectSuit(suitIndex);
+            return true;
+        }
+
         public void SelectSuit(int suitIndex)
         {
-            SelectedSuitIndex = Mathf.Clamp(suitIndex, 0, 2);
+            SelectedSuitIndex = Mathf.Clamp(suitIndex, 0, 3);
             PlayerPrefs.SetInt(SUIT_KEY, SelectedSuitIndex);
             PlayerPrefs.Save();
             PlayerController.Instance?.ApplySuit(SelectedSuitIndex);

@@ -288,6 +288,8 @@ namespace Runner.Pickups
         #endregion
 
         #region Activation Methods
+        private int shieldHitsRemaining = 1;
+
         public void ActivateShield(float duration = -1f)
         {
             float total = duration > 0 ? duration : shieldBaseDuration;
@@ -295,6 +297,9 @@ namespace Runner.Pickups
             {
                 total += (GameManager.Instance.ShieldLevel - 1) * 3.0f;
             }
+
+            // Iron Spider Suit (Suit 2) grants 2-hit Shield durability
+            shieldHitsRemaining = (GameManager.Instance != null && GameManager.Instance.SelectedSuitIndex == 2) ? 2 : 1;
 
             if (powerUps.TryGetValue(PowerUpType.Shield, out var inst))
             {
@@ -304,6 +309,7 @@ namespace Runner.Pickups
             SetShieldAura(true);
             OnShieldStateChanged?.Invoke(true);
             OnPowerUpStateChanged?.Invoke(PowerUpType.Shield, true);
+            Runner.Audio.AudioManager.Instance?.PlayPowerUp();
         }
 
         /// <summary>
@@ -314,18 +320,32 @@ namespace Runner.Pickups
         {
             if (!HasShield) return false;
 
-            if (powerUps.TryGetValue(PowerUpType.Shield, out var inst))
-            {
-                inst.Deactivate();
-            }
-
-            SetShieldAura(false);
-            OnShieldStateChanged?.Invoke(false);
-            OnPowerUpStateChanged?.Invoke(PowerUpType.Shield, false);
+            shieldHitsRemaining--;
+            Runner.Audio.AudioManager.Instance?.PlayShieldBreak();
 
             if (ImpactEffectManager.Instance != null)
             {
                 ImpactEffectManager.Instance.PlayShieldBreak(hitPoint);
+            }
+
+            if (shieldHitsRemaining <= 0)
+            {
+                if (powerUps.TryGetValue(PowerUpType.Shield, out var inst))
+                {
+                    inst.Deactivate();
+                }
+
+                SetShieldAura(false);
+                OnShieldStateChanged?.Invoke(false);
+                OnPowerUpStateChanged?.Invoke(PowerUpType.Shield, false);
+            }
+            else
+            {
+                // Visual feedback that 1 layer of shield cracked but 1 remains
+                if (Runner.UI.UIManager.Instance != null)
+                {
+                    Runner.UI.UIManager.Instance.ShowToast("🛡️", "Iron Spider Shield: 1 Hit Remaining!");
+                }
             }
 
             return true;
@@ -348,6 +368,7 @@ namespace Runner.Pickups
             SetSpeedrunAura(true);
             OnSpeedrunStateChanged?.Invoke(true, total);
             OnPowerUpStateChanged?.Invoke(PowerUpType.Speedrun, true);
+            Runner.Audio.AudioManager.Instance?.PlayPowerUp();
         }
 
         public void ActivateMagnet(float duration = -1f)
@@ -358,6 +379,10 @@ namespace Runner.Pickups
             {
                 pullDuration += (GameManager.Instance.MagnetLevel - 1) * 2.5f;
                 radius += (GameManager.Instance.MagnetLevel - 1) * 3.0f;
+                if (GameManager.Instance.SelectedSuitIndex == 1)
+                {
+                    radius *= 1.35f; // Symbiote Suit +35% Magnet Radius!
+                }
             }
             magnetRadius = radius;
 
@@ -369,6 +394,7 @@ namespace Runner.Pickups
 
             OnMagnetStateChanged?.Invoke(true, total);
             OnPowerUpStateChanged?.Invoke(PowerUpType.Magnet, true);
+            Runner.Audio.AudioManager.Instance?.PlayPowerUp();
         }
 
         public void TriggerHeartRevive()

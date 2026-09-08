@@ -44,6 +44,8 @@ namespace Runner.Core
             GameObject coreObj = new GameObject("Core_Manager");
             coreObj.AddComponent<GameManager>();
             coreObj.AddComponent<PickupManager>();
+            coreObj.AddComponent<Runner.Audio.AudioManager>();
+            coreObj.AddComponent<BiomeManager>();
             coreObj.AddComponent<ImpactEffectManager>();
             coreObj.AddComponent<UIManager>();
 
