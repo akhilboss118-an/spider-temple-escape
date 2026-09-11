@@ -34,6 +34,16 @@ namespace Runner.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureGameEntitiesExist()
         {
+            // 0. Immediately destroy any leftover preview roots or cameras
+            var allGo = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var go in allGo)
+            {
+                if (go != null && (go.name == "_ScenePreviewRoot" || go.name == "PreviewCam" || go.name == "PreviewTrackManager" || go.name.StartsWith("Preview_")))
+                {
+                    Destroy(go);
+                }
+            }
+
             // If GameManager already exists, scene is already set up
             if (FindAnyObjectByType<GameManager>() != null)
                 return;
@@ -44,6 +54,7 @@ namespace Runner.Core
             GameObject coreObj = new GameObject("Core_Manager");
             coreObj.AddComponent<GameManager>();
             coreObj.AddComponent<PickupManager>();
+            coreObj.AddComponent<MissionManager>();
             coreObj.AddComponent<Runner.Audio.AudioManager>();
             coreObj.AddComponent<BiomeManager>();
             coreObj.AddComponent<ImpactEffectManager>();
@@ -56,18 +67,33 @@ namespace Runner.Core
             GameObject lightObj = new GameObject("Directional Light");
             Light dirLight = lightObj.AddComponent<Light>();
             dirLight.type = LightType.Directional;
-            dirLight.color = new Color(1.0f, 0.96f, 0.88f);
-            dirLight.intensity = 1.05f;
+            dirLight.color = new Color(1.0f, 0.96f, 0.86f);
+            dirLight.intensity = 1.50f;
             dirLight.shadows = LightShadows.Soft;
-            lightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0);
+            dirLight.shadowBias = 0.05f;
+            dirLight.shadowNormalBias = 0.40f;
+            lightObj.transform.rotation = Quaternion.Euler(46f, -38f, 0);
 
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.40f, 0.44f, 0.42f);
+            // Skybox setup
+            Material skyboxMat = Resources.Load<Material>("Materials/Mat_TempleSkybox");
+#if UNITY_EDITOR
+            if (skyboxMat == null)
+                skyboxMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_TempleSkybox.mat");
+#endif
+            if (skyboxMat != null)
+            {
+                RenderSettings.skybox = skyboxMat;
+            }
+
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.82f, 0.92f, 1.0f);
+            RenderSettings.ambientEquatorColor = new Color(0.72f, 0.80f, 0.68f);
+            RenderSettings.ambientGroundColor = new Color(0.52f, 0.48f, 0.42f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 45.0f;
-            RenderSettings.fogEndDistance = 110.0f;
-            RenderSettings.fogColor = new Color(0.18f, 0.32f, 0.25f);
+            RenderSettings.fogStartDistance = 85.0f;
+            RenderSettings.fogEndDistance = 180.0f;
+            RenderSettings.fogColor = new Color(0.72f, 0.86f, 0.98f);
 
             // 3. Player GameObject (Spider-Man in 3rd Person)
             GameObject playerObj = new GameObject("Player");
@@ -321,8 +347,14 @@ namespace Runner.Core
                 mainCam = camObj.AddComponent<Camera>();
                 camObj.AddComponent<AudioListener>();
             }
-            mainCam.clearFlags = CameraClearFlags.SolidColor;
-            mainCam.backgroundColor = new Color(0.18f, 0.32f, 0.25f);
+            mainCam.clearFlags = CameraClearFlags.Skybox;
+            mainCam.backgroundColor = new Color(0.35f, 0.65f, 0.95f);
+            if (skyboxMat != null)
+            {
+                Skybox sb = mainCam.GetComponent<Skybox>();
+                if (sb == null) sb = mainCam.gameObject.AddComponent<Skybox>();
+                sb.material = skyboxMat;
+            }
             mainCam.transform.position = new Vector3(0, 3.4f, -5.8f);
             mainCam.transform.rotation = Quaternion.Euler(20f, 0, 0);
 
@@ -341,6 +373,8 @@ namespace Runner.Core
                 "Obstacles/dead_tree_obstacle",
                 "Obstacles/gravestone_obstacle",
                 "Obstacles/skull_obstacle",
+                "Obstacles/tree_branch_jump",
+                "Obstacles/tree_branch_slide",
                 "PowerUps/shield",
                 "PowerUps/speedrun",
                 "PowerUps/magnet",

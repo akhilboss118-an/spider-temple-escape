@@ -12,6 +12,7 @@ namespace Runner.UI
         None,
         HeroSuits,
         Upgrades,
+        Missions,
         Settings,
         Leaderboard,
         QuitConfirm
@@ -45,6 +46,24 @@ namespace Runner.UI
         private Texture2D deathBgTexture;
         private Texture2D whiteTexture;
 
+        // AAA Cinematic Overlay Textures
+        private Texture2D vignetteTexture;       // Radial dark vignette for HUD
+        private Texture2D vignetteRedTexture;  // Red danger vignette for death
+        private Texture2D speedLinesTexture;   // Speed radial blur hint
+        private float vignetteTimer = 0f;
+        private float speedLineAlpha = 0f;
+
+        // Distance Milestone Celebration Banners (tied to road-tier progression)
+        private int lastMilestoneIndex = -1;
+        private float milestoneBannerTimer = 0f;
+        private string milestoneBannerText = "";
+        private string milestoneBannerSub = "";
+
+        private static readonly float[] MilestoneThresholds = new float[]
+        {
+            100f, 250f, 500f, 750f, 1000f, 1500f, 2000f, 3000f, 4000f, 5000f, 7500f, 10000f
+        };
+
         // In-Game Pause & Countdown State
         private bool isMidGameSettingsOpen = false;
         private float resumeCountdownTimer = 0f;
@@ -77,12 +96,14 @@ namespace Runner.UI
 
         private static readonly string[] LoadingTips = new string[]
         {
-            "💡 Swipe UP to leap over fallen ancient tree logs",
-            "💡 Swipe DOWN to slide under overhead tree branch arches",
-            "💡 Swipe LEFT or RIGHT to switch lanes and take sharp 90° corners",
-            "💡 Grab Monster Energy drinks for invulnerable speed bursts",
-            "💡 Collect glowing 💖 Hearts to bank relics and earn extra lives",
-            "💡 Activate Shields to absorb fatal obstacle collisions"
+            "🕷️ SPIDER REFLEX // Swipe UP to leap over fallen jungle timber & mossy boulders",
+            "🕷️ LOW PROFILE // Swipe DOWN to slide beneath stone temple arches and spike grates",
+            "🕷️ ACROBATIC CORNERING // Swipe LEFT or RIGHT before 90° corners to anchor web-lines",
+            "⚡ MONSTER BURST // Grab energy cans for invulnerable supersonic barrier speed",
+            "💖 SACRED RELICS // Gather glowing Hearts to bank artifacts and survive fatal strikes",
+            "🛡️ SHIELD PROTOCOL // Shields absorb one catastrophic obstacle crash without losing momentum",
+            "🔥 VOLCANIC RUINS // Beware collapsing lava tiles and sudden magma plumes at high velocity",
+            "🕸️ WEB-SLING RECOVERY // Double-check lane indicators before entering foggy temple corridors"
         };
 
         private void Awake()
@@ -116,8 +137,13 @@ namespace Runner.UI
             }
             EnsureTextures();
 
-            // Initial Game Launch Loading Screen
-            StartLoading(2.2f, "INITIALIZING EXPEDITION...", null, "SPIDER TEMPLE ESCAPE", "ENDLESS 3D JUNGLE RUNNER");
+            // Initial Game Launch Loading Screen (skip in Editor for instant play)
+#if !UNITY_EDITOR
+            StartLoading(0.5f, "INITIALIZING EXPEDITION...", null, "SPIDER TEMPLE ESCAPE", "ENDLESS 3D JUNGLE RUNNER");
+#else
+            isLoading = false;
+            loadingFadeAlpha = 0f;
+#endif
         }
 
         private void OnDestroy()
@@ -195,6 +221,8 @@ namespace Runner.UI
             {
                 isGameOver = false;
                 gameOverDuration = 0f;
+                lastMilestoneIndex = -1;
+                milestoneBannerTimer = 0f;
             }
         }
 
@@ -236,6 +264,60 @@ namespace Runner.UI
                     deathBgTexture = Resources.Load<Texture2D>("Textures/death_screen_bg");
                 }
             }
+
+            // Create AAA cinematic vignette textures
+            CreateVignetteTextures();
+        }
+
+        private void CreateVignetteTextures()
+        {
+            if (vignetteTexture == null)
+            {
+                vignetteTexture = CreateRadialVignette(64, 0f, 0.55f, new Color(0, 0, 0, 1f));
+            }
+            if (vignetteRedTexture == null)
+            {
+                vignetteRedTexture = CreateRadialVignette(64, 0f, 0.75f, new Color(0.3f, 0.02f, 0.04f, 1f));
+            }
+            if (speedLinesTexture == null)
+            {
+                speedLinesTexture = CreateRadialVignette(64, 0f, 0.6f, new Color(1f, 1f, 1f, 1f));
+            }
+        }
+
+        /// <summary>
+        /// Creates a radial vignette texture.
+        /// centerAlpha: alpha at center (usually 0 = fully transparent center)
+        /// edgeAlpha: alpha at edges (high = dark/bright edges)
+        /// power: falloff curve (higher = sharper falloff)
+        /// color: RGBA color of the vignette
+        /// </summary>
+        private Texture2D CreateRadialVignette(int resolution, float centerAlpha, float edgeAlpha, Color color)
+        {
+            Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.ARGB32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            Color[] pixels = new Color[resolution * resolution];
+
+            float center = resolution * 0.5f;
+            float maxDist = center;
+
+            for (int y = 0; y < resolution; y++)
+            {
+                for (int x = 0; x < resolution; x++)
+                {
+                    float dx = x - center;
+                    float dy = y - center;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy) / maxDist;
+                    dist = Mathf.Clamp01(dist);
+                    float t = Mathf.Pow(dist, 0.7f);
+                    float alpha = Mathf.Lerp(centerAlpha, edgeAlpha, t);
+                    pixels[y * resolution + x] = new Color(color.r, color.g, color.b, alpha);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
         }
 
         public void ShowToast(string icon, string message, float duration = 1.8f)
@@ -434,8 +516,11 @@ namespace Runner.UI
             }
 
             // 3. Fallback: Native IMGUI GUI.Button
+            Color prevColor = GUI.color;
             GUI.color = Color.clear;
-            if (GUI.Button(rect, GUIContent.none, GUIStyle.none))
+            bool clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            GUI.color = prevColor;
+            if (clicked)
             {
                 return true;
             }
@@ -534,6 +619,31 @@ namespace Runner.UI
         {
             UpdatePointerInput();
 
+            // AAA: Animate vignette pulse when hit / low health
+            if (vignetteTimer > 0f)
+            {
+                vignetteTimer -= Time.unscaledDeltaTime;
+            }
+
+            // AAA: Speed line effect based on current speed
+            if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Playing)
+            {
+                float speed = GameManager.Instance.CurrentSpeed;
+                float speedT = Mathf.InverseLerp(14f, 20f, speed);
+                speedLineAlpha = Mathf.Lerp(speedLineAlpha, speedT * 0.4f, Time.deltaTime * 4f);
+            }
+            else
+            {
+                speedLineAlpha = Mathf.Lerp(speedLineAlpha, 0f, Time.deltaTime * 3f);
+            }
+
+            // AAA: Distance milestone celebration banners
+            CheckDistanceMilestones();
+            if (milestoneBannerTimer > 0f)
+            {
+                milestoneBannerTimer -= Time.unscaledDeltaTime;
+            }
+
             if (isLoading)
             {
                 UpdateLoading();
@@ -572,6 +682,31 @@ namespace Runner.UI
                     GameManager.Instance?.ResumeGame();
                 }
             }
+
+            // Universal key detection from Update for starting the game or restarting on game over
+            if (GameManager.Instance != null)
+            {
+                if (GameManager.Instance.CurrentState == GameState.Menu && activeModal == MenuModal.None && !isLoading)
+                {
+                    if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
+                        Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow) ||
+                        Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow) ||
+                        Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow) ||
+                        Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow))
+                    {
+                        ShowToast("🏃", "Starting Expedition...");
+                        GameManager.Instance.StartGame();
+                    }
+                }
+                else if (GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.25f)
+                {
+                    if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
+                        Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
+                    {
+                        GameManager.Instance.RestartGame();
+                    }
+                }
+            }
         }
 
         private void OnGUI()
@@ -594,7 +729,11 @@ namespace Runner.UI
                 Event e = Event.current;
                 if (e != null && e.isKey && e.type == EventType.KeyDown)
                 {
-                    if (e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
+                    if (e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter ||
+                        e.keyCode == KeyCode.W || e.keyCode == KeyCode.UpArrow ||
+                        e.keyCode == KeyCode.A || e.keyCode == KeyCode.LeftArrow ||
+                        e.keyCode == KeyCode.D || e.keyCode == KeyCode.RightArrow ||
+                        e.keyCode == KeyCode.S || e.keyCode == KeyCode.DownArrow)
                     {
                         if (GameManager.Instance.CurrentState == GameState.Menu)
                         {
@@ -612,9 +751,14 @@ namespace Runner.UI
                         }
                         else if (GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.25f)
                         {
-                            GameManager.Instance.StartGame();
+                            GameManager.Instance.RestartGame();
                             e.Use();
                         }
+                    }
+                    else if (e.keyCode == KeyCode.R && GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.25f)
+                    {
+                        GameManager.Instance.RestartGame();
+                        e.Use();
                     }
                     else if (e.keyCode == KeyCode.Escape)
                     {
@@ -700,17 +844,10 @@ namespace Runner.UI
 
             float uiScale = Mathf.Clamp(Screen.width / 390.0f, 0.80f, 2.4f);
 
-            // 1. Fullscreen Background Art
-            if (menuBgTexture != null)
-            {
-                GUI.color = Color.white;
-                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), menuBgTexture, ScaleMode.ScaleAndCrop);
-            }
-            else
-            {
-                GUI.color = new Color(0.04f, 0.08f, 0.07f, 1f);
-                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
-            }
+            // 1. Cinematic Glass Backdrop (reveals Spider-Man & ancient temple runway in full 3D)
+            DrawCinematicVignette();
+            GUI.color = new Color(0.02f, 0.05f, 0.04f, 0.35f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
 
             // If a sub-modal is open, render modal in foreground and return immediately
             if (activeModal != MenuModal.None)
@@ -864,7 +1001,17 @@ namespace Runner.UI
             GUI.skin.label.fontSize = Mathf.RoundToInt(22 * uiScale);
             GUI.Label(new Rect(actionX, startActionY, maxActionW - (18f * uiScale), ctaH), "›");
 
-            if (IsCardClicked(101, ctaRect))
+            // Pulsing "⚡ TAP TO RUN ⚡" indicator above CTA button
+            float tapPulse = 0.70f + 0.30f * Mathf.Sin(Time.unscaledTime * 4.5f);
+            GUI.color = new Color(1.0f, 0.92f, 0.40f, tapPulse);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(13 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(actionX, startActionY - (26f * uiScale), maxActionW, 22f * uiScale), "⚡ TAP TO RUN ⚡");
+
+            // Tap anywhere on the 3D play area or click START RUN button to start the game
+            Rect tapPlayArea = new Rect(0, divY + (10f * uiScale), Screen.width, startActionY - divY);
+            if (activeModal == MenuModal.None && (IsCardClicked(101, ctaRect) || IsCardClicked(100, tapPlayArea)))
             {
                 ShowToast("🏃", "Starting Expedition...");
                 GameManager.Instance.StartGame();
@@ -872,9 +1019,9 @@ namespace Runner.UI
             }
 
             // 6. Secondary Action Cards Stack
-            float cardH = 38f * uiScale;
-            float cardGap = 5f * uiScale;
-            float curCardY = startActionY + ctaH + (8f * uiScale);
+            float cardH = 32f * uiScale;
+            float cardGap = 4f * uiScale;
+            float curCardY = startActionY + ctaH + (6f * uiScale);
 
             // Card 1: HERO SUITS
             Rect suitRect = new Rect(actionX, curCardY, maxActionW, cardH);
@@ -886,12 +1033,12 @@ namespace Runner.UI
 
             GUI.color = Color.white;
             GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(12 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(actionX + (14f * uiScale), curCardY, maxActionW * 0.6f, cardH), "🕷️  HERO SUITS");
             GUI.color = new Color(0.25f, 0.95f, 1.0f);
             GUI.skin.label.alignment = TextAnchor.MiddleRight;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             int unlockedCount = 1;
             for (int s = 1; s < 4; s++) { if (GameManager.Instance.IsSuitUnlocked(s)) unlockedCount++; }
             GUI.Label(new Rect(actionX, curCardY, maxActionW - (14f * uiScale), cardH), $"{unlockedCount}/4 Unlocked ›");
@@ -910,19 +1057,42 @@ namespace Runner.UI
 
             GUI.color = Color.white;
             GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(12 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(actionX + (14f * uiScale), curCardY, maxActionW * 0.6f, cardH), "⚡  UPGRADES");
             GUI.color = new Color(1.0f, 0.88f, 0.35f);
             GUI.skin.label.alignment = TextAnchor.MiddleRight;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.Label(new Rect(actionX, curCardY, maxActionW - (14f * uiScale), cardH), "Boosts & Relics ›");
             if (IsCardClicked(103, upgRect))
             {
                 activeModal = MenuModal.Upgrades;
             }
 
-            // Card 3: SETTINGS
+            // Card 3: MISSIONS & ACHIEVEMENTS
+            curCardY += cardH + cardGap;
+            Rect misRect = new Rect(actionX, curCardY, maxActionW, cardH);
+            DrawCard(misRect, new Color(0.06f, 0.09f, 0.11f, 0.85f));
+            DrawBorder(misRect, new Color(0.25f, 0.95f, 0.55f, 0.70f), 1.2f);
+            GUI.color = new Color(0.25f, 0.95f, 0.55f, 0.90f);
+            GUI.DrawTexture(new Rect(actionX, curCardY, 3f * uiScale, cardH), whiteTexture);
+
+            GUI.color = Color.white;
+            GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(actionX + (14f * uiScale), curCardY, maxActionW * 0.55f, cardH), "📜  MISSIONS");
+            int unclaimed = MissionManager.Instance != null ? MissionManager.Instance.GetUnclaimedRewardsCount() : 0;
+            GUI.color = unclaimed > 0 ? new Color(1.0f, 0.85f, 0.20f) : new Color(0.35f, 0.95f, 0.65f);
+            GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
+            GUI.Label(new Rect(actionX, curCardY, maxActionW - (14f * uiScale), cardH), unclaimed > 0 ? $"✨ {unclaimed} Claimable! ›" : "Daily Quests ›");
+            if (IsCardClicked(108, misRect))
+            {
+                activeModal = MenuModal.Missions;
+            }
+
+            // Card 4: SETTINGS
             curCardY += cardH + cardGap;
             Rect setRect = new Rect(actionX, curCardY, maxActionW, cardH);
             DrawCard(setRect, new Color(0.06f, 0.09f, 0.11f, 0.85f));
@@ -932,19 +1102,19 @@ namespace Runner.UI
 
             GUI.color = Color.white;
             GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(12 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(actionX + (14f * uiScale), curCardY, maxActionW * 0.6f, cardH), "⚙️  SETTINGS");
             GUI.color = new Color(0.80f, 0.88f, 0.95f);
             GUI.skin.label.alignment = TextAnchor.MiddleRight;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.Label(new Rect(actionX, curCardY, maxActionW - (14f * uiScale), cardH), "Options ›");
             if (IsCardClicked(104, setRect))
             {
                 activeModal = MenuModal.Settings;
             }
 
-            // Card 4: QUIT
+            // Card 5: QUIT
             curCardY += cardH + cardGap;
             Rect quitRect = new Rect(actionX, curCardY, maxActionW, cardH);
             DrawCard(quitRect, new Color(0.10f, 0.06f, 0.07f, 0.85f));
@@ -954,12 +1124,12 @@ namespace Runner.UI
 
             GUI.color = Color.white;
             GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(12 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(actionX + (14f * uiScale), curCardY, maxActionW * 0.6f, cardH), "🚪  QUIT");
             GUI.color = new Color(1.0f, 0.55f, 0.55f);
             GUI.skin.label.alignment = TextAnchor.MiddleRight;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.Label(new Rect(actionX, curCardY, maxActionW - (14f * uiScale), cardH), "Exit Game ›");
             if (IsCardClicked(105, quitRect))
             {
@@ -1035,6 +1205,7 @@ namespace Runner.UI
             {
                 case MenuModal.HeroSuits: title = "🕷️ HERO SUITS"; break;
                 case MenuModal.Upgrades: title = "⚡ RELIC UPGRADES"; break;
+                case MenuModal.Missions: title = "📜 EXPEDITION MISSIONS"; break;
                 case MenuModal.Settings: title = "⚙️ GAME SETTINGS"; break;
                 case MenuModal.Leaderboard: title = "🏆 GLOBAL STATS"; break;
                 case MenuModal.QuitConfirm: title = "🚪 QUIT EXPEDITION"; break;
@@ -1068,6 +1239,9 @@ namespace Runner.UI
                     break;
                 case MenuModal.Upgrades:
                     RenderUpgradesBody(modalX, bodyY, modalW, uiScale);
+                    break;
+                case MenuModal.Missions:
+                    RenderMissionsBody(modalX, bodyY, modalW, uiScale);
                     break;
                 case MenuModal.Settings:
                     RenderSettingsBody(modalX, bodyY, modalW, uiScale);
@@ -1211,8 +1385,8 @@ namespace Runner.UI
             GUI.Label(new Rect(startX, y, cardW, 24f * scale), $"💖 Available: {GameManager.Instance.TotalBankedCoins} Hearts");
 
             float curY = y + (26f * scale);
-            float cardH = 64f * scale;
-            float gap = 6f * scale;
+            float cardH = 50f * scale;
+            float gap = 4f * scale;
 
             // 1. Shield Relic
             RenderUpgradeCard(startX, curY, cardW, cardH, scale,
@@ -1226,7 +1400,7 @@ namespace Runner.UI
             RenderUpgradeCard(startX, curY, cardW, cardH, scale,
                 "⚡ SUPER BOOST",
                 $"3x speed & barrier smash. Lvl {GameManager.Instance.SpeedLevel}/5",
-                $"+{(GameManager.Instance.SpeedLevel - 1) * 2}s duration boost (total: {6 + (GameManager.Instance.SpeedLevel - 1) * 2}s)",
+                $"+{(GameManager.Instance.SpeedLevel - 1) * 2}s boost (total: {6 + (GameManager.Instance.SpeedLevel - 1) * 2}s)",
                 PowerUpType.Speedrun, GameManager.Instance.SpeedLevel);
 
             // 3. Magnet Relic
@@ -1234,12 +1408,161 @@ namespace Runner.UI
             RenderUpgradeCard(startX, curY, cardW, cardH, scale,
                 "🧲 RELIC MAGNET",
                 $"Draws hearts across lanes. Lvl {GameManager.Instance.MagnetLevel}/5",
-                $"Range: {8 + (GameManager.Instance.MagnetLevel - 1) * 3}m across all 3 tracks",
+                $"Range: {8 + (GameManager.Instance.MagnetLevel - 1) * 3}m pull radius",
                 PowerUpType.Magnet, GameManager.Instance.MagnetLevel);
 
-            // 4. Heart Capacity
+            // 4. Multiplier Frenzy Totem
+            curY += cardH + gap;
+            RenderUpgradeCard(startX, curY, cardW, cardH, scale,
+                "🔥 FRENZY TOTEM",
+                $"3x Score Multiplier. Lvl {GameManager.Instance.FrenzyLevel}/5",
+                $"+{(GameManager.Instance.FrenzyLevel - 1) * 2}s frenzy (total: {8 + (GameManager.Instance.FrenzyLevel - 1) * 2}s)",
+                PowerUpType.MultiplierFrenzy, GameManager.Instance.FrenzyLevel);
+
+            // 5. Heart Capacity
             curY += cardH + gap;
             RenderHeartCapacityCard(startX, curY, cardW, cardH, scale);
+        }
+
+        private int missionsTab = 0; // 0 = Daily Quests, 1 = Lifetime Achievements
+
+        private void RenderMissionsBody(float x, float y, float w, float scale)
+        {
+            float startX = x + (16f * scale);
+            float bodyW = w - (32f * scale);
+
+            // Tab Buttons: [ 📜 DAILY MISSIONS ]  [ 🏆 ACHIEVEMENTS ]
+            float tabH = 30f * scale;
+            float tabW = (bodyW - (6f * scale)) * 0.5f;
+
+            // Tab 0: Daily
+            Rect tab0Rect = new Rect(startX, y, tabW, tabH);
+            bool isTab0 = (missionsTab == 0);
+            DrawCard(tab0Rect, isTab0 ? new Color(0.12f, 0.24f, 0.18f, 0.95f) : new Color(0.08f, 0.10f, 0.10f, 0.70f));
+            if (isTab0) DrawBorder(tab0Rect, new Color(0.30f, 0.95f, 0.60f, 0.90f), 1.2f);
+            GUI.color = isTab0 ? new Color(0.35f, 0.95f, 0.65f) : new Color(0.6f, 0.7f, 0.65f);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(tab0Rect, "📜 DAILY MISSIONS");
+            if (IsCardClicked(210, tab0Rect)) missionsTab = 0;
+
+            // Tab 1: Achievements
+            Rect tab1Rect = new Rect(startX + tabW + (6f * scale), y, tabW, tabH);
+            bool isTab1 = (missionsTab == 1);
+            DrawCard(tab1Rect, isTab1 ? new Color(0.24f, 0.18f, 0.08f, 0.95f) : new Color(0.08f, 0.10f, 0.10f, 0.70f));
+            if (isTab1) DrawBorder(tab1Rect, new Color(1.0f, 0.85f, 0.30f, 0.90f), 1.2f);
+            GUI.color = isTab1 ? new Color(1.0f, 0.85f, 0.35f) : new Color(0.7f, 0.65f, 0.6f);
+            GUI.Label(tab1Rect, "🏆 ACHIEVEMENTS");
+            if (IsCardClicked(211, tab1Rect)) missionsTab = 1;
+
+            float curY = y + tabH + (8f * scale);
+            float cardH = 58f * scale;
+            float gap = 5f * scale;
+
+            var list = (missionsTab == 0)
+                ? MissionManager.Instance?.DailyMissions
+                : MissionManager.Instance?.LifetimeAchievements;
+
+            if (list != null)
+            {
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (curY + cardH > y + (360f * scale)) break; // fit within modal bounds
+                    var m = list[i];
+                    RenderMissionCard(startX, curY, bodyW, cardH, scale, m, 500 + (missionsTab * 50) + i);
+                    curY += cardH + gap;
+                }
+            }
+        }
+
+        private void RenderMissionCard(float x, float y, float w, float h, float scale, MissionData mission, int clickId)
+        {
+            Rect r = new Rect(x, y, w, h);
+            Color bg = mission.IsClaimed 
+                ? new Color(0.07f, 0.09f, 0.08f, 0.65f)
+                : (mission.IsComplete ? new Color(0.10f, 0.20f, 0.14f, 0.95f) : new Color(0.08f, 0.11f, 0.10f, 0.90f));
+            DrawCard(r, bg);
+
+            Color borderCol = mission.IsClaimed
+                ? new Color(0.35f, 0.45f, 0.40f, 0.40f)
+                : (mission.IsComplete ? new Color(0.30f, 0.95f, 0.60f, 0.85f) : new Color(1.0f, 0.82f, 0.32f, 0.40f));
+            DrawBorder(r, borderCol, 1.0f);
+
+            // Title
+            GUI.color = mission.IsComplete && !mission.IsClaimed ? new Color(0.35f, 0.95f, 0.65f) : new Color(1.0f, 0.88f, 0.40f);
+            GUI.skin.label.alignment = TextAnchor.UpperLeft;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(x + (10f * scale), y + (5f * scale), w - (95f * scale), 18f * scale), mission.Title);
+
+            // Description
+            GUI.color = new Color(0.75f, 0.85f, 0.80f);
+            GUI.skin.label.fontStyle = FontStyle.Normal;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(8f * scale);
+            GUI.Label(new Rect(x + (10f * scale), y + (22f * scale), w - (95f * scale), 16f * scale), mission.Description);
+
+            // Progress Bar
+            float barW = w - (105f * scale);
+            float barH = 6f * scale;
+            float barX = x + (10f * scale);
+            float barY = y + (40f * scale);
+
+            // Bar background
+            GUI.color = new Color(0.12f, 0.16f, 0.14f, 0.90f);
+            GUI.DrawTexture(new Rect(barX, barY, barW, barH), whiteTexture);
+
+            // Bar fill
+            float fillRatio = mission.ProgressNormalized;
+            GUI.color = mission.IsComplete ? new Color(0.25f, 0.95f, 0.55f) : new Color(1.0f, 0.78f, 0.20f);
+            GUI.DrawTexture(new Rect(barX, barY, barW * fillRatio, barH), whiteTexture);
+
+            // Progress text
+            GUI.color = new Color(0.9f, 0.95f, 0.9f);
+            GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(7.5f * scale);
+            string progText = mission.IsComplete ? "COMPLETE" : $"{mission.CurrentProgress}/{mission.TargetAmount}";
+            GUI.Label(new Rect(barX, barY - (9f * scale), barW, 9f * scale), progText);
+
+            // Right Button / Status Badge
+            float btnW = 84f * scale;
+            float btnH = 32f * scale;
+            Rect btnRect = new Rect(x + w - btnW - (8f * scale), y + (13f * scale), btnW, btnH);
+
+            if (mission.IsClaimed)
+            {
+                DrawCard(btnRect, new Color(0.12f, 0.16f, 0.14f, 0.70f));
+                GUI.color = new Color(0.55f, 0.65f, 0.60f);
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(8.5f * scale);
+                GUI.skin.label.fontStyle = FontStyle.Normal;
+                GUI.Label(btnRect, "✓ CLAIMED");
+            }
+            else if (mission.IsComplete)
+            {
+                // Pulsing Green Radiant Claim CTA!
+                float pulse = 0.85f + Mathf.PingPong(Time.unscaledTime * 2.0f, 0.15f);
+                DrawCard(btnRect, new Color(0.15f * pulse, 0.65f * pulse, 0.25f * pulse, 0.95f));
+                DrawBorder(btnRect, new Color(0.40f, 1.0f, 0.60f, 0.95f), 1.2f);
+                GUI.color = Color.white;
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
+                GUI.skin.label.fontStyle = FontStyle.Bold;
+                GUI.Label(btnRect, $"CLAIM +{mission.RewardCoins}💎");
+                if (IsCardClicked(clickId, btnRect))
+                {
+                    MissionManager.Instance?.ClaimReward(mission);
+                }
+            }
+            else
+            {
+                DrawCard(btnRect, new Color(0.14f, 0.12f, 0.08f, 0.80f));
+                GUI.color = new Color(1.0f, 0.82f, 0.35f);
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(8.5f * scale);
+                GUI.skin.label.fontStyle = FontStyle.Bold;
+                GUI.Label(btnRect, $"+{mission.RewardCoins} 💎");
+            }
         }
 
         private void RenderUpgradeCard(float x, float y, float w, float h, float scale, string name, string levelStr, string desc, PowerUpType type, int currentLvl)
@@ -1644,6 +1967,12 @@ namespace Runner.UI
 
             float uiScale = Mathf.Clamp(Screen.width / 420.0f, 0.85f, 2.4f);
 
+            // AAA: Draw cinematic vignette overlay for depth and immersion
+            DrawCinematicVignette();
+
+            // AAA: Draw speed radial effect when running fast
+            DrawSpeedOverlay();
+
             Rect safe = Screen.safeArea;
             float topOffset = Screen.height > safe.height ? (Screen.height - (safe.y + safe.height)) : 0f;
             float safeLeft = Mathf.Max(14f * uiScale, safe.x + 8f * uiScale);
@@ -1692,6 +2021,11 @@ namespace Runner.UI
             // Pill 2: Real Heart Collection Meter (Segmented gauge, heartbeat pulse, shimmer sheen, and floating +1 popup)
             float heartY = safeTop + distH + (6f * uiScale);
             RenderHeartMeter(pillX, heartY, pillW, uiScale);
+
+            // Live record badge, milestone celebrations & beast-proximity warning
+            RenderNewBestBadge(pillX, heartY + (46f * uiScale) + (5f * uiScale), pillW, uiScale);
+            RenderMilestoneBanner(uiScale);
+            RenderBeastWarning(uiScale);
         }
 
         private void RenderHeartMeter(float x, float y, float width, float uiScale)
@@ -2273,6 +2607,112 @@ namespace Runner.UI
         }
         #endregion
 
+        #region Milestone Banners & Live Badges
+        private static string GetZoneNameForDistance(float distance)
+        {
+            if (distance < 1000f) return "JUNGLE TRAIL";
+            if (distance < 2000f) return "ROCKY RUINS";
+            return "VOLCANIC HIGHWAY";
+        }
+
+        private void CheckDistanceMilestones()
+        {
+            if (GameManager.Instance == null) return;
+            if (GameManager.Instance.CurrentState != GameState.Playing) return;
+
+            float dist = GameManager.Instance.DistanceTraveled;
+            int nextIdx = lastMilestoneIndex + 1;
+            if (nextIdx < 0) nextIdx = 0;
+
+            while (nextIdx < MilestoneThresholds.Length && dist >= MilestoneThresholds[nextIdx])
+            {
+                lastMilestoneIndex = nextIdx;
+                float hit = MilestoneThresholds[nextIdx];
+                milestoneBannerText = $"🏛️ {hit:N0}m";
+                milestoneBannerSub = $"{GetZoneNameForDistance(hit)} — KEEP RUNNING!";
+                milestoneBannerTimer = 2.8f;
+                nextIdx++;
+            }
+        }
+
+        private void RenderMilestoneBanner(float uiScale)
+        {
+            if (milestoneBannerTimer <= 0f) return;
+
+            // Scale-in pop for the first 0.3s, fade out over the last 0.6s
+            float age = 2.8f - milestoneBannerTimer;
+            float pop = Mathf.Clamp01(age / 0.3f);
+            float ease = 1f - Mathf.Pow(1f - pop, 3f);
+            float alpha = Mathf.Clamp01(milestoneBannerTimer / 0.6f);
+
+            float w = Mathf.Min(300f * uiScale, Screen.width - (40f * uiScale)) * (0.7f + 0.3f * ease);
+            float h = 54f * uiScale;
+            float x = (Screen.width - w) * 0.5f;
+
+            Rect safe = Screen.safeArea;
+            float topOffset = Screen.height > safe.height ? (Screen.height - (safe.y + safe.height)) : 0f;
+            float y = Mathf.Max(14f * uiScale, topOffset + 8f * uiScale) + (58f * uiScale);
+
+            Rect bannerRect = new Rect(x, y, w, h);
+            DrawCard(bannerRect, new Color(0.10f, 0.08f, 0.03f, 0.92f * alpha));
+            DrawBorder(bannerRect, new Color(1.0f, 0.82f, 0.30f, 0.95f * alpha), 1.8f);
+            DrawCornerBrackets(bannerRect, 10f * uiScale, 1.5f, new Color(1.0f, 0.88f, 0.40f, 0.90f * alpha));
+
+            GUI.color = new Color(1.0f, 0.88f, 0.35f, alpha);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(17 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(x, y + (4f * uiScale), w, 24f * uiScale), milestoneBannerText);
+
+            GUI.color = new Color(0.55f, 0.95f, 0.75f, alpha);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
+            GUI.Label(new Rect(x, y + (28f * uiScale), w, 18f * uiScale), milestoneBannerSub);
+        }
+
+        private void RenderBeastWarning(float uiScale)
+        {
+            if (GameManager.Instance == null || !GameManager.Instance.IsStumbling) return;
+
+            float flash = (Mathf.Sin(Time.unscaledTime * 10f) + 1f) * 0.5f;
+            float w = Mathf.Min(260f * uiScale, Screen.width - (60f * uiScale));
+            float h = 26f * uiScale;
+            float x = (Screen.width - w) * 0.5f;
+
+            Rect safe = Screen.safeArea;
+            float topOffset = Screen.height > safe.height ? (Screen.height - (safe.y + safe.height)) : 0f;
+            float y = Mathf.Max(14f * uiScale, topOffset + 8f * uiScale) + (118f * uiScale);
+
+            Rect warnRect = new Rect(x, y, w, h);
+            DrawCard(warnRect, new Color(0.30f, 0.04f, 0.06f, 0.90f));
+            DrawBorder(warnRect, Color.Lerp(new Color(1f, 0.25f, 0.30f), new Color(1f, 0.75f, 0.20f), flash), 1.8f);
+
+            GUI.color = Color.Lerp(new Color(1f, 0.55f, 0.55f), new Color(1f, 0.95f, 0.80f), flash);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(warnRect, $"⚠️ BEAST CLOSING IN! {GameManager.Instance.StumbleTimeRemaining:F1}s");
+        }
+
+        private void RenderNewBestBadge(float pillX, float badgeY, float pillW, float uiScale)
+        {
+            if (GameManager.Instance == null) return;
+            if (GameManager.Instance.HighScore <= 0) return;
+            if (GameManager.Instance.Score <= GameManager.Instance.HighScore) return;
+
+            float pulse = 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 6f);
+            float h = 20f * uiScale;
+            Rect badgeRect = new Rect(pillX, badgeY, pillW, h);
+            DrawCard(badgeRect, new Color(0.28f, 0.20f, 0.04f, 0.92f));
+            DrawBorder(badgeRect, new Color(1.0f, 0.88f, 0.30f, pulse), 1.4f);
+
+            GUI.color = new Color(1.0f, 0.90f, 0.40f, pulse);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(badgeRect, "★ NEW BEST ★");
+        }
+        #endregion
+
         #region Loading Screen System
         public void StartLoading(float duration, string statusText, Action onFinished = null, string header = "SPIDER TEMPLE ESCAPE", string subHeader = "ENDLESS 3D JUNGLE RUNNER")
         {
@@ -2296,13 +2736,18 @@ namespace Runner.UI
 
             if (!isLoadingFadingOut)
             {
+                if (pointerPressedThisFrame || (Event.current != null && Event.current.isKey))
+                {
+                    loadingTimer = loadingDuration;
+                }
+
                 loadingTimer += Time.unscaledDeltaTime;
                 float rawT = Mathf.Clamp01(loadingTimer / loadingDuration);
-                // Realistic smooth ease loading curve
-                loadingProgress = Mathf.Sin(rawT * Mathf.PI * 0.5f);
+                // Realistic smooth ease loading curve (smoothstep / sinusoidal)
+                loadingProgress = rawT * rawT * (3f - 2f * rawT);
 
                 tipChangeTimer += Time.unscaledDeltaTime;
-                if (tipChangeTimer > 2.2f)
+                if (tipChangeTimer > 2.0f)
                 {
                     tipChangeTimer = 0f;
                     currentTipIndex = (currentTipIndex + 1) % LoadingTips.Length;
@@ -2326,7 +2771,7 @@ namespace Runner.UI
             else
             {
                 // Smooth fade out into destination scene
-                loadingFadeAlpha -= Time.unscaledDeltaTime * 2.8f;
+                loadingFadeAlpha -= Time.unscaledDeltaTime * 2.5f;
                 if (loadingFadeAlpha <= 0f)
                 {
                     loadingFadeAlpha = 0f;
@@ -2342,64 +2787,235 @@ namespace Runner.UI
 
             float uiScale = Mathf.Clamp(Screen.width / 390.0f, 0.80f, 2.4f);
 
-            // 1. Clean, Pitch-Black Obsidian Background (No background art)
-            GUI.color = new Color(0.04f, 0.05f, 0.06f, loadingFadeAlpha);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
-
-            // Absorb pointer clicks on the full screen
+            // 1. Full Screen Pointer Trap (absorbs clicks to prevent background UI triggers)
             GUI.color = Color.clear;
             GUI.Button(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, GUIStyle.none);
 
-            // 2. Safe Area calculations
-            Rect safe = Screen.safeArea;
-            float topOffset = Screen.height > safe.height ? (Screen.height - (safe.y + safe.height)) : 0f;
-            float safeTop = Mathf.Max(42f * uiScale, topOffset + (30f * uiScale));
+            // 2. AAA Cinematic Dark Obsidian Base Canvas
+            GUI.color = new Color(0.025f, 0.035f, 0.045f, loadingFadeAlpha);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
 
-            // 3. Header & Sub-header Branding
-            GUI.color = new Color(0.30f, 0.95f, 0.80f, 0.90f * loadingFadeAlpha);
+            // 3. Ambient Atmospheric Glow (Deep Emerald & Warm Gold Vignette)
+            if (vignetteTexture != null)
+            {
+                float auraSize = Mathf.Max(Screen.width, Screen.height) * 1.15f;
+                float auraX = (Screen.width - auraSize) * 0.5f;
+                float auraY = (Screen.height - auraSize) * 0.5f;
+
+                // Deep emerald center aura
+                float pulse = 0.85f + 0.15f * Mathf.Sin(Time.unscaledTime * 2.2f);
+                GUI.color = new Color(0.10f, 0.45f, 0.32f, 0.22f * pulse * loadingFadeAlpha);
+                GUI.DrawTexture(new Rect(auraX, auraY, auraSize, auraSize), vignetteTexture, ScaleMode.StretchToFill);
+
+                // Warm golden core accent
+                float coreSize = auraSize * 0.65f;
+                GUI.color = new Color(0.95f, 0.70f, 0.15f, 0.06f * pulse * loadingFadeAlpha);
+                GUI.DrawTexture(new Rect((Screen.width - coreSize) * 0.5f, (Screen.height - coreSize) * 0.5f, coreSize, coreSize), vignetteTexture, ScaleMode.StretchToFill);
+            }
+
+            // 4. Procedural Floating Ambient Embers / Light Motes
+            for (int i = 0; i < 18; i++)
+            {
+                float seed = i * 61.17f;
+                float speedX = 14f + (i % 4) * 6f;
+                float speedY = 32f + (i % 5) * 8f;
+                float px = (seed * 37.3f + Time.unscaledTime * speedX + Mathf.Sin(Time.unscaledTime * 1.5f + seed) * 35f) % Screen.width;
+                if (px < 0) px += Screen.width;
+                float py = Screen.height - ((seed * 53.1f + Time.unscaledTime * speedY) % (Screen.height + 40f));
+
+                float moteAlpha = (0.20f + 0.25f * Mathf.Sin(Time.unscaledTime * 3f + seed)) * loadingFadeAlpha;
+                float moteSize = (2f + (i % 3) * 1.5f) * uiScale;
+
+                GUI.color = (i % 3 == 0)
+                    ? new Color(0.20f, 0.95f, 0.72f, moteAlpha)   // Emerald
+                    : (i % 3 == 1)
+                        ? new Color(1.0f, 0.82f, 0.25f, moteAlpha)  // Radiant Gold
+                        : new Color(0.30f, 0.85f, 1.0f, moteAlpha);  // Electric Cyan
+                GUI.DrawTexture(new Rect(px, py, moteSize, moteSize), whiteTexture);
+            }
+
+            // 5. Cinematic Laser Scanline Sweep (Archeological Scanner)
+            float scanY = (Time.unscaledTime * 140f) % (Screen.height + 100f) - 50f;
+            if (scanY >= 0 && scanY <= Screen.height)
+            {
+                GUI.color = new Color(0.25f, 0.95f, 0.80f, 0.045f * loadingFadeAlpha);
+                GUI.DrawTexture(new Rect(0, scanY - 6f, Screen.width, 12f), whiteTexture);
+                GUI.color = new Color(0.40f, 1.0f, 0.88f, 0.12f * loadingFadeAlpha);
+                GUI.DrawTexture(new Rect(0, scanY, Screen.width, 1.5f), whiteTexture);
+            }
+
+            // 6. Cinematic Widescreen Letterbox Bars (Top & Bottom Anamorphic Borders)
+            float letterboxH = Mathf.Clamp(Screen.height * 0.075f, 32f * uiScale, 65f * uiScale);
+            // Top letterbox bar
+            Rect topBarRect = new Rect(0, 0, Screen.width, letterboxH);
+            GUI.color = new Color(0.015f, 0.02f, 0.025f, 0.98f * loadingFadeAlpha);
+            GUI.DrawTexture(topBarRect, whiteTexture);
+            // Glowing hairline accent under top bar
+            float barShimmer = 0.7f + 0.3f * Mathf.Sin(Time.unscaledTime * 2.0f);
+            GUI.color = new Color(0.20f, 0.88f, 0.72f, 0.50f * barShimmer * loadingFadeAlpha);
+            GUI.DrawTexture(new Rect(0, letterboxH - 1.5f, Screen.width, 1.5f), whiteTexture);
+
+            // Bottom letterbox bar
+            Rect btmBarRect = new Rect(0, Screen.height - letterboxH, Screen.width, letterboxH);
+            GUI.color = new Color(0.015f, 0.02f, 0.025f, 0.98f * loadingFadeAlpha);
+            GUI.DrawTexture(btmBarRect, whiteTexture);
+            // Glowing hairline accent above bottom bar
+            GUI.color = new Color(0.95f, 0.75f, 0.22f, 0.50f * barShimmer * loadingFadeAlpha);
+            GUI.DrawTexture(new Rect(0, Screen.height - letterboxH, Screen.width, 1.5f), whiteTexture);
+
+            // Save previous font / alignment state
+            TextAnchor prevAlign = GUI.skin.label.alignment;
+            int prevSize = GUI.skin.label.fontSize;
+            FontStyle prevStyle = GUI.skin.label.fontStyle;
+
+            // Telemetry text in Top Bar
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+
+            GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+            GUI.color = new Color(0.35f, 0.85f, 0.75f, 0.75f * loadingFadeAlpha);
+            GUI.Label(new Rect(14f * uiScale, 0, 180f * uiScale, letterboxH), "⚡ SPIDER-LINK // ACTIVE");
+
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(0, safeTop, Screen.width, 20f * uiScale), loadingSubHeader);
+            GUI.color = new Color(0.85f, 0.90f, 0.95f, 0.65f * loadingFadeAlpha);
+            GUI.Label(new Rect(0, 0, Screen.width, letterboxH), "EXPEDITION // ANCIENT RUINS RUNWAY");
 
-            GUI.color = new Color(1.0f, 0.92f, 0.72f, loadingFadeAlpha);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(22 * uiScale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(0, safeTop + (20f * uiScale), Screen.width, 36f * uiScale), loadingHeader);
-
-            // Golden Accent Divider
-            float divW = Mathf.Min(Screen.width * 0.72f, 260f * uiScale);
-            float divX = (Screen.width - divW) * 0.5f;
-            float divY = safeTop + (60f * uiScale);
+            GUI.skin.label.alignment = TextAnchor.MiddleRight;
             GUI.color = new Color(0.95f, 0.78f, 0.25f, 0.75f * loadingFadeAlpha);
-            GUI.DrawTexture(new Rect(divX, divY, divW, 2f * uiScale), whiteTexture);
+            GUI.Label(new Rect(Screen.width - (194f * uiScale), 0, 180f * uiScale, letterboxH), "FPS: 60  |  V-SYNC: LOCKED");
 
-            // 4. Clean Centered Progress Bar & Status (No middle icon)
-            float barW = Mathf.Min(Screen.width - (48f * uiScale), 330f * uiScale);
-            float barH = 16f * uiScale;
-            float barX = (Screen.width - barW) * 0.5f;
-            float barY = Screen.height * 0.48f;
+            // Telemetry text in Bottom Bar
+            GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+            GUI.color = new Color(0.80f, 0.85f, 0.90f, 0.55f * loadingFadeAlpha);
+            GUI.Label(new Rect(14f * uiScale, Screen.height - letterboxH, 180f * uiScale, letterboxH), "SYS: APEX RUNNER 3D");
 
-            // Animated status text with pulsating dots
-            int dotCount = ((int)(Time.unscaledTime * 3f)) % 4;
-            string animatedStatus = loadingStatusText.TrimEnd('.') + new string('.', dotCount);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.color = new Color(0.30f, 0.95f, 0.75f, 0.70f * loadingFadeAlpha);
+            GUI.Label(new Rect(0, Screen.height - letterboxH, Screen.width, letterboxH), "TOUCH & SWIPE CONTROLS READY");
 
-            GUI.color = new Color(0.35f, 0.95f, 0.85f, 0.95f * loadingFadeAlpha);
+            GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            GUI.color = new Color(0.80f, 0.85f, 0.90f, 0.55f * loadingFadeAlpha);
+            GUI.Label(new Rect(Screen.width - (194f * uiScale), Screen.height - letterboxH, 180f * uiScale, letterboxH), "SECURE DATASTREAM ◆");
+
+            // 7. Safe Area and Main Layout Calculations
+            float contentTop = letterboxH + (16f * uiScale);
+
+            // 8. Glowing Spider Crest / Central Arc Reactor Reticle
+            float crestSize = 54f * uiScale;
+            float crestX = (Screen.width - crestSize) * 0.5f;
+            float crestY = contentTop + (6f * uiScale);
+
+            // Outer Reticle Ring Brackets
+            Rect crestRect = new Rect(crestX, crestY, crestSize, crestSize);
+            DrawCornerBrackets(crestRect, 10f * uiScale, 2f * uiScale, new Color(0.20f, 0.95f, 0.75f, 0.85f * loadingFadeAlpha));
+
+            // Inner dark card core
+            DrawCard(crestRect, new Color(0.04f, 0.08f, 0.09f, 0.85f * loadingFadeAlpha));
+            DrawBorder(crestRect, new Color(0.95f, 0.78f, 0.25f, 0.65f * loadingFadeAlpha), 1.2f);
+
+            // Glowing Spider Icon at Center with breathing pulse
+            float spiderPulse = 0.88f + 0.12f * Mathf.Sin(Time.unscaledTime * 4.0f);
+            GUI.color = new Color(1.0f, 0.85f, 0.30f, spiderPulse * loadingFadeAlpha);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(24 * uiScale);
+            GUI.Label(crestRect, "🕷");
+
+            // Expanding Radar Ping Ring from Spider Emblem
+            float pingProg = (Time.unscaledTime * 0.75f) % 1.0f;
+            float pingSize = crestSize + (pingProg * 48f * uiScale);
+            float pingAlpha = (1f - pingProg) * 0.40f * loadingFadeAlpha;
+            Rect pingRect = new Rect((Screen.width - pingSize) * 0.5f, (crestY + crestSize * 0.5f) - (pingSize * 0.5f), pingSize, pingSize);
+            DrawBorder(pingRect, new Color(0.25f, 0.95f, 0.80f, pingAlpha), 1f);
+
+            // 9. Cinematic Title & Subtitle Treatment
+            float titleY = crestY + crestSize + (14f * uiScale);
+
+            // Subtitle
+            GUI.color = new Color(0.30f, 0.95f, 0.85f, 0.90f * loadingFadeAlpha);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(10.5f * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.Label(new Rect(0, titleY, Screen.width, 18f * uiScale), "—  A N C I E N T   S P I D E R   L E G E N D  —");
+
+            // Title Drop-Shadow Layer 1
+            GUI.color = new Color(0.02f, 0.15f, 0.10f, 0.85f * loadingFadeAlpha);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(23 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(2f, titleY + (20f * uiScale) + 2f, Screen.width, 38f * uiScale), loadingHeader);
+
+            // Title Drop-Shadow Layer 2 (Warm Ember Glow)
+            GUI.color = new Color(0.40f, 0.22f, 0.05f, 0.55f * loadingFadeAlpha);
+            GUI.Label(new Rect(-1f, titleY + (20f * uiScale) - 1f, Screen.width, 38f * uiScale), loadingHeader);
+
+            // Title Front Layer (Rich Gold)
+            GUI.color = new Color(1.0f, 0.92f, 0.65f, 1.0f * loadingFadeAlpha);
+            GUI.Label(new Rect(0, titleY + (20f * uiScale), Screen.width, 38f * uiScale), loadingHeader);
+
+            // Anamorphic Lens Flare Line through Title Base
+            float flareW = Mathf.Min(Screen.width * 0.78f, 310f * uiScale);
+            float flareX = (Screen.width - flareW) * 0.5f;
+            float flareY = titleY + (60f * uiScale);
+            float shimmer = 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 3f);
+
+            // Outer soft glow line
+            GUI.color = new Color(0.20f, 0.85f, 0.75f, 0.35f * shimmer * loadingFadeAlpha);
+            GUI.DrawTexture(new Rect(flareX, flareY - 1f, flareW, 3f * uiScale), whiteTexture);
+            // Crisp gold center core
+            GUI.color = new Color(1.0f, 0.90f, 0.45f, 0.95f * shimmer * loadingFadeAlpha);
+            GUI.DrawTexture(new Rect(flareX + (flareW * 0.15f), flareY, flareW * 0.70f, 1.5f * uiScale), whiteTexture);
+
+            // Center diamond ornament with breathing glow
+            float diamondSize = 12f * uiScale;
+            GUI.color = new Color(1.0f, 0.95f, 0.70f, 1.0f * loadingFadeAlpha);
             GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
+            GUI.Label(new Rect((Screen.width - diamondSize) * 0.5f, flareY - (diamondSize * 0.5f), diamondSize, diamondSize), "◆");
+
+            // 10. Segmented Cyber-Relic Progress Bar
+            float barW = Mathf.Min(Screen.width - (44f * uiScale), 340f * uiScale);
+            float barH = 20f * uiScale;
+            float barX = (Screen.width - barW) * 0.5f;
+            float barY = flareY + (38f * uiScale);
+
+            // Dynamic Sub-status progression
+            string displayStatus = loadingStatusText;
+            if (loadingStatusText == "INITIALIZING EXPEDITION...")
+            {
+                if (loadingProgress < 0.28f) displayStatus = "CALIBRATING SPIDER-SENSE PROTOCOLS";
+                else if (loadingProgress < 0.62f) displayStatus = "MAPPING ANCIENT JUNGLE PATHS";
+                else if (loadingProgress < 0.92f) displayStatus = "SECURING HIGH-TENSION WEB LINES";
+                else displayStatus = "EXPEDITION CLEARED // DEPLOYING";
+            }
+
+            int dotCount = ((int)(Time.unscaledTime * 3.5f)) % 4;
+            string animatedStatus = displayStatus.TrimEnd('.') + new string('.', dotCount);
+
+            // Status text row
+            GUI.color = new Color(0.35f, 0.95f, 0.85f, 0.95f * loadingFadeAlpha);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(10.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-            GUI.Label(new Rect(barX + 2, barY - (26f * uiScale), barW * 0.72f, 22f * uiScale), animatedStatus);
+            GUI.Label(new Rect(barX + (2f * uiScale), barY - (24f * uiScale), barW * 0.72f, 20f * uiScale), animatedStatus);
 
-            // Percentage on the right
+            // Percentage readout on the right [ 84% ]
             int pct = Mathf.RoundToInt(Mathf.Clamp01(loadingProgress) * 100f);
-            GUI.color = new Color(1.0f, 0.85f, 0.25f, loadingFadeAlpha);
+            GUI.color = new Color(1.0f, 0.88f, 0.30f, loadingFadeAlpha);
             GUI.skin.label.alignment = TextAnchor.MiddleRight;
-            GUI.Label(new Rect(barX + (barW * 0.72f), barY - (26f * uiScale), barW * 0.28f, 22f * uiScale), $"{pct}%");
+            GUI.Label(new Rect(barX + (barW * 0.68f), barY - (24f * uiScale), barW * 0.32f, 20f * uiScale), $"[ {pct:D2}% ]");
 
-            // Progress Bar Outer Track
+            // Progress Bar Outer Glass Shell
             Rect barOuterRect = new Rect(barX, barY, barW, barH);
-            DrawCard(barOuterRect, new Color(0.08f, 0.12f, 0.14f, 0.95f * loadingFadeAlpha));
-            DrawBorder(barOuterRect, new Color(0.25f, 0.85f, 0.70f, 0.60f * loadingFadeAlpha), 1.2f);
+            DrawCard(barOuterRect, new Color(0.06f, 0.10f, 0.12f, 0.95f * loadingFadeAlpha));
+            DrawBorder(barOuterRect, new Color(0.20f, 0.85f, 0.70f, 0.65f * loadingFadeAlpha), 1.5f);
+            DrawCornerBrackets(barOuterRect, 6f * uiScale, 1.5f, new Color(0.95f, 0.78f, 0.25f, 0.80f * loadingFadeAlpha));
+
+            // Interior Track Segments / Tick marks (Sci-Fi / Ancient Relic look)
+            int segmentTicks = 16;
+            float tickSpacing = barW / segmentTicks;
+            GUI.color = new Color(1f, 1f, 1f, 0.08f * loadingFadeAlpha);
+            for (int t = 1; t < segmentTicks; t++)
+            {
+                GUI.DrawTexture(new Rect(barX + (t * tickSpacing), barY + 2f, 1f, barH - 4f), whiteTexture);
+            }
 
             // Progress Bar Inner Fill
             float innerPad = 2.5f * uiScale;
@@ -2408,49 +3024,149 @@ namespace Runner.UI
             if (currentFillW > 0f)
             {
                 Rect fillRect = new Rect(barX + innerPad, barY + innerPad, currentFillW, barH - (innerPad * 2f));
-                GUI.color = new Color(0.18f, 0.95f, 0.68f, 0.98f * loadingFadeAlpha);
+
+                // 1. Primary Vibrant Emerald Base Fill
+                GUI.color = new Color(0.15f, 0.92f, 0.62f, 0.98f * loadingFadeAlpha);
                 GUI.DrawTexture(fillRect, whiteTexture);
 
-                // Top glossy shine highlight
+                // 2. Cyan Energy Core (Subtle Gradient Blend)
+                GUI.color = new Color(0.20f, 0.85f, 1.0f, 0.50f * loadingFadeAlpha);
+                GUI.DrawTexture(new Rect(fillRect.x, fillRect.y + fillRect.height * 0.35f, fillRect.width, fillRect.height * 0.65f), whiteTexture);
+
+                // 3. Flowing Energy Shimmer Pulse
+                float shimmerSpeed = 160f * uiScale;
+                float shimmerPos = (Time.unscaledTime * shimmerSpeed) % (maxFillW + 40f) - 20f;
+                float shimmerWidth = 24f * uiScale;
+                if (shimmerPos < currentFillW)
+                {
+                    float visibleW = Mathf.Min(shimmerWidth, currentFillW - shimmerPos);
+                    if (visibleW > 0 && shimmerPos >= 0)
+                    {
+                        GUI.color = new Color(1f, 1f, 1f, 0.45f * loadingFadeAlpha);
+                        GUI.DrawTexture(new Rect(barX + innerPad + shimmerPos, fillRect.y, visibleW, fillRect.height), whiteTexture);
+                    }
+                }
+
+                // 4. Top Glass Gloss Highlight
                 GUI.color = new Color(1f, 1f, 1f, 0.35f * loadingFadeAlpha);
-                GUI.DrawTexture(new Rect(fillRect.x, fillRect.y, fillRect.width, fillRect.height * 0.50f), whiteTexture);
+                GUI.DrawTexture(new Rect(fillRect.x, fillRect.y, fillRect.width, fillRect.height * 0.42f), whiteTexture);
+
+                // 5. Leading Edge Spark Flare (Bright pulse at the exact head of the bar)
+                float sparkX = barX + innerPad + currentFillW - (2f * uiScale);
+                float sparkSize = (barH - (innerPad * 2f)) + (4f * uiScale);
+                float sparkY = barY + (barH - sparkSize) * 0.5f;
+                float sparkPulse = 0.8f + 0.2f * Mathf.Sin(Time.unscaledTime * 8f);
+                GUI.color = new Color(1.0f, 0.98f, 0.70f, sparkPulse * loadingFadeAlpha);
+                GUI.DrawTexture(new Rect(sparkX - 2f * uiScale, sparkY, 4f * uiScale, sparkSize), whiteTexture);
             }
 
-            // 5. Polished Tip Card at the Bottom (Enlarged, word-wrapped, spacious, no clipping!)
+            // 11. Cinematic Field Intel & Survival Card
             float tipW = Mathf.Min(Screen.width - (36f * uiScale), 350f * uiScale);
-            float tipH = 58f * uiScale;
+            float tipH = 68f * uiScale;
             float tipX = (Screen.width - tipW) * 0.5f;
-            float tipY = Screen.height - tipH - Mathf.Max(32f * uiScale, (Screen.safeArea.y > 0 ? Screen.safeArea.y : 22f * uiScale));
+            // Positioned right above bottom letterbox bar with healthy breathing room
+            float tipY = Screen.height - letterboxH - tipH - (12f * uiScale);
 
             Rect tipRect = new Rect(tipX, tipY, tipW, tipH);
-            DrawCard(tipRect, new Color(0.06f, 0.10f, 0.09f, 0.92f * loadingFadeAlpha));
+            DrawCard(tipRect, new Color(0.04f, 0.07f, 0.08f, 0.94f * loadingFadeAlpha));
             DrawBorder(tipRect, new Color(0.95f, 0.78f, 0.25f, 0.55f * loadingFadeAlpha), 1.2f);
-            DrawCornerBrackets(tipRect, 8f * uiScale, 1.5f, new Color(0.95f, 0.78f, 0.25f, 0.85f * loadingFadeAlpha));
+            DrawCornerBrackets(tipRect, 8f * uiScale, 1.5f, new Color(0.95f, 0.78f, 0.25f, 0.90f * loadingFadeAlpha));
 
+            // Intel Header Tag Bar inside Card
+            float headerTagH = 18f * uiScale;
+            Rect headerTagRect = new Rect(tipX + (10f * uiScale), tipY + (5f * uiScale), tipW - (20f * uiScale), headerTagH);
+            GUI.color = new Color(0.95f, 0.78f, 0.25f, 0.85f * loadingFadeAlpha);
+            GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(headerTagRect, "✦ EXPEDITION SURVIVAL INTEL");
+
+            // Tip Counter Pill on Right [ INTEL #01 / 08 ]
+            GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            GUI.color = new Color(0.30f, 0.95f, 0.80f, 0.85f * loadingFadeAlpha);
+            GUI.Label(headerTagRect, $"INTEL #{currentTipIndex + 1:D2} / {LoadingTips.Length:D2}");
+
+            // Thin accent divider line in Intel Card
+            GUI.color = new Color(1f, 1f, 1f, 0.12f * loadingFadeAlpha);
+            GUI.DrawTexture(new Rect(tipX + (10f * uiScale), tipY + headerTagH + (6f * uiScale), tipW - (20f * uiScale), 1f), whiteTexture);
+
+            // Tip Body Text
             string currentTip = (currentTipIndex >= 0 && currentTipIndex < LoadingTips.Length)
                 ? LoadingTips[currentTipIndex]
-                : "💡 Avoid obstacles to survive!";
+                : "🕷️ Swipe UP to leap over obstacles, DOWN to slide!";
 
             bool prevWrap = GUI.skin.label.wordWrap;
-            TextAnchor prevAlign = GUI.skin.label.alignment;
-            int prevSize = GUI.skin.label.fontSize;
-            FontStyle prevStyle = GUI.skin.label.fontStyle;
-
             GUI.skin.label.wordWrap = true;
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(12 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
 
-            // Margin inside tip box
-            Rect textRect = new Rect(tipX + (12f * uiScale), tipY + (4f * uiScale), tipW - (24f * uiScale), tipH - (8f * uiScale));
-            GUI.color = new Color(1f, 0.95f, 0.85f, 0.95f * loadingFadeAlpha);
+            Rect textRect = new Rect(tipX + (12f * uiScale), tipY + headerTagH + (8f * uiScale), tipW - (24f * uiScale), tipH - headerTagH - (12f * uiScale));
+            GUI.color = new Color(1f, 0.96f, 0.88f, 0.96f * loadingFadeAlpha);
             GUI.Label(textRect, currentTip);
 
-            // Restore GUI skin properties
+            // Restore GUI Styles
             GUI.skin.label.wordWrap = prevWrap;
             GUI.skin.label.alignment = prevAlign;
             GUI.skin.label.fontSize = prevSize;
             GUI.skin.label.fontStyle = prevStyle;
+        }
+        #endregion
+
+        #region AAA Cinematic Overlays
+        /// <summary>
+        /// Draws a radial vignette overlay for cinematic depth.
+        /// The vignette gently pulses when the player is low on health or has been recently hit.
+        /// </summary>
+        private void DrawCinematicVignette()
+        {
+            if (vignetteTexture == null) return;
+
+            // Pulse intensity when damaged or low health
+            float pulseIntensity = 1.0f;
+            if (vignetteTimer > 0f)
+            {
+                pulseIntensity = 1.0f + 0.5f * (vignetteTimer / 1.0f);
+            }
+            else if (GameManager.Instance != null && GameManager.Instance.CurrentLives <= 2)
+            {
+                float danger = (Mathf.Sin(Time.unscaledTime * 3.5f) + 1f) * 0.5f;
+                pulseIntensity = 1.0f + danger * 0.25f;
+            }
+
+            // Draw vignette scaled to fill screen
+            float size = Mathf.Max(Screen.width, Screen.height) * 1.5f;
+            float x = (Screen.width - size) * 0.5f;
+            float y = (Screen.height - size) * 0.5f;
+
+            GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp(pulseIntensity, 0f, 1f));
+            GUI.DrawTexture(new Rect(x, y, size, size), vignetteTexture, ScaleMode.StretchToFill);
+        }
+
+        /// <summary>
+        /// Draws a subtle radial speed overlay when running at high velocity.
+        /// Simulates the peripheral blur/wind effect of a AAA runner game.
+        /// </summary>
+        private void DrawSpeedOverlay()
+        {
+            if (speedLinesTexture == null) return;
+            if (speedLineAlpha <= 0.01f) return;
+
+            float size = Mathf.Max(Screen.width, Screen.height) * 1.8f;
+            float x = (Screen.width - size) * 0.5f;
+            float y = (Screen.height - size) * 0.5f;
+
+            // Tinted white radial for speed blur hint
+            GUI.color = new Color(1f, 1f, 1f, speedLineAlpha);
+            GUI.DrawTexture(new Rect(x, y, size, size), speedLinesTexture, ScaleMode.StretchToFill);
+        }
+
+        /// <summary>
+        /// Triggers a damage/impact vignette flash.
+        /// </summary>
+        public void TriggerDamageVignette()
+        {
+            vignetteTimer = 1.0f;
         }
         #endregion
     }

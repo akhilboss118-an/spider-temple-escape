@@ -84,6 +84,7 @@ namespace Runner.Core
         public const string SHIELD_LVL_KEY = "Runner_ShieldLvl";
         public const string SPEED_LVL_KEY = "Runner_SpeedLvl";
         public const string MAGNET_LVL_KEY = "Runner_MagnetLvl";
+        public const string FRENZY_LVL_KEY = "Runner_FrenzyLvl";
         public const string MAX_LIVES_KEY = "Runner_MaxLives";
         public const string AUDIO_KEY = "Runner_AudioEnabled";
         public const string AUDIO_VOL_KEY = "Runner_AudioVol";
@@ -94,11 +95,14 @@ namespace Runner.Core
         public int ShieldLevel { get; private set; }
         public int SpeedLevel { get; private set; }
         public int MagnetLevel { get; private set; }
+        public int FrenzyLevel { get; private set; }
         public bool IsAudioEnabled { get; private set; }
         public float AudioVolume { get; private set; } = 1.0f;
         public int ControlScheme { get; private set; } = 0; // 0 = Swipe/Keys, 1 = Tilt
         public bool IsHapticsEnabled { get; private set; } = true;
         public int TotalBankedCoins { get; private set; }
+
+        private float scoreProgress = 0.0f;
 
         private void Awake()
         {
@@ -115,6 +119,7 @@ namespace Runner.Core
             ShieldLevel = PlayerPrefs.GetInt(SHIELD_LVL_KEY, 1);
             SpeedLevel = PlayerPrefs.GetInt(SPEED_LVL_KEY, 1);
             MagnetLevel = PlayerPrefs.GetInt(MAGNET_LVL_KEY, 1);
+            FrenzyLevel = PlayerPrefs.GetInt(FRENZY_LVL_KEY, 1);
             MaxLives = Mathf.Clamp(PlayerPrefs.GetInt(MAX_LIVES_KEY, 10), 5, 10);
             CurrentLives = MaxLives;
             IsAudioEnabled = PlayerPrefs.GetInt(AUDIO_KEY, 1) == 1;
@@ -124,7 +129,24 @@ namespace Runner.Core
             AudioListener.volume = IsAudioEnabled ? AudioVolume : 0.0f;
             CurrentSpeed = baseSpeed;
 
+            // Enforce smooth, stable 60 FPS on mobile with clean frame pacing
+            Application.targetFrameRate = 60;
+            QualitySettings.vSyncCount = 0;
+
+            CleanPreviewObjects();
             CleanDuplicateLightsAndAtmosphere();
+        }
+
+        public void CleanPreviewObjects()
+        {
+            var allGo = FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var go in allGo)
+            {
+                if (go != null && (go.name == "_ScenePreviewRoot" || go.name == "PreviewCam" || go.name == "PreviewTrackManager" || go.name.StartsWith("Preview_")))
+                {
+                    Destroy(go);
+                }
+            }
         }
 
         public void CleanDuplicateLightsAndAtmosphere()
@@ -152,49 +174,82 @@ namespace Runner.Core
                 }
             }
 
+            // Directional sun setup - bright, radiant tropical daylight
             if (mainSun == null)
             {
                 GameObject lightObj = new GameObject("Directional Light");
                 mainSun = lightObj.AddComponent<Light>();
                 mainSun.type = LightType.Directional;
-                mainSun.color = new Color(1.0f, 0.96f, 0.88f);
-                mainSun.intensity = 0.90f;
+                mainSun.color = new Color(1.0f, 0.98f, 0.92f);
+                mainSun.intensity = 1.45f;
                 mainSun.shadows = LightShadows.Soft;
-                lightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0);
+                lightObj.transform.rotation = Quaternion.Euler(55f, -35f, 0);
+            }
+            else
+            {
+                mainSun.color = new Color(1.0f, 0.98f, 0.92f);
+                mainSun.intensity = 1.45f;
+                mainSun.shadows = LightShadows.Soft;
             }
 
-            // Balanced tropical sunlight, rich jungle ambient and soft atmospheric canopy fog
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.24f, 0.28f, 0.25f);
+            // Radiant tropical daylight, warm lush ambient, and bright azure horizon fog (no dark swamp/night!)
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.82f, 0.92f, 1.0f);
+            RenderSettings.ambientEquatorColor = new Color(0.72f, 0.80f, 0.68f);
+            RenderSettings.ambientGroundColor = new Color(0.52f, 0.48f, 0.42f);
+
+            Material skyboxMat = Resources.Load<Material>("Materials/Mat_TempleSkybox");
+#if UNITY_EDITOR
+            if (skyboxMat == null) skyboxMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_TempleSkybox.mat");
+#endif
+            if (skyboxMat != null)
+            {
+                RenderSettings.skybox = skyboxMat;
+            }
 
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 35.0f;
-            RenderSettings.fogEndDistance = 95.0f;
-            RenderSettings.fogColor = new Color(0.18f, 0.32f, 0.25f);
+            RenderSettings.fogStartDistance = 85.0f;
+            RenderSettings.fogEndDistance = 180.0f;
+            RenderSettings.fogColor = new Color(0.72f, 0.86f, 0.98f);
 
             Camera cam = Camera.main;
             if (cam != null)
             {
-                cam.clearFlags = CameraClearFlags.SolidColor;
-                cam.backgroundColor = new Color(0.20f, 0.45f, 0.70f);
+                cam.clearFlags = CameraClearFlags.Skybox;
+                cam.backgroundColor = new Color(0.40f, 0.70f, 0.98f);
             }
         }
 
         private static bool autoStartOnLoad = false;
+        private static bool stayInMenuOnLoad = false;
 
         private void Start()
         {
             CleanDuplicateLightsAndAtmosphere();
-            if (autoStartOnLoad)
+            if (stayInMenuOnLoad)
+            {
+                stayInMenuOnLoad = false;
+                autoStartOnLoad = false;
+                SetState(GameState.Menu);
+                PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
+            }
+            else if (autoStartOnLoad)
             {
                 autoStartOnLoad = false;
                 StartGame();
             }
             else
             {
+                // In Unity Editor: auto-start into Playing state so pressing Play immediately works.
+                // On actual mobile/standalone builds: show the normal Main Menu.
+#if UNITY_EDITOR
+                StartGame();
+                Debug.Log("[GameManager] Editor Auto-Start: Game is PLAYING! Controls: W/↑/Space=Jump, S/↓=Slide, A/←=Left Lane, D/→=Right Lane. Press ESC to pause.");
+#else
                 SetState(GameState.Menu);
                 PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
+#endif
             }
         }
 
@@ -240,7 +295,9 @@ namespace Runner.Core
 
             // 4. Update Distance & Score
             DistanceTraveled += CurrentSpeed * dt;
-            Score = Mathf.FloorToInt(DistanceTraveled * 10f * Multiplier) + (CoinsCollected * 50);
+            float activeMultiplier = Multiplier * (PickupManager.Instance != null && PickupManager.Instance.IsMultiplierFrenzyActive ? 3f : 1f);
+            scoreProgress += CurrentSpeed * dt * 10f * activeMultiplier;
+            Score = Mathf.FloorToInt(scoreProgress) + (CoinsCollected * 50);
             OnScoreChanged?.Invoke(Score);
         }
 
@@ -248,6 +305,7 @@ namespace Runner.Core
         {
             runTimer = 0.0f;
             DistanceTraveled = 0.0f;
+            scoreProgress = 0.0f;
             CoinsCollected = 0;
             Score = 0;
             CurrentLives = MaxLives;
@@ -355,6 +413,7 @@ namespace Runner.Core
             TotalBankedCoins += amount;
             PlayerPrefs.SetInt(TOTAL_COINS_KEY, TotalBankedCoins);
             PlayerPrefs.Save();
+            MissionManager.Instance?.ReportCoinsCollected(amount);
             OnCoinsChanged?.Invoke(CoinsCollected);
         }
 
@@ -364,6 +423,7 @@ namespace Runner.Core
                 return;
 
             SetState(GameState.GameOver);
+            MissionManager.Instance?.ReportRunFinished(Score, DistanceTraveled);
 
             // Save High Score
             if (Score > HighScore)
@@ -392,6 +452,7 @@ namespace Runner.Core
         public void ReturnToMenu()
         {
             autoStartOnLoad = false;
+            stayInMenuOnLoad = true;
             SetState(GameState.Menu);
             Time.timeScale = 1.0f;
             PlayerPrefs.Save();
@@ -495,6 +556,10 @@ namespace Runner.Core
                     MagnetLevel++;
                     PlayerPrefs.SetInt(MAGNET_LVL_KEY, MagnetLevel);
                     break;
+                case PowerUpType.MultiplierFrenzy:
+                    FrenzyLevel++;
+                    PlayerPrefs.SetInt(FRENZY_LVL_KEY, FrenzyLevel);
+                    break;
             }
 
             PlayerPrefs.Save();
@@ -508,6 +573,7 @@ namespace Runner.Core
                 case PowerUpType.Shield: return ShieldLevel;
                 case PowerUpType.Speedrun: return SpeedLevel;
                 case PowerUpType.Magnet: return MagnetLevel;
+                case PowerUpType.MultiplierFrenzy: return FrenzyLevel;
                 default: return 1;
             }
         }

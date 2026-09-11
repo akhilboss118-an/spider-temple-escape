@@ -55,28 +55,34 @@ namespace Runner.EditorTools
 
             Debug.Log("[SceneSetupHelper] Building Playable Scene in 3rd Person View...");
 
-            // 3. Directional Light & Atmosphere (Warm tropical sunlight, crisp obstacle shadows, high contrast)
+            // 3. Directional Light & Atmosphere (Warm golden tropical sunlight, soft shadows, high depth)
             GameObject lightObj = new GameObject("Directional Light");
             Light light = lightObj.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.color = new Color(1.0f, 0.97f, 0.90f);
-            light.intensity = 1.20f;
+            light.color = new Color(1.0f, 0.96f, 0.86f);
+            light.intensity = 1.50f;
             light.shadows = LightShadows.Soft;
             light.shadowBias = 0.05f;
             light.shadowNormalBias = 0.40f;
             light.shadowResolution = UnityEngine.Rendering.LightShadowResolution.High;
             lightObj.transform.rotation = Quaternion.Euler(46f, -38f, 0);
 
-            // Sky & Ambient Setup (Trilight ambient for clear character/path separation & horizon fog)
+            // Sky & Ambient Setup (Atmospheric Temple Skybox & Trilight Ambient)
+            Material skyboxMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_TempleSkybox.mat");
+            if (skyboxMat != null)
+            {
+                RenderSettings.skybox = skyboxMat;
+            }
+
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.50f, 0.56f, 0.52f);
-            RenderSettings.ambientEquatorColor = new Color(0.34f, 0.38f, 0.32f);
-            RenderSettings.ambientGroundColor = new Color(0.20f, 0.18f, 0.16f);
+            RenderSettings.ambientSkyColor = new Color(0.82f, 0.92f, 1.0f);
+            RenderSettings.ambientEquatorColor = new Color(0.72f, 0.80f, 0.68f);
+            RenderSettings.ambientGroundColor = new Color(0.52f, 0.48f, 0.42f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 45.0f;
-            RenderSettings.fogEndDistance = 120.0f;
-            RenderSettings.fogColor = new Color(0.20f, 0.34f, 0.28f);
+            RenderSettings.fogStartDistance = 85.0f;
+            RenderSettings.fogEndDistance = 180.0f;
+            RenderSettings.fogColor = new Color(0.72f, 0.86f, 0.98f);
 
             // 4. Managers
             GameObject coreObj = new GameObject("Core_Manager");
@@ -278,8 +284,8 @@ namespace Runner.EditorTools
                 cam = camObj.AddComponent<Camera>();
                 camObj.AddComponent<AudioListener>();
             }
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.20f, 0.45f, 0.70f);
+            cam.clearFlags = CameraClearFlags.Skybox;
+            cam.backgroundColor = new Color(0.35f, 0.65f, 0.95f);
             cam.transform.position = new Vector3(0, 3.4f, -5.8f);
             cam.transform.rotation = Quaternion.Euler(20f, 0, 0);
             RunnerCameraController rcc = cam.GetComponent<RunnerCameraController>();
@@ -290,7 +296,7 @@ namespace Runner.EditorTools
             rcc.SnapToPlayer();
 
             // 9. Input EventSystem for Mobile Touch & Gestures
-            if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+            if (Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
             {
                 GameObject eventSystem = new GameObject("EventSystem");
                 eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
@@ -613,7 +619,8 @@ namespace Runner.EditorTools
     }
 
     /// <summary>
-    /// Ensures that if Main.unity does not yet exist, it is auto-created on editor startup/recompile.
+    /// Ensures that if Main.unity does not yet exist, it is created.
+    /// Does NOT trigger refreshes or snapshots to keep editor fast and responsive.
     /// </summary>
     [InitializeOnLoad]
     public static class SceneSetupAutoInitializer
@@ -622,17 +629,57 @@ namespace Runner.EditorTools
         {
             EditorApplication.delayCall += () =>
             {
-                AssetDatabase.Refresh();
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
                 if (!File.Exists("Assets/Scenes/Main.unity") || File.ReadAllText("Assets/Scenes/Main.unity").Contains("MainCanvas"))
                 {
-                    Debug.Log("[SceneSetupAutoInitializer] Auto-generating Main.unity to purge legacy canvas and restore 3D runner...");
+                    Debug.Log("[SceneSetupAutoInitializer] Creating initial Main.unity...");
                     SceneSetupHelper.BuildFullScene();
                 }
 
-                Runner.EditorTools.MenuVerificationTest.VerifyCompilationAndSetup();
-                Runner.EditorTools.SceneSnapshotTool.CaptureSceneSnapshot();
+                CleanPreviewObjects();
             };
+        }
+
+        [MenuItem("Runner/Clean Scene & Preview Objects")]
+        public static void CleanPreviewObjects()
+        {
+            int purged = 0;
+            var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var go in allObjects)
+            {
+                if (go == null) continue;
+                if (go.name == "_ScenePreviewRoot" || go.name == "PreviewCam" || go.name == "PreviewTrackManager" || go.name.StartsWith("Preview_"))
+                {
+                    Object.DestroyImmediate(go);
+                    purged++;
+                }
+            }
+
+            // Ensure Main Camera has skybox clearFlags
+            Camera cam = Camera.main;
+            if (cam != null)
+            {
+                cam.clearFlags = CameraClearFlags.Skybox;
+                if (cam.gameObject.GetComponent<Runner.CameraControl.RunnerCameraController>() == null)
+                {
+                    cam.gameObject.AddComponent<Runner.CameraControl.RunnerCameraController>();
+                }
+            }
+
+            // Ensure Temple Skybox material is set
+            Material skyMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_TempleSkybox.mat");
+            if (skyMat != null)
+            {
+                RenderSettings.skybox = skyMat;
+            }
+
+            if (purged > 0)
+            {
+                Debug.Log($"[SceneSetupAutoInitializer] Cleaned {purged} preview/mock objects from scene.");
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+                UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenes();
+            }
         }
     }
 }

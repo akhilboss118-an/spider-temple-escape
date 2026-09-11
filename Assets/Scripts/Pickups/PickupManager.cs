@@ -12,7 +12,8 @@ namespace Runner.Pickups
         Shield,
         Speedrun,
         Magnet,
-        HeartRevive
+        HeartRevive,
+        MultiplierFrenzy
     }
 
     [Serializable]
@@ -63,7 +64,7 @@ namespace Runner.Pickups
     /// Unified Power-Up Manager:
     /// Consolidates all power-up mechanics into a unified system so every power-up type
     /// functions seamlessly within a single gameplay session.
-    /// Supports multiple simultaneously active power-ups (e.g. Shield + Magnet + Speedrun running concurrently).
+    /// Supports multiple simultaneously active power-ups (e.g. Shield + Magnet + Speedrun + MultiplierFrenzy running concurrently).
     /// </summary>
     public class PickupManager : MonoBehaviour
     {
@@ -74,6 +75,7 @@ namespace Runner.Pickups
         [SerializeField] private float magnetDuration = 8.0f;
         [SerializeField] private float magnetRadius = 8.0f;
         [SerializeField] private float shieldBaseDuration = 15.0f;
+        [SerializeField] private float frenzyDuration = 8.0f;
 
         // Unified Power-Up State Map
         private readonly Dictionary<PowerUpType, PowerUpInstance> powerUps = new Dictionary<PowerUpType, PowerUpInstance>();
@@ -93,13 +95,19 @@ namespace Runner.Pickups
         public float MagnetTotalDuration => GetPowerUpTotalDuration(PowerUpType.Magnet);
         public float MagnetRadius => magnetRadius;
 
-        // Player Shield Aura
+        public bool IsMultiplierFrenzyActive => IsPowerUpActive(PowerUpType.MultiplierFrenzy);
+        public float MultiplierFrenzyTimeRemaining => GetPowerUpTimeRemaining(PowerUpType.MultiplierFrenzy);
+        public float MultiplierFrenzyTotalDuration => GetPowerUpTotalDuration(PowerUpType.MultiplierFrenzy);
+
+        // Player Shield & Frenzy Aura
         private GameObject shieldAuraObj;
+        private GameObject frenzyAuraObj;
 
         // Events
         public event Action<bool> OnShieldStateChanged;
         public event Action<bool, float> OnSpeedrunStateChanged;
         public event Action<bool, float> OnMagnetStateChanged;
+        public event Action<bool, float> OnMultiplierFrenzyStateChanged;
         public event Action<PowerUpType, bool> OnPowerUpStateChanged;
 
         private void Awake()
@@ -135,6 +143,12 @@ namespace Runner.Pickups
                 "🧲",
                 new Color(1.0f, 0.35f, 0.65f)
             );
+            powerUps[PowerUpType.MultiplierFrenzy] = new PowerUpInstance(
+                PowerUpType.MultiplierFrenzy,
+                "FRENZY TOTEM",
+                "🔥",
+                new Color(1.0f, 0.75f, 0.15f)
+            );
         }
 
         private void Update()
@@ -143,6 +157,7 @@ namespace Runner.Pickups
             bool shieldWasActive = HasShield;
             bool speedrunWasActive = IsSpeedrunActive;
             bool magnetWasActive = IsMagnetActive;
+            bool frenzyWasActive = IsMultiplierFrenzyActive;
 
             // Tick each registered power-up
             foreach (var kvp in powerUps)
@@ -189,12 +204,31 @@ namespace Runner.Pickups
                 OnMagnetStateChanged?.Invoke(true, MagnetTimeRemaining);
             }
 
+            if (frenzyWasActive != IsMultiplierFrenzyActive)
+            {
+                SetFrenzyAura(IsMultiplierFrenzyActive);
+                OnMultiplierFrenzyStateChanged?.Invoke(IsMultiplierFrenzyActive, MultiplierFrenzyTimeRemaining);
+                OnPowerUpStateChanged?.Invoke(PowerUpType.MultiplierFrenzy, IsMultiplierFrenzyActive);
+            }
+            else if (IsMultiplierFrenzyActive)
+            {
+                OnMultiplierFrenzyStateChanged?.Invoke(true, MultiplierFrenzyTimeRemaining);
+            }
+
             // Animate Transparent Blue Shield Oval
             if (HasShield && shieldAuraObj != null)
             {
                 float pulse = 1.0f + Mathf.Sin(Time.time * 3.5f) * 0.025f;
                 shieldAuraObj.transform.localScale = new Vector3(1.35f, 2.15f, 1.35f) * pulse;
                 shieldAuraObj.transform.Rotate(0, 30f * dt, 0, Space.Self);
+            }
+
+            // Animate Radiant Gold/Amethyst Frenzy Aura
+            if (IsMultiplierFrenzyActive && frenzyAuraObj != null)
+            {
+                float pulse = 1.0f + Mathf.Sin(Time.time * 7.0f) * 0.06f;
+                frenzyAuraObj.transform.localScale = new Vector3(1.45f, 2.25f, 1.45f) * pulse;
+                frenzyAuraObj.transform.Rotate(0, 90f * dt, 0, Space.Self);
             }
         }
 
@@ -213,6 +247,10 @@ namespace Runner.Pickups
                 case PowerUpType.Magnet:
                     OnMagnetStateChanged?.Invoke(false, 0f);
                     break;
+                case PowerUpType.MultiplierFrenzy:
+                    SetFrenzyAura(false);
+                    OnMultiplierFrenzyStateChanged?.Invoke(false, 0f);
+                    break;
             }
             OnPowerUpStateChanged?.Invoke(type, false);
         }
@@ -230,6 +268,9 @@ namespace Runner.Pickups
                     break;
                 case PowerUpType.Magnet:
                     ActivateMagnet(customDuration);
+                    break;
+                case PowerUpType.MultiplierFrenzy:
+                    ActivateMultiplierFrenzy(customDuration);
                     break;
                 case PowerUpType.HeartRevive:
                     TriggerHeartRevive();
@@ -310,6 +351,7 @@ namespace Runner.Pickups
             OnShieldStateChanged?.Invoke(true);
             OnPowerUpStateChanged?.Invoke(PowerUpType.Shield, true);
             Runner.Audio.AudioManager.Instance?.PlayPowerUp();
+            MissionManager.Instance?.ReportPowerUpUsed();
         }
 
         /// <summary>
@@ -334,7 +376,6 @@ namespace Runner.Pickups
                 {
                     inst.Deactivate();
                 }
-
                 SetShieldAura(false);
                 OnShieldStateChanged?.Invoke(false);
                 OnPowerUpStateChanged?.Invoke(PowerUpType.Shield, false);
@@ -369,6 +410,7 @@ namespace Runner.Pickups
             OnSpeedrunStateChanged?.Invoke(true, total);
             OnPowerUpStateChanged?.Invoke(PowerUpType.Speedrun, true);
             Runner.Audio.AudioManager.Instance?.PlayPowerUp();
+            MissionManager.Instance?.ReportPowerUpUsed();
         }
 
         public void ActivateMagnet(float duration = -1f)
@@ -395,6 +437,32 @@ namespace Runner.Pickups
             OnMagnetStateChanged?.Invoke(true, total);
             OnPowerUpStateChanged?.Invoke(PowerUpType.Magnet, true);
             Runner.Audio.AudioManager.Instance?.PlayPowerUp();
+            MissionManager.Instance?.ReportPowerUpUsed();
+        }
+
+        public void ActivateMultiplierFrenzy(float duration = -1f)
+        {
+            float total = duration > 0 ? duration : frenzyDuration;
+            if (GameManager.Instance != null)
+            {
+                total += (GameManager.Instance.FrenzyLevel - 1) * 2.0f;
+            }
+
+            if (powerUps.TryGetValue(PowerUpType.MultiplierFrenzy, out var inst))
+            {
+                inst.Activate(total);
+            }
+
+            SetFrenzyAura(true);
+            OnMultiplierFrenzyStateChanged?.Invoke(true, total);
+            OnPowerUpStateChanged?.Invoke(PowerUpType.MultiplierFrenzy, true);
+            Runner.Audio.AudioManager.Instance?.PlayFrenzyFanfare();
+            MissionManager.Instance?.ReportPowerUpUsed();
+
+            if (Runner.UI.UIManager.Instance != null)
+            {
+                Runner.UI.UIManager.Instance.ShowToast("🔥 MULTIPLIER FRENZY (3X ACTIVE)!", "⚡");
+            }
         }
 
         public void TriggerHeartRevive()
@@ -407,6 +475,7 @@ namespace Runner.Pickups
             {
                 Runner.UI.UIManager.Instance.TriggerHeartBloom();
             }
+            MissionManager.Instance?.ReportPowerUpUsed();
         }
 
         public void ResetPowerUps()
@@ -418,10 +487,12 @@ namespace Runner.Pickups
 
             SetShieldAura(false);
             SetSpeedrunAura(false);
+            SetFrenzyAura(false);
 
             OnShieldStateChanged?.Invoke(false);
             OnSpeedrunStateChanged?.Invoke(false, 0f);
             OnMagnetStateChanged?.Invoke(false, 0f);
+            OnMultiplierFrenzyStateChanged?.Invoke(false, 0f);
         }
         #endregion
 
@@ -431,7 +502,7 @@ namespace Runner.Pickups
             if (PlayerController.Instance == null) return;
             Transform playerT = PlayerController.Instance.transform;
 
-            // 1. Create Shield Transparent Blue Oval Aura around character
+            // 1. Create Shield AAA Rim-Glow Energy Field Aura around character
             if (shieldAuraObj == null)
             {
                 shieldAuraObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -441,35 +512,92 @@ namespace Runner.Pickups
                 shieldAuraObj.transform.localScale = new Vector3(1.35f, 2.15f, 1.35f);
                 Destroy(shieldAuraObj.GetComponent<Collider>());
 
-                Material mat = MaterialHelper.CreateSafeMaterial();
-                if (mat == null) return;
-                mat.name = "TransparentBlueShieldMat";
-
-                // Configure Standard Shader to Mode = 3 (Transparent)
-                mat.SetFloat("_Mode", 3);
-                mat.SetOverrideTag("RenderType", "Transparent");
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetInt("_ZWrite", 0);
-                mat.DisableKeyword("_ALPHATEST_ON");
-                mat.DisableKeyword("_ALPHABLEND_ON");
-                mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
-                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-
-                // Translucent electric azure blue
-                mat.color = new Color(0.12f, 0.60f, 1.0f, 0.28f);
-
-                if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.25f);
-                if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.94f);
-
-                if (mat.HasProperty("_EmissionColor"))
+                // Try to use the AAA ShieldAura shader for maximum visual impact
+                Shader shieldShader = Shader.Find("Custom/AAA_ShieldAura");
+                Material shieldMat;
+                if (shieldShader != null)
                 {
-                    mat.EnableKeyword("_EMISSION");
-                    mat.SetColor("_EmissionColor", new Color(0.10f, 0.65f, 1.0f) * 0.40f);
+                    shieldMat = new Material(shieldShader);
+                    shieldMat.SetColor("_AuraColor", new Color(0.12f, 0.60f, 1.0f, 0.15f));
+                    shieldMat.SetColor("_RimColor", new Color(0.4f, 0.90f, 1.0f, 1.0f));
+                    shieldMat.SetFloat("_RimPower", 2.5f);
+                    shieldMat.SetFloat("_RimIntensity", 2.0f);
+                    shieldMat.SetFloat("_PulseSpeed", 2.0f);
+                    shieldMat.SetFloat("_FresnelIntensity", 1.8f);
+                }
+                else
+                {
+                    // Fallback: Premium transparent material with emission
+                    shieldMat = MaterialHelper.CreateSafeMaterial();
+                    if (shieldMat == null) return;
+                    shieldMat.name = "TransparentBlueShieldMat";
+                    shieldMat.SetFloat("_Mode", 3);
+                    shieldMat.SetOverrideTag("RenderType", "Transparent");
+                    shieldMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    shieldMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    shieldMat.SetInt("_ZWrite", 0);
+                    shieldMat.EnableKeyword("_ALPHABLEND_ON");
+                    shieldMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    shieldMat.color = new Color(0.12f, 0.60f, 1.0f, 0.28f);
+                    if (shieldMat.HasProperty("_Metallic")) shieldMat.SetFloat("_Metallic", 0.25f);
+                    if (shieldMat.HasProperty("_Glossiness")) shieldMat.SetFloat("_Glossiness", 0.94f);
+                    if (shieldMat.HasProperty("_EmissionColor"))
+                    {
+                        shieldMat.EnableKeyword("_EMISSION");
+                        shieldMat.SetColor("_EmissionColor", new Color(0.10f, 0.65f, 1.0f) * 0.50f);
+                    }
                 }
 
-                shieldAuraObj.GetComponent<MeshRenderer>().sharedMaterial = mat;
+                shieldAuraObj.GetComponent<MeshRenderer>().sharedMaterial = shieldMat;
                 shieldAuraObj.SetActive(false);
+            }
+
+            // 2. Create Frenzy Radiant Gold / Amber Pulsing Energy Aura
+            if (frenzyAuraObj == null)
+            {
+                frenzyAuraObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                frenzyAuraObj.name = "Player_FrenzyGoldAura";
+                frenzyAuraObj.transform.SetParent(playerT, false);
+                frenzyAuraObj.transform.localPosition = new Vector3(0, 1.05f, 0);
+                frenzyAuraObj.transform.localScale = new Vector3(1.45f, 2.25f, 1.45f);
+                Destroy(frenzyAuraObj.GetComponent<Collider>());
+
+                // Use AAA ShieldAura shader for frenzy — gold energy field look
+                Shader frenzyShader = Shader.Find("Custom/AAA_ShieldAura");
+                Material fMat;
+                if (frenzyShader != null)
+                {
+                    fMat = new Material(frenzyShader);
+                    fMat.SetColor("_AuraColor", new Color(1.0f, 0.70f, 0.10f, 0.18f));
+                    fMat.SetColor("_RimColor", new Color(1.0f, 0.85f, 0.2f, 1.0f));
+                    fMat.SetFloat("_RimPower", 2.0f);
+                    fMat.SetFloat("_RimIntensity", 2.5f);
+                    fMat.SetFloat("_PulseSpeed", 4.0f);
+                    fMat.SetFloat("_FresnelIntensity", 2.2f);
+                    fMat.SetFloat("_ScanSpeed", 3.0f);
+                }
+                else
+                {
+                    fMat = MaterialHelper.CreateSafeMaterial();
+                    if (fMat != null)
+                    {
+                        fMat.name = "FrenzyGoldMat";
+                        fMat.SetFloat("_Mode", 3);
+                        fMat.SetOverrideTag("RenderType", "Transparent");
+                        fMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        fMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        fMat.SetInt("_ZWrite", 0);
+                        fMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                        fMat.color = new Color(1.0f, 0.80f, 0.15f, 0.35f);
+                        if (fMat.HasProperty("_EmissionColor"))
+                        {
+                            fMat.EnableKeyword("_EMISSION");
+                            fMat.SetColor("_EmissionColor", new Color(1.0f, 0.70f, 0.10f) * 0.90f);
+                        }
+                    }
+                }
+                frenzyAuraObj.GetComponent<MeshRenderer>().sharedMaterial = fMat;
+                frenzyAuraObj.SetActive(false);
             }
         }
 
@@ -479,6 +607,15 @@ namespace Runner.Pickups
             if (shieldAuraObj != null)
             {
                 shieldAuraObj.SetActive(active);
+            }
+        }
+
+        private void SetFrenzyAura(bool active)
+        {
+            EnsurePlayerAuraObjects();
+            if (frenzyAuraObj != null)
+            {
+                frenzyAuraObj.SetActive(active);
             }
         }
 

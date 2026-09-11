@@ -483,6 +483,69 @@ namespace Runner.Pickups
                     if (silverMat != null) rightTip.GetComponent<MeshRenderer>().sharedMaterial = silverMat;
                     break;
                 }
+                case PowerUpType.MultiplierFrenzy:
+                {
+                    // Ancient Aztec Golden Winged Frenzy Totem
+                    Material goldTotemMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.78f, 0.18f));
+                    if (goldTotemMat != null)
+                    {
+                        if (goldTotemMat.HasProperty("_Metallic")) goldTotemMat.SetFloat("_Metallic", 0.90f);
+                        if (goldTotemMat.HasProperty("_Glossiness")) goldTotemMat.SetFloat("_Glossiness", 0.85f);
+                        if (goldTotemMat.HasProperty("_EmissionColor"))
+                        {
+                            goldTotemMat.EnableKeyword("_EMISSION");
+                            goldTotemMat.SetColor("_EmissionColor", new Color(1.0f, 0.65f, 0.10f) * 0.5f);
+                        }
+                    }
+
+                    // Main Totem Pillar
+                    GameObject pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    pillar.name = "TotemPillar";
+                    pillar.transform.SetParent(transform, false);
+                    pillar.transform.localScale = new Vector3(0.35f, 0.55f, 0.35f);
+                    Destroy(pillar.GetComponent<Collider>());
+                    if (goldTotemMat != null) pillar.GetComponent<MeshRenderer>().sharedMaterial = goldTotemMat;
+
+                    // Left Totem Wing
+                    GameObject leftWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    leftWing.name = "TotemLeftWing";
+                    leftWing.transform.SetParent(transform, false);
+                    leftWing.transform.localPosition = new Vector3(-0.30f, 0.15f, 0);
+                    leftWing.transform.localRotation = Quaternion.Euler(0, 0, 25f);
+                    leftWing.transform.localScale = new Vector3(0.35f, 0.15f, 0.10f);
+                    Destroy(leftWing.GetComponent<Collider>());
+                    if (goldTotemMat != null) leftWing.GetComponent<MeshRenderer>().sharedMaterial = goldTotemMat;
+
+                    // Right Totem Wing
+                    GameObject rightWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    rightWing.name = "TotemRightWing";
+                    rightWing.transform.SetParent(transform, false);
+                    rightWing.transform.localPosition = new Vector3(0.30f, 0.15f, 0);
+                    rightWing.transform.localRotation = Quaternion.Euler(0, 0, -25f);
+                    rightWing.transform.localScale = new Vector3(0.35f, 0.15f, 0.10f);
+                    Destroy(rightWing.GetComponent<Collider>());
+                    if (goldTotemMat != null) rightWing.GetComponent<MeshRenderer>().sharedMaterial = goldTotemMat;
+
+                    // Glowing Mystic Gem Core
+                    GameObject eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    eye.name = "TotemEye";
+                    eye.transform.SetParent(transform, false);
+                    eye.transform.localPosition = new Vector3(0, 0.20f, -0.18f);
+                    eye.transform.localScale = new Vector3(0.16f, 0.16f, 0.16f);
+                    Destroy(eye.GetComponent<Collider>());
+
+                    Material eyeMat = MaterialHelper.CreateSafeMaterial(new Color(0.95f, 0.20f, 0.90f));
+                    if (eyeMat != null)
+                    {
+                        if (eyeMat.HasProperty("_EmissionColor"))
+                        {
+                            eyeMat.EnableKeyword("_EMISSION");
+                            eyeMat.SetColor("_EmissionColor", new Color(0.95f, 0.20f, 0.90f) * 1.8f);
+                        }
+                        eye.GetComponent<MeshRenderer>().sharedMaterial = eyeMat;
+                    }
+                    break;
+                }
                 default:
                 {
                     // Heart Revive
@@ -502,9 +565,10 @@ namespace Runner.Pickups
         {
             Color glowColor = powerUpType switch
             {
-                PowerUpType.Shield   => new Color(0.0f, 0.8f, 1.0f),
-                PowerUpType.Speedrun => new Color(0.1f, 1.0f, 0.25f),
-                PowerUpType.Magnet   => new Color(0.85f, 0.1f, 0.2f),
+                PowerUpType.Shield           => new Color(0.0f, 0.8f, 1.0f),
+                PowerUpType.Speedrun         => new Color(0.1f, 1.0f, 0.25f),
+                PowerUpType.Magnet           => new Color(0.85f, 0.1f, 0.2f),
+                PowerUpType.MultiplierFrenzy => new Color(1.0f, 0.75f, 0.15f),
                 _ => Color.white
             };
             foreach (var mr in GetComponentsInChildren<MeshRenderer>())

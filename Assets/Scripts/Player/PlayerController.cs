@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Runner.Core;
+using Runner.Effects;
 using Runner.Obstacles;
 using Runner.Track;
 
@@ -169,8 +170,18 @@ namespace Runner.Player
 
         private void OnEnable()
         {
+            if (inputClassifier == null)
+            {
+                inputClassifier = GetComponent<InputClassifier>();
+            }
+
             if (inputClassifier != null)
             {
+                inputClassifier.OnSwipeUp -= HandleSwipeUp;
+                inputClassifier.OnSwipeDown -= HandleSwipeDown;
+                inputClassifier.OnSwipeLeft -= HandleSwipeLeft;
+                inputClassifier.OnSwipeRight -= HandleSwipeRight;
+
                 inputClassifier.OnSwipeUp += HandleSwipeUp;
                 inputClassifier.OnSwipeDown += HandleSwipeDown;
                 inputClassifier.OnSwipeLeft += HandleSwipeLeft;
@@ -179,6 +190,10 @@ namespace Runner.Player
 
             if (GameManager.Instance != null)
             {
+                GameManager.Instance.OnStumbled -= HandleStumbleStarted;
+                GameManager.Instance.OnStumbleRecovered -= HandleStumbleEnded;
+                GameManager.Instance.OnGameOver -= HandleGameOver;
+
                 GameManager.Instance.OnStumbled += HandleStumbleStarted;
                 GameManager.Instance.OnStumbleRecovered += HandleStumbleEnded;
                 GameManager.Instance.OnGameOver += HandleGameOver;
@@ -212,6 +227,16 @@ namespace Runner.Player
                 return;
 
             float dt = Time.deltaTime;
+
+            // Direct guaranteed keyboard controls (guarantees instantaneous responsiveness)
+            if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
+                HandleSwipeLeft();
+            if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
+                HandleSwipeRight();
+            if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.Space))
+                HandleSwipeUp();
+            if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow))
+                HandleSwipeDown();
 
             // 1. Process Queued Turn Input Buffer (0.25s responsiveness window)
             if (queuedTurnTimer > 0f)
@@ -316,9 +341,16 @@ namespace Runner.Player
 
                 if (characterController.isGrounded && jumpTimer > 0.15f)
                 {
-                    // Landed
+                    // Landed — trigger AAA landing dust burst
                     verticalVelocity = -2.0f; // Small ground clamping force
                     State = PlayerState.Running;
+
+                    // AAA: Landing dust effect at player feet
+                    if (ImpactEffectManager.Instance != null)
+                    {
+                        ImpactEffectManager.Instance.PlayLandingDust(transform.position + Vector3.up * 0.1f);
+                    }
+
                     Runner.Audio.AudioManager.Instance?.PlayLand();
                 }
             }
@@ -383,6 +415,7 @@ namespace Runner.Player
                     animator.SetTrigger("Jump");
                 }
                 Runner.Audio.AudioManager.Instance?.PlayJump();
+                MissionManager.Instance?.ReportJump();
             }
         }
 
@@ -410,6 +443,7 @@ namespace Runner.Player
                 animator.SetTrigger("Slide");
             }
             Runner.Audio.AudioManager.Instance?.PlaySlide();
+            MissionManager.Instance?.ReportSlide();
         }
 
         private void HandleSwipeLeft()

@@ -58,6 +58,9 @@ namespace Runner.Audio
         private AudioClip powerUpClip;
         private AudioClip shieldBreakClip;
         private AudioClip uiClickClip;
+        private AudioClip frenzyFanfareClip;
+        private AudioClip mysteryChestClip;
+        private AudioClip missionCompleteClip;
 
         // Coin arpeggio state
         private int consecutiveCoinIndex = 0;
@@ -316,6 +319,27 @@ namespace Runner.Audio
             if (sfxSource == null || uiClickClip == null) return;
             sfxSource.PlayOneShot(uiClickClip, 0.60f);
         }
+
+        public void PlayFrenzyFanfare()
+        {
+            if (sfxSource == null) return;
+            AudioClip clip = frenzyFanfareClip != null ? frenzyFanfareClip : powerUpClip;
+            sfxSource.PlayOneShot(clip, 1.0f);
+        }
+
+        public void PlayMysteryChestOpen()
+        {
+            if (sfxSource == null) return;
+            AudioClip clip = mysteryChestClip != null ? mysteryChestClip : powerUpClip;
+            sfxSource.PlayOneShot(clip, 1.0f);
+        }
+
+        public void PlayMissionComplete()
+        {
+            if (sfxSource == null) return;
+            AudioClip clip = missionCompleteClip != null ? missionCompleteClip : powerUpClip;
+            sfxSource.PlayOneShot(clip, 0.95f);
+        }
         #endregion
 
         #region Procedural Audio Synthesis
@@ -354,6 +378,15 @@ namespace Runner.Audio
 
             // 9. Procedural Jungle Chase BGM Loop
             proceduralBgmClip = CreateTribalChaseBGMClip("TribalJungleChaseBGM", sampleRate);
+
+            // 10. Multiplier Frenzy Fanfare (Exciting fast arpeggio)
+            frenzyFanfareClip = CreateHarmonicToneClip("FrenzyFanfare", 880f, 0.40f, sampleRate);
+
+            // 11. Mystery Chest Open Chime
+            mysteryChestClip = CreateFanfareClip("MysteryChestChime", sampleRate);
+
+            // 12. Mission / Achievement Complete Chime
+            missionCompleteClip = CreateHarmonicToneClip("MissionCompleteChime", 1046.5f, 0.35f, sampleRate);
         }
 
         private AudioClip CreateHarmonicToneClip(string name, float freq, float duration, int sampleRate)

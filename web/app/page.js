@@ -9,7 +9,8 @@ import Link from 'next/link';
 // ──────────────────────────────────────────────
 const GITHUB_URL   = 'https://github.com/akhilboss118-an/spider-temple-escape';
 const RELEASES_URL = 'https://github.com/akhilboss118-an/spider-temple-escape/releases';
-const APK_URL      = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/latest/download/SpiderTempleEscape.apk';
+const APK_URL      = '/download';
+const DIRECT_APK   = '/downloads/SpiderTempleEscape.apk';
 
 // ──────────────────────────────────────────────
 //  Data
@@ -106,9 +107,9 @@ export default function Home() {
             <li><a href="#download">Download</a></li>
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
-          <a className="nav-cta" href={APK_URL} download>
-            ↓ Download APK
-          </a>
+          <Link className="nav-cta" href="/download">
+            ↓ Download APK v1.2
+          </Link>
         </div>
       </nav>
 
@@ -118,7 +119,7 @@ export default function Home() {
         <div className="hero-overlay" />
 
         <div className="container hero-content">
-          <div className="hero-badge">Major Upgrade · 3 Biomes · 4 Hero Suits · Dynamic Audio · WebGL Demo</div>
+          <div className="hero-badge">v1.2 Release · 3D Torch Braziers · Sunny Sky · 4 Hero Suits · WebGL Demo</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -137,12 +138,12 @@ export default function Home() {
               </svg>
               Play Instant Web Demo
             </a>
-            <a className="btn-primary" href={APK_URL} download>
+            <Link className="btn-primary" href="/download">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download Free APK
-            </a>
+              Download APK v1.2
+            </Link>
             <a className="btn-secondary" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
@@ -285,19 +286,19 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK · Silky 60 FPS</div>
+          <div className="download-badge">Native Android APK v1.2 · Silky 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK directly to your Android device for the most responsive touch controls, vibration haptics, and locked 60 FPS gameplay.
+            Download the native APK v1.2 directly to your Android device for the most responsive touch controls, vibration haptics, and locked 60 FPS gameplay.
           </p>
 
           <div className="download-buttons">
-            <a className="download-apk" href={APK_URL} download>
+            <Link className="download-apk" href="/download">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK — Free (~71 MB)
-            </a>
+              Download APK v1.2 — Free (~71 MB)
+            </Link>
             <a
               className="download-github"
               href={RELEASES_URL}

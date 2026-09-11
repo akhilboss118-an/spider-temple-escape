@@ -9,11 +9,9 @@ namespace Runner.EditorTools
 {
     public static class MenuVerificationTest
     {
-        [InitializeOnLoadMethod]
         [MenuItem("Runner/Verify Menu & Compilation")]
         public static void VerifyCompilationAndSetup()
         {
-            AssetDatabase.Refresh();
             Debug.Log("[MenuVerificationTest] Verifying Main Menu and Game Setup...");
 
             // 1. Verify textures exist
@@ -32,15 +30,22 @@ namespace Runner.EditorTools
             int bankedRelics = PlayerPrefs.GetInt("Runner_TotalCoins", 15);
             float audioVol = PlayerPrefs.GetFloat(GameManager.AUDIO_VOL_KEY, 1.0f);
             int controlScheme = PlayerPrefs.GetInt(GameManager.CONTROLS_KEY, 0);
+            int frenzyLvl = PlayerPrefs.GetInt(GameManager.FRENZY_LVL_KEY, 1);
             int haptics = PlayerPrefs.GetInt(GameManager.HAPTICS_KEY, 1);
 
-            Debug.Log($"[MenuVerificationTest] Config State: Suit={suit}, ShieldLvl={shieldLvl}, SpeedLvl={speedLvl}, MagnetLvl={magnetLvl}, MaxLives={maxLives}, Relics={bankedRelics}, AudioVol={audioVol}, Controls={controlScheme}, Haptics={haptics}");
+            Debug.Log($"[MenuVerificationTest] Config State: Suit={suit}, ShieldLvl={shieldLvl}, SpeedLvl={speedLvl}, MagnetLvl={magnetLvl}, FrenzyLvl={frenzyLvl}, MaxLives={maxLives}, Relics={bankedRelics}, AudioVol={audioVol}, Controls={controlScheme}, Haptics={haptics}");
 
             // 3. Verify PowerUpType enum completeness
             bool hasSpeedrun = System.Enum.IsDefined(typeof(PowerUpType), PowerUpType.Speedrun);
             bool hasMagnet = System.Enum.IsDefined(typeof(PowerUpType), PowerUpType.Magnet);
             bool hasShield = System.Enum.IsDefined(typeof(PowerUpType), PowerUpType.Shield);
             bool hasHeartRevive = System.Enum.IsDefined(typeof(PowerUpType), PowerUpType.HeartRevive);
+            bool hasFrenzy = System.Enum.IsDefined(typeof(PowerUpType), PowerUpType.MultiplierFrenzy);
+            Debug.Log($"[MenuVerificationTest] PowerUp Enums: Speedrun={hasSpeedrun}, Magnet={hasMagnet}, Shield={hasShield}, Heart={hasHeartRevive}, Frenzy={hasFrenzy}");
+
+            // 3b. Verify MissionManager
+            var mm = MissionManager.Instance;
+            Debug.Log($"[MenuVerificationTest] MissionManager Initialized: {mm != null}, DailyMissions={mm?.DailyMissions.Count}, Achievements={mm?.LifetimeAchievements.Count}");
 
             // 4. Verify 3D Models for Obstacles, PowerUps, and Environment
             string[] testModels = new string[]
@@ -58,6 +63,9 @@ namespace Runner.EditorTools
                 "Assets/Models/Obstacles/gravestone_obstacle.obj",
                 "Assets/Models/Obstacles/skull_obstacle.obj",
                 "Assets/Models/Path/path_sidewalk.obj",
+                "Assets/Models/Path/rocky_path.obj",
+                "Assets/Models/Path/low_poly_road.obj",
+                "Assets/Models/Environment/stone_gate.obj",
                 "Assets/Models/Jungle/monstera-tree/source/monstera3.fbx",
                 "Assets/Models/Jungle/pine-tree/source/Tree.fbx"
             };
@@ -77,7 +85,41 @@ namespace Runner.EditorTools
                 Debug.Log($"[MenuVerificationTest] 3D Model '{System.IO.Path.GetFileName(modelPath)}' Loaded: {obj != null}{boundsInfo}");
             }
 
+            // 5. Verify obstacle variant assets (gravestone, tree branches) load from Resources
+            string[] variantModels = new string[]
+            {
+                "Obstacles/tree_branch_jump",
+                "Obstacles/tree_branch_slide",
+                "Obstacles/gravestone_obstacle"
+            };
+            foreach (var vp in variantModels)
+            {
+                GameObject vo = Resources.Load<GameObject>(vp);
+                Debug.Log($"[MenuVerificationTest] Obstacle Variant '{vp}' Loaded: {vo != null}");
+            }
+            Texture2D graveTex = Resources.Load<Texture2D>("Obstacles/gravestone_tex_0");
+            Debug.Log($"[MenuVerificationTest] Gravestone texture Loaded: {graveTex != null}");
+            Material branchJumpMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_TreeBranch_Jump_0.mat");
+            Material branchSlideMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_TreeBranch_Slide.mat");
+            Debug.Log($"[MenuVerificationTest] Branch materials: Jump0={branchJumpMat != null}, Slide={branchSlideMat != null}");
+
             Debug.Log("[MenuVerificationTest] ALL SYSTEMS AND 3D MODELS VERIFIED! Ready for execution.");
+        }
+
+        [MenuItem("Runner/Run Full Upgrade & Snapshot")]
+        public static void RunFullUpgradeAndSnapshotCapture()
+        {
+            Debug.Log("[MenuVerificationTest] Running Graphics Upgrade...");
+            GraphicsUpgradeUtility.UpgradeAllGraphics();
+
+            Debug.Log("[MenuVerificationTest] Capturing Fresh Scene Snapshots...");
+            SceneSnapshotTool.CaptureSceneSnapshot();
+
+            Debug.Log("[MenuVerificationTest] Verifying Compilation and Setup...");
+            VerifyCompilationAndSetup();
+
+            Debug.Log("[MenuVerificationTest] Verifying Road Progression and Gates...");
+            RoadAndGateVerificationTest.RunVerification();
         }
     }
 }

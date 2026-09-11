@@ -1,0 +1,15 @@
+# Material definitions for torch_brazier
+newmtl Torch_mat
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.200 0.200 0.200
+d 1.0
+map_Kd tex_torch_albedo.png
+map_Bump tex_torch_normal.png
+
+newmtl Flame_mat
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 1.0
+map_Kd tex_torch_flame_albedo.png

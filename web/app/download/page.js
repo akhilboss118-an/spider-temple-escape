@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/latest/download/SpiderTempleEscape.apk';
+const DIRECT_APK = '/downloads/SpiderTempleEscape.apk';
+const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.2.0/SpiderTempleEscape.apk';
+const GITHUB_LATEST_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/latest/download/SpiderTempleEscape.apk';
 const RELEASES_PAGE = 'https://github.com/akhilboss118-an/spider-temple-escape/releases';
 
 export default function DownloadPage() {
@@ -15,7 +17,7 @@ export default function DownloadPage() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          triggerDownload();
+          triggerDownload(DIRECT_APK);
           return 0;
         }
         return prev - 1;
@@ -25,10 +27,10 @@ export default function DownloadPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const triggerDownload = () => {
+  const triggerDownload = (url = DIRECT_APK) => {
     setDownloadStarted(true);
     const link = document.createElement('a');
-    link.href = GITHUB_APK;
+    link.href = url;
     link.download = 'SpiderTempleEscape.apk';
     document.body.appendChild(link);
     link.click();
@@ -57,7 +59,23 @@ export default function DownloadPage() {
         padding: '36px 28px',
         boxShadow: '0 25px 60px rgba(0,0,0,0.8)'
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🕷️</div>
+        <div style={{ fontSize: '48px', marginBottom: '8px' }}>🕷️</div>
+
+        <div style={{
+          display: 'inline-block',
+          padding: '4px 12px',
+          backgroundColor: 'rgba(212, 168, 83, 0.15)',
+          border: '1px solid rgba(212, 168, 83, 0.35)',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: '700',
+          color: '#d4a853',
+          marginBottom: '12px',
+          letterSpacing: '0.8px',
+          textTransform: 'uppercase'
+        }}>
+          v1.2 Release · Android APK
+        </div>
         
         <h1 style={{
           fontSize: '26px',
@@ -71,13 +89,13 @@ export default function DownloadPage() {
 
         <p style={{ color: '#8a8a9a', fontSize: '14px', marginBottom: '24px' }}>
           {countdown > 0 
-            ? `Your download will begin automatically in ${countdown}s...` 
-            : 'Your Android APK download has started!'}
+            ? `Your v1.2 APK download will begin automatically in ${countdown}s...` 
+            : 'Your Android APK v1.2 download has started!'}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
           <button
-            onClick={triggerDownload}
+            onClick={() => triggerDownload(DIRECT_APK)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -94,13 +112,12 @@ export default function DownloadPage() {
               boxShadow: '0 4px 20px rgba(212, 168, 83, 0.4)'
             }}
           >
-            📥 Download APK Directly (~71 MB)
+            📥 Download APK v1.2 Directly (~71 MB)
           </button>
 
           <a
-            href={RELEASES_PAGE}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={GITHUB_APK}
+            download
             style={{
               padding: '12px 20px',
               backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -109,10 +126,14 @@ export default function DownloadPage() {
               fontWeight: '600',
               textDecoration: 'none',
               borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.12)'
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
           >
-            ⚡ View on GitHub Releases
+            ⚡ Download from GitHub Releases (v1.2.0)
           </a>
         </div>
 

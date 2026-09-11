@@ -94,6 +94,12 @@ namespace Runner.Track
                 if (pu != null) pu.gameObject.SetActive(true);
             }
 
+            var chests = GetComponentsInChildren<Pickups.MysteryChest>(true);
+            foreach (var chest in chests)
+            {
+                if (chest != null) chest.gameObject.SetActive(true);
+            }
+
             var coins = GetComponentsInChildren<Runner.Pickups.Coin>(true);
             foreach (var coin in coins)
             {
@@ -104,6 +110,19 @@ namespace Runner.Track
             if (junc != null)
             {
                 junc.ResetJunction();
+            }
+
+            var dynamicGate = transform.Find("AncientStoneGate");
+            if (dynamicGate != null)
+            {
+                #if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    DestroyImmediate(dynamicGate.gameObject);
+                else
+                    Destroy(dynamicGate.gameObject);
+                #else
+                Destroy(dynamicGate.gameObject);
+                #endif
             }
         }
 

@@ -17,7 +17,7 @@ namespace Runner.Track
 
         [Header("Pool Settings")]
         [Tooltip("Target number of chunks kept active in front of the player")]
-        [SerializeField] private int activeChunkCount = 28;
+        [SerializeField] private int activeChunkCount = 14;
 
         [Tooltip("Distance behind the player before a chunk is recycled")]
         [SerializeField] private float recycleDistanceBehindPlayer = 15.0f;
@@ -49,6 +49,12 @@ namespace Runner.Track
         private float distanceSinceLastGap = 100.0f;
         private float distanceSinceLastJump = 100.0f;
         private int chunksSinceLastJunction = 0;
+
+        // Procedural road progression & stone gate tracking
+        private float cumulativeTrackDistance = 0.0f;
+        private float nextStoneGateDistance = 120.0f;
+        private bool gateSpawnedAt1000 = false;
+        private bool gateSpawnedAt2000 = false;
 
         private void Awake()
         {
@@ -103,27 +109,43 @@ namespace Runner.Track
         private void SpawnInitialTrack()
         {
             chunksSinceLastJunction = 0;
+            cumulativeTrackDistance = 0.0f;
+            nextStoneGateDistance = 120.0f;
+            gateSpawnedAt1000 = false;
+            gateSpawnedAt2000 = false;
 
-            // Chunk 0 (0 - 10m): Safe straight runway with initial guide hearts
+            // Start 20m behind player so road extends seamlessly under camera (-5.8m) & monster (-4.0m)
+            nextSpawnPosition = new Vector3(0, 0, -20.0f);
+            currentTrackRotation = Quaternion.identity;
+
+            // Chunks behind starting line: -20 to -10m, -10 to 0m
+            SpawnChunkOfType(ChunkType.Straight);
             SpawnChunkOfType(ChunkType.Straight);
 
-            // Chunk 1 (10 - 20m): 3D Tree Branch JUMP Hurdle (LowObstacle) with arcing hearts
-            SpawnChunkOfType(ChunkType.LowObstacle);
+            // Chunk at start line (0 - 10m): Safe straight runway with start gate archway
+            TrackChunk startChunk = SpawnChunkOfType(ChunkType.Straight);
+            if (startChunk != null)
+            {
+                SpawnStoneGate(startChunk, 1.0f);
+            }
 
-            // Chunk 2 (20 - 30m): 3D Tree Branch SLIDE Overhead Arch (SlideArch) with low slide hearts
-            SpawnChunkOfType(ChunkType.SlideArch);
+            // Chunk 1 (10 - 20m): Safe open sprint runway with ambient roadside braziers
+            SpawnChunkOfType(ChunkType.Straight);
 
-            // Chunk 3 (30 - 40m): 3D Tree Branch JUMP Hurdle across randomized lanes
-            SpawnChunkOfType(ChunkType.LowObstacle);
+            // Chunk 2 (20 - 30m): Inviting Gold Coin trail
+            SpawnChunkOfType(ChunkType.CoinRun);
 
-            // Chunk 4 (40 - 50m): 3D Tree Branch SLIDE Overhead Arch with Power-Up
-            SpawnChunkOfType(ChunkType.SlideArch);
+            // Chunk 3 (30 - 40m): Safe straight runway allowing player to build momentum
+            SpawnChunkOfType(ChunkType.Straight);
 
-            // Chunk 5 (50 - 60m): 10-Heart Coin/Heart Run!
+            // Chunk 4 (40 - 50m): 10-Heart sprint trail (pure reward, zero hazards)
             SpawnChunkOfType(ChunkType.HeartRun);
 
-            // Chunk 6 (60 - 70m): Lane Blocker / Boulder challenge
+            // Chunk 5 (50 - 60m): Gentle single-lane obstacle introduction with wide open dodge lanes
             SpawnChunkOfType(ChunkType.LaneBlocker);
+
+            // Chunk 6 (60 - 70m): Rewarding recovery coin run
+            SpawnChunkOfType(ChunkType.CoinRun);
 
             // Chunks 7+ : Dynamically generated procedural world
             while (activeChunks.Count < activeChunkCount)
@@ -139,19 +161,19 @@ namespace Runner.Track
         }
 
         /// <summary>
-        /// Strict Generator Constraint Validator:
-        /// 1. Temple Run 90-degree Junctions every 8-12 chunks of straight running
-        /// 2. Tree Branch Jump hurdles and Slide arches are the dominant obstacle types (~64% of obstacles)
-        /// 3. Jump Obstacle Spacing >= 5m * (v / 8)
+        /// Balanced & Minimized Obstacle Generator:
+        /// 1. Enforces strict obstacle cooldown guarantee: NEVER spawn two obstacle chunks consecutively.
+        /// 2. Clean safe runs (Straight, CoinRun, HeartRun) make up ~70% of chunks.
+        /// 3. Well-spaced single-lane obstacles make up ~30% of chunks.
         /// </summary>
         private ChunkType SelectNextValidChunkType()
         {
             float speed = GameManager.Instance != null ? GameManager.Instance.CurrentSpeed : 8.0f;
-            float minJumpSpacing = 5.0f * (speed / 8.0f);
+            float minJumpSpacing = 6.0f * (speed / 8.0f);
 
             // 1. Temple Run 90-degree Turn Junctions:
-            // Spawn a junction only after 8 or more chunks of obstacle running
-            if (chunksSinceLastJunction >= 8)
+            // Spawn a junction only after 10 or more chunks of running
+            if (chunksSinceLastJunction >= 10)
             {
                 int juncRoll = Random.Range(0, 100);
                 if (juncRoll < 35) return ChunkType.TJunctionLeft;
@@ -159,31 +181,42 @@ namespace Runner.Track
                 else return ChunkType.TJunctionDouble;
             }
 
-            // 2. Obstacles: Dominant Tree Branch Jump hurdles & Tree Branch Slide arches!
+            // 2. Obstacle Cooldown Guarantee:
+            // If the previous chunk contained an obstacle, the next chunk is GUARANTEED to be a clean safe run!
+            bool lastWasObstacle = (lastSpawnedType == ChunkType.LaneBlocker || lastSpawnedType == ChunkType.LowObstacle || lastSpawnedType == ChunkType.SlideArch);
+            if (lastWasObstacle)
+            {
+                int safeRoll = Random.Range(0, 100);
+                if (safeRoll < 45) return ChunkType.Straight;
+                else if (safeRoll < 75) return ChunkType.CoinRun;
+                else return ChunkType.HeartRun;
+            }
+
+            // 3. Balanced Procedural Distribution: ~70% safe runs, ~30% minimized hazards
             int roll = Random.Range(0, 100);
             ChunkType candidate;
 
-            if (roll < 4) candidate = ChunkType.Straight;
-            else if (roll < 12) candidate = ChunkType.CoinRun;
-            else if (roll < 20) candidate = ChunkType.HeartRun;    // 8% chance for 10-heart trail!
-            else if (roll < 36) candidate = ChunkType.LaneBlocker; // 16% chance for boulders
-            else if (roll < 68) candidate = ChunkType.LowObstacle; // 32% chance for Tree Branch JUMP hurdle!
-            else candidate = ChunkType.SlideArch;                 // 32% chance for Tree Branch SLIDE arch!
+            if (roll < 30) candidate = ChunkType.Straight;        // 30% clean straight
+            else if (roll < 55) candidate = ChunkType.CoinRun;    // 25% coin run
+            else if (roll < 70) candidate = ChunkType.HeartRun;   // 15% heart sprint
+            else if (roll < 80) candidate = ChunkType.LaneBlocker;// 10% single-lane dodge
+            else if (roll < 90) candidate = ChunkType.LowObstacle;// 10% jump hurdle
+            else candidate = ChunkType.SlideArch;                 // 10% slide trunk
 
-            // Spacing check: avoid two jump hurdles or two slide arches back-to-back
+            // Spacing check: if spacing is too tight, fallback to safe straight/coin runway, NOT another hazard!
             if (candidate == ChunkType.LowObstacle && distanceSinceLastJump < minJumpSpacing)
             {
-                return ChunkType.SlideArch;
+                return ChunkType.Straight;
             }
             if (candidate == ChunkType.SlideArch && distanceSinceLastSlide < minJumpSpacing)
             {
-                return ChunkType.LaneBlocker;
+                return ChunkType.CoinRun;
             }
 
             return candidate;
         }
 
-        private void SpawnChunkOfType(ChunkType type)
+        private TrackChunk SpawnChunkOfType(ChunkType type)
         {
             TrackChunk chunk = GetOrCreateChunk(type);
 
@@ -192,6 +225,9 @@ namespace Runner.Track
             chunk.gameObject.SetActive(true);
             chunk.ResetChunk();
 
+            float chunkDistance = cumulativeTrackDistance;
+            cumulativeTrackDistance += chunk.Length;
+
             if (Runner.Effects.BiomeManager.Instance != null)
             {
                 var curBiome = Runner.Effects.BiomeManager.Instance.CurrentBiome;
@@ -199,6 +235,12 @@ namespace Runner.Track
                 var curbMat = Runner.Effects.BiomeManager.Instance.GetCurbMaterialForBiome(curBiome);
                 chunk.ApplyBiome(floorMat, curbMat);
             }
+
+            // 3-Tier Procedural 3D Road Progression (0-1000m Default, 1000-2000m Rocky Path, 2000m+ Highway)
+            ApplyRoadVisual(chunk, chunkDistance);
+
+            // Ancient Stone Gate Integration (Milestone Transitions & Periodic Archways)
+            CheckAndSpawnStoneGate(chunk, chunkDistance);
 
             // Configure junction triggers explicitly whether fresh or recycled from object pool
             if (chunk.IsJunction)
@@ -230,6 +272,8 @@ namespace Runner.Track
 
             // Advance spawn cursor forward along current orientation
             nextSpawnPosition += currentTrackRotation * (Vector3.forward * chunkLength);
+
+            return chunk;
         }
 
         private TrackChunk GetOrCreateChunk(ChunkType type)
@@ -337,6 +381,7 @@ namespace Runner.Track
         #region Procedural Fallback Builder (Temple Stone Pathway & Sockets)
         private Material trackMatCache;
         private Material curbMatCache;
+        private Material jungleGroundMatCache;
         private Material obstacleMatCache;
         private Material coinMatCache;
         private Material sidewalkMatCache;
@@ -348,9 +393,15 @@ namespace Runner.Track
         private Material treeBranchJumpMat1;
         private Material treeBranchJumpMat2;
         private Material treeBranchSlideMatCache;
+        private Material gravestoneMatCache;
         private Material monsteraMatCache;
         private Material canopyBarkMatCache;
         private Material canopyLeavesMatCache;
+        private Material rockyPathMatCache;
+        private Material lowPolyRoadMatCache;
+        private Material stoneGateMatCache;
+        private Material torchMatCache;
+        private Material torchFlameMatCache;
 
         private GameObject pathSidewalkPrefab;
         private GameObject mossyStonePrefab;
@@ -361,6 +412,10 @@ namespace Runner.Track
         private GameObject pineTreePrefab;
         private GameObject treeBranchJumpPrefab;
         private GameObject treeBranchSlidePrefab;
+        private GameObject rockyPathPrefab;
+        private GameObject lowPolyRoadPrefab;
+        private GameObject stoneGatePrefab;
+        private GameObject torchBrazierPrefab;
 
         private void Ensure3DModels()
         {
@@ -371,6 +426,42 @@ namespace Runner.Track
                 if (pathSidewalkPrefab == null)
                     pathSidewalkPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/path_sidewalk.obj");
                 #endif
+            }
+            if (rockyPathPrefab == null)
+            {
+                rockyPathPrefab = Resources.Load<GameObject>("Path/rocky_path");
+                #if UNITY_EDITOR
+                if (rockyPathPrefab == null)
+                    rockyPathPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/rocky_path.obj");
+                #endif
+                if (rockyPathPrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Rocky Path Model Loaded Successfully: " + rockyPathPrefab.name);
+                }
+            }
+            if (lowPolyRoadPrefab == null)
+            {
+                lowPolyRoadPrefab = Resources.Load<GameObject>("Path/low_poly_road");
+                #if UNITY_EDITOR
+                if (lowPolyRoadPrefab == null)
+                    lowPolyRoadPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/low_poly_road.obj");
+                #endif
+                if (lowPolyRoadPrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Low-Poly Road Model Loaded Successfully: " + lowPolyRoadPrefab.name);
+                }
+            }
+            if (stoneGatePrefab == null)
+            {
+                stoneGatePrefab = Resources.Load<GameObject>("Environment/stone_gate");
+                #if UNITY_EDITOR
+                if (stoneGatePrefab == null)
+                    stoneGatePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Environment/stone_gate.obj");
+                #endif
+                if (stoneGatePrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Ancient Stone Gate Model Loaded Successfully: " + stoneGatePrefab.name);
+                }
             }
             if (mossyStonePrefab == null)
             {
@@ -456,6 +547,20 @@ namespace Runner.Track
                     Debug.Log("[TrackManager] 3D Tree Branch Slide Model Loaded Successfully: " + treeBranchSlidePrefab.name);
                 }
             }
+            if (torchBrazierPrefab == null)
+            {
+                torchBrazierPrefab = Resources.Load<GameObject>("Environment/torch_brazier");
+                #if UNITY_EDITOR
+                if (torchBrazierPrefab == null)
+                    torchBrazierPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Environment/torch_brazier.obj");
+                if (torchBrazierPrefab == null)
+                    torchBrazierPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Environment/torch_brazier.obj");
+                #endif
+                if (torchBrazierPrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Torch Brazier Model Loaded Successfully: " + torchBrazierPrefab.name);
+                }
+            }
         }
 
         private void EnsureMaterials()
@@ -474,7 +579,7 @@ namespace Runner.Track
                     if (trackTex == null)
                         trackTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Track.png");
                     #endif
-                    trackMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.35f, 0.38f, 0.34f), trackTex);
+                    trackMatCache = MaterialHelper.CreateSafeMaterial(new Color(1.05f, 1.02f, 0.96f), trackTex);
                 }
             }
 
@@ -508,7 +613,22 @@ namespace Runner.Track
                 if (deadTreeMatCache == null)
                 {
                     Texture2D diff = Resources.Load<Texture2D>("Obstacles/dead_tree_tex_0");
-                    deadTreeMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
+                    #if UNITY_EDITOR
+                    if (diff == null)
+                        diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/dead_tree_tex_0.png");
+                    #endif
+                    deadTreeMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 0.78f, 0.70f), diff);
+
+                    Texture2D norm = Resources.Load<Texture2D>("Obstacles/dead_tree_tex_2");
+                    #if UNITY_EDITOR
+                    if (norm == null)
+                        norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/dead_tree_tex_2.png");
+                    #endif
+                    if (deadTreeMatCache != null && norm != null && deadTreeMatCache.HasProperty("_BumpMap"))
+                    {
+                        deadTreeMatCache.SetTexture("_BumpMap", norm);
+                        deadTreeMatCache.EnableKeyword("_NORMALMAP");
+                    }
                 }
             }
 
@@ -522,14 +642,41 @@ namespace Runner.Track
                 if (mossyStoneMatCache == null)
                 {
                     Texture2D diff = Resources.Load<Texture2D>("Obstacles/mossy_stone_tex_0");
+                    #if UNITY_EDITOR
+                    if (diff == null)
+                        diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/mossy_stone_tex_0.png");
+                    #endif
                     mossyStoneMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
                 }
             }
 
             if (skullMatCache == null)
             {
-                Texture2D skullDiff = Resources.Load<Texture2D>("Obstacles/skull_tex_0");
-                skullMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.9f, 0.88f, 0.82f), skullDiff);
+                skullMatCache = Resources.Load<Material>("Materials/Mat_Skull");
+                #if UNITY_EDITOR
+                if (skullMatCache == null)
+                    skullMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Skull.mat");
+                #endif
+                if (skullMatCache == null)
+                {
+                    Texture2D skullDiff = Resources.Load<Texture2D>("Obstacles/skull_tex_0");
+                    #if UNITY_EDITOR
+                    if (skullDiff == null)
+                        skullDiff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/skull_tex_0.png");
+                    #endif
+                    skullMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.50f, 0.47f, 0.42f), skullDiff);
+
+                    Texture2D skullNorm = Resources.Load<Texture2D>("Obstacles/skull_tex_2");
+                    #if UNITY_EDITOR
+                    if (skullNorm == null)
+                        skullNorm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/skull_tex_2.png");
+                    #endif
+                    if (skullMatCache != null && skullNorm != null && skullMatCache.HasProperty("_BumpMap"))
+                    {
+                        skullMatCache.SetTexture("_BumpMap", skullNorm);
+                        skullMatCache.EnableKeyword("_NORMALMAP");
+                    }
+                }
             }
 
             if (treeBranchJumpMat0 == null)
@@ -620,18 +767,68 @@ namespace Runner.Track
                 }
             }
 
+            if (gravestoneMatCache == null)
+            {
+                gravestoneMatCache = Resources.Load<Material>("Materials/Mat_Gravestone");
+                #if UNITY_EDITOR
+                if (gravestoneMatCache == null)
+                    gravestoneMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Gravestone.mat");
+                #endif
+                if (gravestoneMatCache == null)
+                {
+                    Texture2D diff = Resources.Load<Texture2D>("Obstacles/gravestone_tex_0");
+                    #if UNITY_EDITOR
+                    if (diff == null)
+                        diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/gravestone_tex_0.png");
+                    if (diff == null)
+                        diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/Obstacles/gravestone_tex_0.png");
+                    #endif
+                    gravestoneMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.48f, 0.45f, 0.40f), diff);
+                }
+            }
+
             if (curbMatCache == null)
             {
-                Texture2D curbTex = Resources.Load<Texture2D>("Textures/Tex_Curb");
+                curbMatCache = Resources.Load<Material>("Materials/Mat_Curb");
                 #if UNITY_EDITOR
-                if (curbTex == null)
-                    curbTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Curb.png");
+                if (curbMatCache == null)
+                    curbMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Curb.mat");
                 #endif
-
-                curbMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.25f, 0.27f, 0.23f), curbTex);
-                if (curbMatCache != null && curbTex != null)
+                if (curbMatCache == null)
                 {
-                    curbMatCache.mainTextureScale = new Vector2(1.0f, 4.0f);
+                    Texture2D curbTex = Resources.Load<Texture2D>("Textures/Tex_TempleCurb") ?? Resources.Load<Texture2D>("Textures/Tex_Curb");
+                    #if UNITY_EDITOR
+                    if (curbTex == null)
+                        curbTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_TempleCurb.jpg") 
+                               ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Curb.png");
+                    #endif
+                    curbMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.90f, 0.86f, 0.80f), curbTex);
+                    if (curbMatCache != null && curbTex != null)
+                    {
+                        curbMatCache.mainTextureScale = new Vector2(1.0f, 3.0f);
+                    }
+                }
+            }
+
+            if (jungleGroundMatCache == null)
+            {
+                jungleGroundMatCache = Resources.Load<Material>("Materials/Mat_JungleGround");
+                #if UNITY_EDITOR
+                if (jungleGroundMatCache == null)
+                    jungleGroundMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_JungleGround.mat");
+                #endif
+                if (jungleGroundMatCache == null)
+                {
+                    Texture2D gTex = Resources.Load<Texture2D>("Textures/Tex_JungleGround");
+                    #if UNITY_EDITOR
+                    if (gTex == null)
+                        gTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_JungleGround.jpg");
+                    #endif
+                    jungleGroundMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 0.95f, 0.82f), gTex);
+                    if (jungleGroundMatCache != null && gTex != null)
+                    {
+                        jungleGroundMatCache.mainTextureScale = new Vector2(2.0f, 4.0f);
+                    }
                 }
             }
 
@@ -652,32 +849,38 @@ namespace Runner.Track
 
             if (coinMatCache == null)
             {
-                Texture2D coinTex = Resources.Load<Texture2D>("Textures/Tex_Coin");
+                coinMatCache = Resources.Load<Material>("Materials/Mat_Coin");
                 #if UNITY_EDITOR
-                if (coinTex == null)
-                    coinTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Coin.png");
+                if (coinMatCache == null)
+                    coinMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Coin.mat");
                 #endif
-
-                coinMatCache = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.88f, 0.20f), coinTex);
+                if (coinMatCache == null)
+                {
+                    Texture2D coinTex = Resources.Load<Texture2D>("Textures/Tex_Coin");
+                    #if UNITY_EDITOR
+                    if (coinTex == null)
+                        coinTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Coin.png");
+                    #endif
+                    coinMatCache = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.82f, 0.15f), coinTex);
+                }
             }
 
             if (monsteraMatCache == null)
             {
-                Texture2D diff = Resources.Load<Texture2D>("Environment/ALBEDO-monstera");
+                monsteraMatCache = Resources.Load<Material>("Materials/Mat_Monstera");
                 #if UNITY_EDITOR
-                if (diff == null)
-                    diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/monstera-tree/textures/ALBEDO-monstera.png");
+                if (monsteraMatCache == null)
+                    monsteraMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Monstera.mat");
                 #endif
-                Texture2D norm = Resources.Load<Texture2D>("Environment/SNormal-monstera3");
-                #if UNITY_EDITOR
-                if (norm == null)
-                    norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/monstera-tree/textures/SNormal-monstera3.png");
-                #endif
-                monsteraMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 0.95f, 0.85f), diff);
-                if (monsteraMatCache != null && norm != null && monsteraMatCache.HasProperty("_BumpMap"))
+                if (monsteraMatCache == null)
                 {
-                    monsteraMatCache.SetTexture("_BumpMap", norm);
-                    monsteraMatCache.EnableKeyword("_NORMALMAP");
+                    Texture2D diff = Resources.Load<Texture2D>("Environment/monstera_cutout") ?? Resources.Load<Texture2D>("Environment/ALBEDO-monstera");
+                    #if UNITY_EDITOR
+                    if (diff == null)
+                        diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/monstera-tree/textures/monstera_cutout.png")
+                            ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/monstera-tree/textures/ALBEDO-monstera.png");
+                    #endif
+                    monsteraMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.90f, 1.05f, 0.88f), diff);
                 }
             }
 
@@ -703,12 +906,146 @@ namespace Runner.Track
 
             if (canopyLeavesMatCache == null)
             {
-                Texture2D diff = Resources.Load<Texture2D>("Environment/Leavs_basecolor_.tga");
+                canopyLeavesMatCache = Resources.Load<Material>("Materials/Mat_CanopyLeaves");
+                #if UNITY_EDITOR
+                if (canopyLeavesMatCache == null)
+                    canopyLeavesMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_CanopyLeaves.mat");
+                #endif
+                if (canopyLeavesMatCache == null)
+                {
+                    Texture2D diff = Resources.Load<Texture2D>("Environment/Leavs_basecolor_cutout") ?? Resources.Load<Texture2D>("Environment/Leavs_basecolor_.tga");
+                    #if UNITY_EDITOR
+                    if (diff == null)
+                        diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/pine-tree/textures/Leavs_basecolor_cutout.png")
+                            ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/pine-tree/textures/Leavs_basecolor_.tga.png");
+                    #endif
+                    canopyLeavesMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 1.10f, 0.85f), diff);
+                }
+            }
+
+            if (rockyPathMatCache == null)
+            {
+                Texture2D diff = Resources.Load<Texture2D>("Path/rocky_path_tex_0");
                 #if UNITY_EDITOR
                 if (diff == null)
-                    diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/pine-tree/textures/Leavs_basecolor_.tga.png");
+                    diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/rocky_path_tex_0.jpg");
                 #endif
-                canopyLeavesMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 0.95f, 0.85f), diff);
+                rockyPathMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
+
+                Texture2D norm = Resources.Load<Texture2D>("Path/rocky_path_tex_3");
+                #if UNITY_EDITOR
+                if (norm == null)
+                    norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/rocky_path_tex_3.jpg");
+                #endif
+                if (rockyPathMatCache != null && norm != null && rockyPathMatCache.HasProperty("_BumpMap"))
+                {
+                    rockyPathMatCache.SetTexture("_BumpMap", norm);
+                    rockyPathMatCache.EnableKeyword("_NORMALMAP");
+                }
+            }
+
+            if (lowPolyRoadMatCache == null)
+            {
+                Texture2D diff = Resources.Load<Texture2D>("Path/low_poly_road_tex_0");
+                #if UNITY_EDITOR
+                if (diff == null)
+                    diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/low_poly_road_tex_0.png");
+                #endif
+                lowPolyRoadMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
+            }
+
+            if (stoneGateMatCache == null)
+            {
+                Texture2D diff = Resources.Load<Texture2D>("Environment/stone_gate_tex_0");
+                #if UNITY_EDITOR
+                if (diff == null)
+                    diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Environment/stone_gate_tex_0.png");
+                #endif
+                stoneGateMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
+
+                Texture2D norm = Resources.Load<Texture2D>("Environment/stone_gate_tex_2");
+                #if UNITY_EDITOR
+                if (norm == null)
+                    norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Environment/stone_gate_tex_2.png");
+                #endif
+                if (stoneGateMatCache != null && norm != null && stoneGateMatCache.HasProperty("_BumpMap"))
+                {
+                    stoneGateMatCache.SetTexture("_BumpMap", norm);
+                    stoneGateMatCache.EnableKeyword("_NORMALMAP");
+                }
+            }
+
+            if (torchMatCache == null)
+            {
+                torchMatCache = Resources.Load<Material>("Materials/Mat_Torch");
+                #if UNITY_EDITOR
+                if (torchMatCache == null)
+                    torchMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Torch.mat");
+                #endif
+                if (torchMatCache == null)
+                {
+                    Texture2D diff = Resources.Load<Texture2D>("Environment/tex_torch_albedo");
+                    #if UNITY_EDITOR
+                    if (diff == null)
+                        diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Environment/tex_torch_albedo.png");
+                    #endif
+                    Texture2D norm = Resources.Load<Texture2D>("Environment/tex_torch_normal");
+                    #if UNITY_EDITOR
+                    if (norm == null)
+                        norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Environment/tex_torch_normal.png");
+                    #endif
+                    torchMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
+                    if (torchMatCache != null && norm != null && torchMatCache.HasProperty("_BumpMap"))
+                    {
+                        torchMatCache.SetTexture("_BumpMap", norm);
+                        torchMatCache.EnableKeyword("_NORMALMAP");
+                    }
+                }
+            }
+
+            if (torchFlameMatCache == null)
+            {
+                torchFlameMatCache = Resources.Load<Material>("Materials/Mat_Torch_Flame");
+                #if UNITY_EDITOR
+                if (torchFlameMatCache == null)
+                    torchFlameMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Torch_Flame.mat");
+                #endif
+                if (torchFlameMatCache == null)
+                {
+                    Texture2D flameDiff = Resources.Load<Texture2D>("Environment/tex_torch_flame_albedo");
+                    #if UNITY_EDITOR
+                    if (flameDiff == null)
+                        flameDiff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Environment/tex_torch_flame_albedo.png");
+                    #endif
+                    Texture2D flameEmis = Resources.Load<Texture2D>("Environment/tex_torch_flame_emissive");
+                    #if UNITY_EDITOR
+                    if (flameEmis == null)
+                        flameEmis = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Environment/tex_torch_flame_emissive.png");
+                    #endif
+
+                    Shader s = Shader.Find("Particles/Standard Unlit") 
+                            ?? Shader.Find("Mobile/Particles/Alpha Blended") 
+                            ?? Shader.Find("Unlit/Transparent") 
+                            ?? Shader.Find("Standard");
+                    torchFlameMatCache = MaterialHelper.CreateSafeMaterial(Color.white, flameDiff, s);
+                    if (torchFlameMatCache != null)
+                    {
+                        torchFlameMatCache.color = new Color(1.1f, 1.0f, 0.9f);
+                        if (torchFlameMatCache.HasProperty("_EmissionColor"))
+                        {
+                            torchFlameMatCache.EnableKeyword("_EMISSION");
+                            torchFlameMatCache.SetColor("_EmissionColor", new Color(1.0f, 0.55f, 0.08f) * 3.5f);
+                            if (flameEmis != null && torchFlameMatCache.HasProperty("_EmissionMap"))
+                            {
+                                torchFlameMatCache.SetTexture("_EmissionMap", flameEmis);
+                            }
+                        }
+                        if (torchFlameMatCache.HasProperty("_Cull"))
+                        {
+                            torchFlameMatCache.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                        }
+                    }
+                }
             }
         }
 
@@ -719,15 +1056,24 @@ namespace Runner.Track
             puObj.transform.localPosition = localPos;
 
             var puItem = puObj.AddComponent<PowerUpItem>();
-            // Equal 33.3% distribution across ALL 3 power-ups: Speedrun (Monster Energy), Shield, Magnet
-            int rollType = Random.Range(0, 3);
+            // Equal 25% distribution across ALL 4 power-ups: Speedrun, Shield, Magnet, MultiplierFrenzy
+            int rollType = Random.Range(0, 4);
             PowerUpType pType = rollType switch
             {
-                0 => PowerUpType.Speedrun, // Monster energy speedboost
-                1 => PowerUpType.Shield,   // Invulnerability shield
-                _ => PowerUpType.Magnet    // 3D Pink Heart magnet
+                0 => PowerUpType.Speedrun,        // Monster energy speedboost
+                1 => PowerUpType.Shield,          // Invulnerability shield
+                2 => PowerUpType.Magnet,          // 3D Pink Heart magnet
+                _ => PowerUpType.MultiplierFrenzy // Radiant Frenzy Totem
             };
             puItem.Initialize(pType);
+        }
+
+        private void SpawnMysteryChest(Transform parent, Vector3 localPos)
+        {
+            GameObject chestObj = new GameObject("MysteryChest");
+            chestObj.transform.SetParent(parent, false);
+            chestObj.transform.localPosition = localPos;
+            chestObj.AddComponent<Pickups.MysteryChest>();
         }
 
         private GameObject SpawnCoinHeart(Transform parent, Vector3 localPos)
@@ -782,10 +1128,12 @@ namespace Runner.Track
             }
             else
             {
-                rockObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                // Organic rounded mossy boulder fallback textured with temple stone (never a white cube!)
+                rockObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 rockObj.name = $"MossyRockPrimitive_{obstacleType}";
                 rockObj.transform.SetParent(parent, false);
-                rockObj.GetComponent<MeshRenderer>().sharedMaterial = mossyStoneMatCache;
+                Material stoneMat = mossyStoneMatCache ?? curbMatCache;
+                if (stoneMat != null) rockObj.GetComponent<MeshRenderer>().sharedMaterial = stoneMat;
                 minY = -0.5f;
                 meshCenter = Vector3.zero;
                 meshSize = Vector3.one;
@@ -806,10 +1154,11 @@ namespace Runner.Track
             float flushY = (-minY * targetScale.y) - 0.02f;
             rockObj.transform.localPosition = new Vector3(localPos.x, flushY, localPos.z);
 
-            // Add accurate BoxCollider configured for runner obstacle detection
+            // Add accurate BoxCollider configured for runner obstacle detection:
+            // Tall vertical box ensures player CANNOT jump or slide through the rock!
             BoxCollider bc = rockObj.AddComponent<BoxCollider>();
-            bc.center = meshCenter;
-            bc.size = new Vector3(meshSize.x * 0.88f, meshSize.y * 0.92f, meshSize.z * 0.85f);
+            bc.center = new Vector3(meshCenter.x, meshCenter.y + (meshSize.y * 0.40f), meshCenter.z);
+            bc.size = new Vector3(meshSize.x * 0.90f, meshSize.y * 1.80f, meshSize.z * 0.88f);
 
             var obs = rockObj.AddComponent<Obstacle>();
             obs.SetObstacleType(obstacleType);
@@ -818,35 +1167,74 @@ namespace Runner.Track
             return rockObj;
         }
 
-        private GameObject SpawnTreeBranchJumpObstacle(Transform parent, Vector3 localPos, int laneMode = -1, int targetLane = -1)
-        {
-            return SpawnTreeBranchJumpObstacle(parent, localPos, out _, laneMode, targetLane);
-        }
-
-        private GameObject SpawnTreeBranchJumpObstacle(Transform parent, Vector3 localPos, out int blockedMask, int laneMode = -1, int targetLane = -1)
+        /// <summary>
+        /// Ancient Carved Temple Pillar / Stone lane blocker.
+        /// </summary>
+        private GameObject SpawnGravestoneObstacle(Transform parent, Vector3 localPos, float uniformScale, ObstacleType obstacleType, float yRotation = 0f)
         {
             Ensure3DModels();
             EnsureMaterials();
 
-            GameObject rootsParent = new GameObject("Obstacle_TreeBranch_Jump");
-            rootsParent.transform.SetParent(parent, false);
-            rootsParent.transform.localPosition = localPos;
+            // Delegate to authentic mossy temple rock obstacle to ensure rich textures and zero white cubes
+            return SpawnRockObstacle(parent, localPos, Vector3.one * uniformScale * 0.85f, obstacleType, yRotation);
+        }
 
-            // Determine lane configuration:
-            // laneMode: 0 = Single Lane (45%), 1 = Dual Lanes (40%), 2 = All 3 Lanes (15%)
+        /// <summary>
+        /// Lane-blocker helper: spawns authentic ancient mossy stone boulders
+        /// that fit the jungle temple escape aesthetic with rich textures.
+        /// </summary>
+        private GameObject SpawnLaneBlockerVariant(Transform parent, float laneX, float localZ)
+        {
+            float rotY = Random.Range(0f, 360f);
+            return SpawnRockObstacle(parent, new Vector3(laneX, 0, localZ), new Vector3(0.70f, 0.70f, 0.70f), ObstacleType.LaneBlocker, rotY);
+        }
+
+        /// <summary>
+        /// Overhanging jungle canopy arch built from the tree_branch_slide 3D model.
+        /// Disabled to prevent floating branches in mid-air.
+        /// </summary>
+        private void SpawnCanopyBranchArch(Transform parent, float localZ)
+        {
+            // No-op: eliminates mid-air floating branches
+        }
+
+        /// <summary>
+        /// Roadside tombstones disabled to eliminate random white cubes / untextured objects from the track.
+        /// Atmosphere is richly decorated by temple braziers, lush trees, monstera foliage, and stone gates.
+        /// </summary>
+        private void SpawnRoadsideTombstones(Transform parent)
+        {
+            // No-op: eliminates roadside white cubes completely
+        }
+
+        private GameObject SpawnSkullJumpObstacle(Transform parent, Vector3 localPos, int laneMode = -1, int targetLane = -1)
+        {
+            return SpawnSkullJumpObstacle(parent, localPos, out _, laneMode, targetLane);
+        }
+
+        private GameObject SpawnSkullJumpObstacle(Transform parent, Vector3 localPos, out int blockedMask, int laneMode = -1, int targetLane = -1)
+        {
+            Ensure3DModels();
+            EnsureMaterials();
+
+            GameObject skullRoot = new GameObject("Obstacle_Skull_Jump");
+            skullRoot.transform.SetParent(parent, false);
+            skullRoot.transform.localPosition = localPos;
+
+            // Determine lane configuration (minimized obstacle footprint):
+            // laneMode: 0 = Single Lane (85%), 1 = Dual Lanes (15%), 0% all 3 lanes
             if (laneMode < 0)
             {
                 int r = Random.Range(0, 100);
-                if (r < 45) laneMode = 0;
-                else if (r < 85) laneMode = 1;
-                else laneMode = 2;
+                if (r < 85) laneMode = 0;
+                else laneMode = 1;
             }
 
             float[] laneXCoords = { -2.0f, 0.0f, 2.0f };
             float centerX = 0f;
             float spanWidth = 7.2f;
 
-            List<float> logPositionsX = new List<float>();
+            List<float> skullPositionsX = new List<float>();
 
             if (laneMode == 0)
             {
@@ -855,7 +1243,7 @@ namespace Runner.Track
                 blockedMask = 1 << targetLane;
                 centerX = laneXCoords[targetLane];
                 spanWidth = 1.90f;
-                logPositionsX.Add(centerX);
+                skullPositionsX.Add(centerX);
             }
             else if (laneMode == 1)
             {
@@ -865,15 +1253,15 @@ namespace Runner.Track
                 {
                     blockedMask = (1 << 0) | (1 << 1); // Left + Center
                     centerX = -1.0f;
-                    logPositionsX.Add(-2.0f);
-                    logPositionsX.Add(0.0f);
+                    skullPositionsX.Add(-2.0f);
+                    skullPositionsX.Add(0.0f);
                 }
                 else
                 {
                     blockedMask = (1 << 1) | (1 << 2); // Center + Right
                     centerX = 1.0f;
-                    logPositionsX.Add(0.0f);
-                    logPositionsX.Add(2.0f);
+                    skullPositionsX.Add(0.0f);
+                    skullPositionsX.Add(2.0f);
                 }
                 spanWidth = 3.90f;
             }
@@ -883,96 +1271,113 @@ namespace Runner.Track
                 blockedMask = (1 << 0) | (1 << 1) | (1 << 2);
                 centerX = 0f;
                 spanWidth = 7.20f;
-                logPositionsX.Add(-2.0f);
-                logPositionsX.Add(0.0f);
-                logPositionsX.Add(2.0f);
+                skullPositionsX.Add(-2.0f);
+                skullPositionsX.Add(0.0f);
+                skullPositionsX.Add(2.0f);
             }
 
-            // 1. Primary 3D Tree Branch Model for jumping (tree_branch.glb / .obj)
-            if (treeBranchJumpPrefab != null)
+            // 1. Primary 3D jump hurdle visuals: cursed skulls and fallen branches
+            // 1. Primary 3D jump hurdle visuals: authentic jungle timber log hurdles (tree_branch_jump.obj)
+            GameObject jumpPrefab = treeBranchJumpPrefab ?? treeBranchSlidePrefab;
+            if (jumpPrefab != null)
             {
-                for (int i = 0; i < logPositionsX.Count; i++)
+                for (int i = 0; i < skullPositionsX.Count; i++)
                 {
-                    float logX = logPositionsX[i];
-                    GameObject branchVisual = Instantiate(treeBranchJumpPrefab, rootsParent.transform);
-                    branchVisual.name = $"TreeBranch_JumpMesh_{i}";
-                    // The log is 1.92m along Z; rotating 90 deg around Y spans across the lane
-                    float rotY = 90f + Random.Range(-6f, 6f);
-                    branchVisual.transform.localPosition = new Vector3(logX, 0.02f, Random.Range(-0.08f, 0.08f));
-                    branchVisual.transform.localRotation = Quaternion.Euler(0, rotY, 0);
-                    branchVisual.transform.localScale = new Vector3(1.05f, 0.95f, 1.05f);
+                    float posX = skullPositionsX[i];
+                    GameObject hurdleVisual = Instantiate(jumpPrefab, skullRoot.transform);
+                    hurdleVisual.name = $"Branch_JumpMesh_{i}";
 
-                    foreach (var col in branchVisual.GetComponentsInChildren<Collider>()) Destroy(col);
+                    MeshFilter mf = hurdleVisual.GetComponentInChildren<MeshFilter>();
+                    float minY = -29.31f;
+                    Vector3 meshCenter = new Vector3(32.22f, 0.03f, 2.28f);
+                    Vector3 meshSize = new Vector3(73.78f, 58.33f, 77.55f);
 
-                    // Apply multi-submesh photogrammetry bark textures:
-                    foreach (var r in branchVisual.GetComponentsInChildren<Renderer>())
+                    if (mf != null && mf.sharedMesh != null)
                     {
-                        string rName = r.gameObject.name.ToLower();
-                        Material chosenMat = treeBranchJumpMat0;
-                        if (rName.Contains("1") || rName.Contains("scan_1")) chosenMat = treeBranchJumpMat1;
-                        else if (rName.Contains("2") || rName.Contains("scan_2")) chosenMat = treeBranchJumpMat2;
-                        else chosenMat = treeBranchJumpMat0;
-
-                        Material[] mats = new Material[r.sharedMaterials.Length];
-                        for (int m = 0; m < mats.Length; m++) mats[m] = chosenMat;
-                        r.sharedMaterials = mats;
+                        minY = mf.sharedMesh.bounds.min.y;
+                        meshCenter = mf.sharedMesh.bounds.center;
+                        meshSize = mf.sharedMesh.bounds.size;
                     }
+
+                    // Target obstacle height ~0.70m flush on ground
+                    float targetHeight = 0.70f;
+                    float scale = meshSize.y > 0 ? (targetHeight / meshSize.y) : 0.012f;
+
+                    foreach (var col in hurdleVisual.GetComponentsInChildren<Collider>()) Destroy(col);
+
+                    Material jumpMat = treeBranchJumpMatCache ?? deadTreeMatCache ?? curbMatCache;
+                    if (jumpMat != null)
+                    {
+                        foreach (var r in hurdleVisual.GetComponentsInChildren<Renderer>())
+                        {
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = jumpMat;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+
+                    // Fallen branch lies across the lane (long axis Z -> X) with a slight natural dip
+                    float rotY = 90f + Random.Range(-10f, 10f);
+                    hurdleVisual.transform.localScale = Vector3.one * scale;
+                    hurdleVisual.transform.localRotation = Quaternion.Euler(Random.Range(-4f, 4f), rotY, Random.Range(-7f, 7f));
+
+                    // Flush placement on the road surface
+                    float flushY = (-minY * scale) - 0.02f;
+                    hurdleVisual.transform.localPosition = new Vector3(posX, flushY, Random.Range(-0.04f, 0.04f));
                 }
             }
             else
             {
-                // Fallback primitive log only if 3D model asset is missing
-                GameObject fallbackLog = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                fallbackLog.name = "FallbackLog";
-                fallbackLog.transform.SetParent(rootsParent.transform, false);
-                fallbackLog.transform.localPosition = new Vector3(centerX, 0.22f, 0);
-                fallbackLog.transform.localRotation = Quaternion.Euler(0, 0, 90f);
-                fallbackLog.transform.localScale = new Vector3(0.44f, spanWidth * 0.5f, 0.44f);
-                Destroy(fallbackLog.GetComponent<Collider>());
-                if (treeBranchJumpMat0 != null) fallbackLog.GetComponent<MeshRenderer>().sharedMaterial = treeBranchJumpMat0;
+                // Fallback: horizontal fallen jungle log cylinder textured with timber bark (never a raw white cube!)
+                GameObject fallback = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                fallback.name = "FallenJungleTimberLog";
+                fallback.transform.SetParent(skullRoot.transform, false);
+                fallback.transform.localPosition = new Vector3(centerX, 0.28f, 0);
+                fallback.transform.localRotation = Quaternion.Euler(0, 0, 90f);
+                fallback.transform.localScale = new Vector3(0.55f, spanWidth * 0.50f, 0.55f);
+                Destroy(fallback.GetComponent<Collider>());
+                Material logMat = deadTreeMatCache ?? treeBranchJumpMatCache ?? curbMatCache;
+                if (logMat != null) fallback.GetComponent<MeshRenderer>().sharedMaterial = logMat;
             }
 
-            // 2. Accurate LowLog BoxCollider for Jump clearance (knee height 0.46m matching blocked lane width)
-            BoxCollider bc = rootsParent.AddComponent<BoxCollider>();
-            bc.center = new Vector3(centerX, 0.23f, 0);
-            bc.size = new Vector3(spanWidth, 0.46f, 1.0f);
+            // 2. Accurate LowLog BoxCollider for Jump clearance (knee height 0.55m matching blocked lane width)
+            BoxCollider sbc = skullRoot.AddComponent<BoxCollider>();
+            sbc.center = new Vector3(centerX, 0.28f, 0);
+            sbc.size = new Vector3(spanWidth, 0.56f, 1.1f);
 
-            var obs = rootsParent.AddComponent<Obstacle>();
-            obs.SetObstacleType(ObstacleType.LowLog);
-            SafeSetTag(rootsParent, "Obstacle");
+            var sobs = skullRoot.AddComponent<Obstacle>();
+            sobs.SetObstacleType(ObstacleType.LowLog);
+            SafeSetTag(skullRoot, "Obstacle");
 
-            return rootsParent;
+            return skullRoot;
         }
 
-        private GameObject SpawnTreeBranchSlideObstacle(Transform parent, Vector3 localPos, int laneMode = -1, int targetLane = -1)
+        private GameObject SpawnBrokenTreeSlideObstacle(Transform parent, Vector3 localPos, int laneMode = -1, int targetLane = -1)
         {
-            return SpawnTreeBranchSlideObstacle(parent, localPos, out _, laneMode, targetLane);
+            return SpawnBrokenTreeSlideObstacle(parent, localPos, out _, laneMode, targetLane);
         }
 
-        private GameObject SpawnTreeBranchSlideObstacle(Transform parent, Vector3 localPos, out int blockedMask, int laneMode = -1, int targetLane = -1)
+        private GameObject SpawnBrokenTreeSlideObstacle(Transform parent, Vector3 localPos, out int blockedMask, int laneMode = -1, int targetLane = -1)
         {
             Ensure3DModels();
             EnsureMaterials();
 
-            GameObject archParent = new GameObject("Obstacle_TreeBranch_Slide");
+            GameObject archParent = new GameObject("Obstacle_BrokenTree_Slide");
             archParent.transform.SetParent(parent, false);
             archParent.transform.localPosition = localPos;
 
-            Material slideMat = treeBranchSlideMatCache != null ? treeBranchSlideMatCache : (deadTreeMatCache != null ? deadTreeMatCache : mossyStoneMatCache);
+            Material slideMat = deadTreeMatCache != null ? deadTreeMatCache : mossyStoneMatCache;
 
-            // Determine lane configuration:
-            // laneMode: 0 = Single Lane (45%), 1 = Dual Lanes (40%), 2 = All 3 Lanes (15%)
+            // Full-Road Broken Tree Slide Hurdle:
+            // Spans across all 3 lanes so player must slide under it regardless of which lane they are in
             if (laneMode < 0)
             {
-                int r = Random.Range(0, 100);
-                if (r < 45) laneMode = 0;
-                else if (r < 85) laneMode = 1;
-                else laneMode = 2;
+                laneMode = 2; // Always full road width by default
             }
 
             float[] laneXCoords = { -2.0f, 0.0f, 2.0f };
             float centerX = 0f;
-            float spanWidth = 7.2f;
+            float spanWidth = 8.0f;
 
             if (laneMode == 0)
             {
@@ -980,7 +1385,7 @@ namespace Runner.Track
                 if (targetLane < 0 || targetLane > 2) targetLane = Random.Range(0, 3);
                 blockedMask = 1 << targetLane;
                 centerX = laneXCoords[targetLane];
-                spanWidth = 1.90f;
+                spanWidth = 2.40f;
             }
             else if (laneMode == 1)
             {
@@ -996,67 +1401,192 @@ namespace Runner.Track
                     blockedMask = (1 << 1) | (1 << 2);
                     centerX = 1.0f;
                 }
-                spanWidth = 3.90f;
+                spanWidth = 4.60f;
             }
             else
             {
-                // All 3 Lanes
+                // All 3 Lanes (Spans full 7.6m roadway + curbs = 8.6m)
                 blockedMask = (1 << 0) | (1 << 1) | (1 << 2);
                 centerX = 0f;
-                spanWidth = 7.20f;
+                spanWidth = 8.6f;
             }
 
-            // 1. Primary 3D Tree Branch Model for sliding (tree_branch (1).glb / .obj)
-            if (treeBranchSlidePrefab != null)
+            // 1. 3D Broken / Fallen Tree Model for sliding (dead_tree_obstacle.obj)
+            if (deadTreePrefab != null)
             {
-                GameObject branchVisual = Instantiate(treeBranchSlidePrefab, archParent.transform);
-                branchVisual.name = "TreeBranch_SlideMesh";
+                GameObject treeVisual = Instantiate(deadTreePrefab, archParent.transform);
+                treeVisual.name = "BrokenTree_VisualMesh";
 
-                // Scale and position the curved tree branch arch over the blocked span:
-                // Original mesh: spanX = 60.14m, center = (-11.90, 5.82, -0.94)
-                float scale = (laneMode == 2) ? 0.123f : ((laneMode == 1) ? 0.080f : 0.050f);
-                branchVisual.transform.localScale = new Vector3(scale, scale, scale);
-                // Position so the bottom of the arch clearance is Y = 1.15m:
-                branchVisual.transform.localPosition = new Vector3(centerX + 11.90f * scale, 1.15f, 0);
-                branchVisual.transform.localRotation = Quaternion.identity;
+                MeshFilter mf = treeVisual.GetComponentInChildren<MeshFilter>();
+                Vector3 meshSize = new Vector3(79.36f, 74.92f, 100.26f);
 
-                foreach (var col in branchVisual.GetComponentsInChildren<Collider>()) Destroy(col);
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    meshSize = mf.sharedMesh.bounds.size;
+                }
+
+                // Scale tree so its trunk length spans the target width across lanes (9.2m for full road)
+                float targetSpan = (laneMode == 2) ? 9.2f : ((laneMode == 1) ? 5.2f : 3.0f);
+                float scale = meshSize.z > 0 ? (targetSpan / meshSize.z) : 0.092f;
+
+                foreach (var col in treeVisual.GetComponentsInChildren<Collider>()) Destroy(col);
+
                 if (slideMat != null)
                 {
-                    foreach (var r in branchVisual.GetComponentsInChildren<Renderer>())
+                    foreach (var r in treeVisual.GetComponentsInChildren<Renderer>())
                     {
                         Material[] mats = new Material[r.sharedMaterials.Length];
                         for (int m = 0; m < mats.Length; m++) mats[m] = slideMat;
                         r.sharedMaterials = mats;
                     }
                 }
+
+                // Exact horizontal orientation across the road:
+                // Quaternion.Euler(-5f, 90f, 35f) lays the trunk flat across X from curb to curb
+                // Root base sits anchored on the left roadside curb at X = centerX - (targetSpan * 0.5f)
+                // Across the entire roadway (all 3 lanes), the lower edge of the trunk provides a clean, open gap at Y ~ 1.20m - 1.35m
+                // Providing a clean, visible gap for sliding, while blocking upright running (up to Y ~ 2.8m - 5.1m)
+                treeVisual.transform.localScale = Vector3.one * scale;
+                treeVisual.transform.localRotation = Quaternion.Euler(-5f, 90f, 35f);
+
+                float startX = centerX - (targetSpan * 0.5f);
+                treeVisual.transform.localPosition = new Vector3(startX, 2.50f, 0f);
+
+                // Anchored trunk base on roadside curb connecting ground (Y=0) up to the fallen trunk
+                GameObject rootAnchor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                rootAnchor.name = "Trunk_RootAnchor";
+                rootAnchor.transform.SetParent(archParent.transform, false);
+                rootAnchor.transform.localPosition = new Vector3(startX, 1.25f, 0f);
+                rootAnchor.transform.localRotation = Quaternion.Euler(0, 0, -6f);
+                rootAnchor.transform.localScale = new Vector3(1.3f, 1.35f, 1.3f);
+                Destroy(rootAnchor.GetComponent<Collider>());
+                if (slideMat != null) rootAnchor.GetComponent<MeshRenderer>().sharedMaterial = slideMat;
             }
             else
             {
-                // Fallback primitive overhead crossbar only if 3D model asset is missing
-                GameObject crossBranch = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                crossBranch.name = "FallbackCrossBranch";
-                crossBranch.transform.SetParent(archParent.transform, false);
-                crossBranch.transform.localPosition = new Vector3(centerX, 1.55f, 0);
-                crossBranch.transform.localRotation = Quaternion.Euler(0, 0, 90f);
-                crossBranch.transform.localScale = new Vector3(0.45f, spanWidth * 0.5f, 0.45f);
-                Destroy(crossBranch.GetComponent<Collider>());
-                if (slideMat != null) crossBranch.GetComponent<MeshRenderer>().sharedMaterial = slideMat;
+                GameObject crossTrunk = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                crossTrunk.name = "FallbackBrokenTrunk";
+                crossTrunk.transform.SetParent(archParent.transform, false);
+                crossTrunk.transform.localPosition = new Vector3(centerX, 1.85f, 0);
+                crossTrunk.transform.localRotation = Quaternion.Euler(0, 0, 90f);
+                crossTrunk.transform.localScale = new Vector3(0.70f, spanWidth * 0.5f, 0.70f);
+                Destroy(crossTrunk.GetComponent<Collider>());
+                if (slideMat != null) crossTrunk.GetComponent<MeshRenderer>().sharedMaterial = slideMat;
             }
 
             // 2. SlideArch BoxCollider:
-            // Center Y = 1.62m, Height = 0.92m (bounds from Y = 1.16m to 2.08m)
-            // Ground clearance: 0 to 1.16m is completely OPEN for sliding!
-            // Upright running: head hits at ~1.75m!
-            BoxCollider bc = archParent.AddComponent<BoxCollider>();
-            bc.center = new Vector3(centerX, 1.62f, 0);
-            bc.size = new Vector3(spanWidth, 0.92f, 1.0f);
+            // Center Y = 1.95m, Height = 1.45m (bounds from Y = 1.225m to 2.675m)
+            // Ground clearance: 0 to 1.225m is completely OPEN for sliding!
+            // Upright running: head hits at ~1.75m - 2.0m!
+            BoxCollider tbc = archParent.AddComponent<BoxCollider>();
+            tbc.center = new Vector3(centerX, 1.95f, 0);
+            tbc.size = new Vector3(spanWidth, 1.45f, 1.2f);
 
-            var obs = archParent.AddComponent<Obstacle>();
-            obs.SetObstacleType(ObstacleType.SlideArch);
+            var tobs = archParent.AddComponent<Obstacle>();
+            tobs.SetObstacleType(ObstacleType.SlideArch);
             SafeSetTag(archParent, "Obstacle");
 
             return archParent;
+        }
+
+        // Backward compatibility overloads
+        private GameObject SpawnTreeBranchJumpObstacle(Transform parent, Vector3 localPos, int laneMode = -1, int targetLane = -1) => SpawnSkullJumpObstacle(parent, localPos, laneMode, targetLane);
+        private GameObject SpawnTreeBranchJumpObstacle(Transform parent, Vector3 localPos, out int blockedMask, int laneMode = -1, int targetLane = -1) => SpawnSkullJumpObstacle(parent, localPos, out blockedMask, laneMode, targetLane);
+        private GameObject SpawnTreeBranchSlideObstacle(Transform parent, Vector3 localPos, int laneMode = -1, int targetLane = -1) => SpawnBrokenTreeSlideObstacle(parent, localPos, laneMode, targetLane);
+        private GameObject SpawnTreeBranchSlideObstacle(Transform parent, Vector3 localPos, out int blockedMask, int laneMode = -1, int targetLane = -1) => SpawnBrokenTreeSlideObstacle(parent, localPos, out blockedMask, laneMode, targetLane);
+
+        private void SpawnRoadsideBrazier(Transform parent, Vector3 localPos)
+        {
+            EnsureMaterials();
+            Ensure3DModels();
+
+            GameObject brazier = new GameObject("RoadsideTorchBrazier");
+            brazier.transform.SetParent(parent, false);
+            brazier.transform.localPosition = localPos;
+
+            if (torchBrazierPrefab != null)
+            {
+                GameObject torchVisual = Instantiate(torchBrazierPrefab, brazier.transform);
+                torchVisual.name = "TorchBrazier_Visual";
+                torchVisual.transform.localPosition = Vector3.zero;
+                torchVisual.transform.localRotation = Quaternion.identity;
+                torchVisual.transform.localScale = Vector3.one * 0.35f;
+
+                foreach (var col in torchVisual.GetComponentsInChildren<Collider>())
+                    Destroy(col);
+
+                foreach (var r in torchVisual.GetComponentsInChildren<Renderer>())
+                {
+                    string rName = r.gameObject.name.ToLower();
+                    if (rName.Contains("flame"))
+                    {
+                        if (torchFlameMatCache != null) r.sharedMaterial = torchFlameMatCache;
+                    }
+                    else if (rName.Contains("torch"))
+                    {
+                        if (torchMatCache != null) r.sharedMaterial = torchMatCache;
+                    }
+                    else
+                    {
+                        Material[] mats = r.sharedMaterials;
+                        if (mats != null && mats.Length >= 2)
+                        {
+                            if (torchMatCache != null) mats[0] = torchMatCache;
+                            if (torchFlameMatCache != null) mats[1] = torchFlameMatCache;
+                            r.sharedMaterials = mats;
+                        }
+                        else if (torchMatCache != null)
+                        {
+                            r.sharedMaterial = torchMatCache;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Fallback procedural stone pillar & bowl
+                GameObject pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                pillar.name = "Brazier_Pillar";
+                pillar.transform.SetParent(brazier.transform, false);
+                pillar.transform.localPosition = new Vector3(0, 0.35f, 0);
+                pillar.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+                Destroy(pillar.GetComponent<Collider>());
+                if (curbMatCache != null) pillar.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
+                GameObject bowl = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                bowl.name = "Brazier_Bowl";
+                bowl.transform.SetParent(brazier.transform, false);
+                bowl.transform.localPosition = new Vector3(0, 0.72f, 0);
+                bowl.transform.localScale = new Vector3(0.50f, 0.20f, 0.50f);
+                Destroy(bowl.GetComponent<Collider>());
+                if (curbMatCache != null) bowl.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
+                GameObject fireCore = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                fireCore.name = "FireCore";
+                fireCore.transform.SetParent(brazier.transform, false);
+                fireCore.transform.localPosition = new Vector3(0, 0.85f, 0);
+                fireCore.transform.localScale = new Vector3(0.24f, 0.32f, 0.24f);
+                Destroy(fireCore.GetComponent<Collider>());
+                Material fireMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.55f, 0.05f));
+                if (fireMat != null)
+                {
+                    fireMat.EnableKeyword("_EMISSION");
+                    fireMat.SetColor("_EmissionColor", new Color(1.0f, 0.50f, 0.05f) * 2.5f);
+                    fireCore.GetComponent<MeshRenderer>().sharedMaterial = fireMat;
+                }
+            }
+
+            // Warm radiant fiery amber point light positioned at flame elevation
+            GameObject lightObj = new GameObject("TorchLight");
+            lightObj.transform.SetParent(brazier.transform, false);
+            lightObj.transform.localPosition = new Vector3(0, 1.25f, 0.05f);
+
+            Light torchLight = lightObj.AddComponent<Light>();
+            torchLight.type = LightType.Point;
+            torchLight.color = new Color(1.0f, 0.65f, 0.15f);
+            torchLight.range = 8.5f;
+            torchLight.intensity = 2.8f;
+            torchLight.shadows = LightShadows.None;
         }
 
         private TrackChunk CreateProceduralChunk(ChunkType type)
@@ -1081,7 +1611,6 @@ namespace Runner.Track
                 SafeSetTag(floor, "Ground");
                 floor.GetComponent<MeshRenderer>().sharedMaterial = trackMatCache;
 
-
                 bool isLeftJunc = (type == ChunkType.TJunctionLeft || type == ChunkType.TJunctionDouble);
                 bool isRightJunc = (type == ChunkType.TJunctionRight || type == ChunkType.TJunctionDouble);
 
@@ -1095,14 +1624,20 @@ namespace Runner.Track
                     leftCurb.transform.localScale = new Vector3(0.7f, 0.5f, 10.3f);
                     leftCurb.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
 
-                    // Left outer jungle ground
+                    // Left outer jungle ground (lush tropical undergrowth)
                     GameObject leftGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     leftGround.name = "LeftJungleGround";
                     leftGround.transform.SetParent(chunkObj.transform, false);
                     leftGround.transform.localPosition = new Vector3(-8.85f, -0.1f, 5.0f);
                     leftGround.transform.localScale = new Vector3(10.0f, 0.2f, 10.3f);
                     SafeSetTag(leftGround, "Ground");
-                    leftGround.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+                    leftGround.GetComponent<MeshRenderer>().sharedMaterial = jungleGroundMatCache != null ? jungleGroundMatCache : curbMatCache;
+
+                    // Roadside torch brazier
+                    if (Random.value < 0.55f)
+                    {
+                        SpawnRoadsideBrazier(chunkObj.transform, new Vector3(-3.85f, 0.50f, 5.0f));
+                    }
                 }
                 else
                 {
@@ -1125,14 +1660,20 @@ namespace Runner.Track
                     rightCurb.transform.localScale = new Vector3(0.7f, 0.5f, 10.3f);
                     rightCurb.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
 
-                    // Right outer jungle ground
+                    // Right outer jungle ground (lush tropical undergrowth)
                     GameObject rightGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     rightGround.name = "RightJungleGround";
                     rightGround.transform.SetParent(chunkObj.transform, false);
                     rightGround.transform.localPosition = new Vector3(8.85f, -0.1f, 5.0f);
                     rightGround.transform.localScale = new Vector3(10.0f, 0.2f, 10.3f);
                     SafeSetTag(rightGround, "Ground");
-                    rightGround.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+                    rightGround.GetComponent<MeshRenderer>().sharedMaterial = jungleGroundMatCache != null ? jungleGroundMatCache : curbMatCache;
+
+                    // Roadside torch brazier
+                    if (Random.value < 0.55f)
+                    {
+                        SpawnRoadsideBrazier(chunkObj.transform, new Vector3(3.85f, 0.50f, 5.0f));
+                    }
                 }
                 else
                 {
@@ -1149,9 +1690,9 @@ namespace Runner.Track
             // 2. Specialized Obstacles & Junction Corridors
             if (type == ChunkType.LowObstacle)
             {
-                // Authentic 3D Tree Branch Roots Hurdle across randomized lanes and randomized Z spawn (3.2m - 4.8m)
+                // Authentic 3D Ancient Skull Jump Hurdle across randomized lanes (3.2m - 4.8m)
                 float spawnZ = Random.Range(3.2f, 4.8f);
-                SpawnTreeBranchJumpObstacle(chunkObj.transform, new Vector3(0, 0, spawnZ), out int blockedMask);
+                SpawnSkullJumpObstacle(chunkObj.transform, new Vector3(0, 0, spawnZ), out int blockedMask);
 
                 float[] allLanes = { -2.0f, 0.0f, 2.0f };
                 // Spawn hearts based on which lanes are blocked vs open
@@ -1160,7 +1701,7 @@ namespace Runner.Track
                     bool isBlocked = (blockedMask & (1 << l)) != 0;
                     if (isBlocked)
                     {
-                        // Arcing trajectory guiding player to jump over the tree branch hurdle in this lane
+                        // Arcing trajectory guiding player to jump over the skull obstacle in this lane
                         SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, spawnZ - 2.0f));
                         SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 1.65f, spawnZ)); // Peak jump heart!
                         SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, spawnZ + 2.0f));
@@ -1185,27 +1726,17 @@ namespace Runner.Track
             }
             else if (type == ChunkType.SlideArch)
             {
-                // Authentic 3D Tree Branch Overhead Arch across randomized lanes and randomized Z spawn (3.4f - 5.0f)
+                // Authentic 3D Broken Tree Overhead Slide Trunk spanning full road width across all 3 lanes (3.4f - 5.0f)
                 float spawnZ = Random.Range(3.4f, 5.0f);
-                SpawnTreeBranchSlideObstacle(chunkObj.transform, new Vector3(0, 0, spawnZ), out int blockedMask);
+                SpawnBrokenTreeSlideObstacle(chunkObj.transform, new Vector3(0, 0, spawnZ), out _, 2);
 
                 float[] allLanes = { -2.0f, 0.0f, 2.0f };
                 for (int l = 0; l < 3; l++)
                 {
-                    bool isBlocked = (blockedMask & (1 << l)) != 0;
-                    if (isBlocked)
-                    {
-                        // Low hearts under the branch guiding player to slide
-                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ - 1.8f));
-                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ)); // Underneath branch!
-                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ + 1.8f));
-                    }
-                    else
-                    {
-                        // Clear ground lane: normal ground hearts
-                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, spawnZ - 1.5f));
-                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, spawnZ + 1.5f));
-                    }
+                    // Low hearts under the broken tree guiding player to slide across all 3 lanes
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ - 1.8f));
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ)); // Underneath broken tree!
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ + 1.8f));
                 }
 
                 // Decreased rare 5% chance to spawn a random 3D Power-Up
@@ -1219,115 +1750,41 @@ namespace Runner.Track
             }
             else if (type == ChunkType.LaneBlocker)
             {
-                // Rich multi-lane formations mixing Boulders and single/dual-lane Tree Branch obstacles
+                // Minimized single-lane obstacle challenge:
+                // Only 1 obstacle spawned at Z = 5.0m in 1 single lane, leaving 2 WIDE OPEN LANES!
                 float[] laneCoords = { -2.0f, 0.0f, 2.0f };
-                int pattern = Random.Range(0, 5);
+                int blockedLane = Random.Range(0, 3);
 
-                if (pattern == 0)
+                // 65% chance rock boulder/gravestone, 35% single-lane jump hurdle
+                if (Random.value < 0.35f)
                 {
-                    // Slalom / Weave: 2 obstacles at different Z depths (Z ~3.0m and Z ~7.0m) in different lanes
-                    int laneA = Random.Range(0, 3);
-                    int laneB = (laneA + Random.Range(1, 3)) % 3;
-
-                    // 50% chance obstacle A is a single-lane Tree Branch hurdle, else rock boulder
-                    if (Random.value < 0.50f)
-                        SpawnTreeBranchJumpObstacle(chunkObj.transform, new Vector3(0, 0, 3.2f), out _, 0, laneA);
-                    else
-                        SpawnRockObstacle(chunkObj.transform, new Vector3(laneCoords[laneA], 0, 3.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(laneCoords[laneB], 0, 7.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-
-                    // Hearts in the open lane for dodging:
-                    int freeLane = 3 - laneA - laneB;
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[freeLane], 0.85f, 3.0f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[freeLane], 0.85f, 5.0f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[freeLane], 0.85f, 7.0f));
-
-                    if (Random.value < 0.05f)
-                    {
-                        SpawnRandomPowerUp(chunkObj.transform, new Vector3(laneCoords[freeLane], 1.0f, 5.0f));
-                    }
-                }
-                else if (pattern == 1)
-                {
-                    // Dual Blocker: 2 lanes blocked at Z = 5.0m, leaving 1 escape lane
-                    int openLaneIdx = Random.Range(0, 3);
-                    for (int i = 0; i < 3; i++)
-                    {
-                        if (i != openLaneIdx)
-                        {
-                            SpawnRockObstacle(chunkObj.transform, new Vector3(laneCoords[i], 0, 5.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-                        }
-                    }
-
-                    // Hearts leading through the open escape lane!
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[openLaneIdx], 0.85f, 2.0f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[openLaneIdx], 0.85f, 5.0f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[openLaneIdx], 0.85f, 8.0f));
-
-                    if (Random.value < 0.05f)
-                    {
-                        SpawnRandomPowerUp(chunkObj.transform, new Vector3(laneCoords[openLaneIdx], 1.0f, 6.5f));
-                    }
-                }
-                else if (pattern == 2)
-                {
-                    // Staggered: 1 lane blocked at Z = 4.0m and 1 lane blocked at Z = 8.0m
-                    int blockedA = Random.Range(0, 3);
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(laneCoords[blockedA], 0, 4.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-
-                    int blockedB = (blockedA + 1) % 3;
-                    // 50% chance obstacle B is an overhead slide branch across blockedB!
-                    if (Random.value < 0.50f)
-                        SpawnTreeBranchSlideObstacle(chunkObj.transform, new Vector3(0, 0, 7.8f), out _, 0, blockedB);
-                    else
-                        SpawnRockObstacle(chunkObj.transform, new Vector3(laneCoords[blockedB], 0, 8.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-
-                    int openLane = (blockedA != 1 && blockedB != 1) ? 1 : ((blockedA != 0 && blockedB != 0) ? 0 : 2);
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[openLane], 0.85f, 2.5f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[openLane], 0.85f, 5.5f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[openLane], 0.85f, 8.5f));
-
-                    if (Random.value < 0.05f)
-                    {
-                        SpawnRandomPowerUp(chunkObj.transform, new Vector3(laneCoords[openLane], 1.0f, 6.0f));
-                    }
-                }
-                else if (pattern == 3)
-                {
-                    // Combo Pattern 3: Single-lane Tree Branch Jump at Z ~3.5m + Rock Boulder in another lane at Z ~7.2m
-                    int branchLane = Random.Range(0, 3);
-                    int rockLane = (branchLane + Random.Range(1, 3)) % 3;
-                    float branchZ = Random.Range(3.2f, 4.0f);
-
-                    SpawnTreeBranchJumpObstacle(chunkObj.transform, new Vector3(0, 0, branchZ), out _, 0, branchLane);
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(laneCoords[rockLane], 0, 7.2f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-
-                    // Arcing heart over jump lane, ground heart in open lane
-                    int freeLane = 3 - branchLane - rockLane;
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[branchLane], 1.65f, branchZ));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[freeLane], 0.85f, 3.5f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[freeLane], 0.85f, 7.0f));
+                    SpawnSkullJumpObstacle(chunkObj.transform, new Vector3(0, 0, 5.0f), out _, 0, blockedLane);
                 }
                 else
                 {
-                    // Combo Pattern 4: Single-lane Overhead Tree Branch Slide at Z ~3.8m + Rock Boulder at Z ~7.5m
-                    int slideLane = Random.Range(0, 3);
-                    int rockLane = (slideLane + Random.Range(1, 3)) % 3;
-                    float slideZ = Random.Range(3.4f, 4.2f);
+                    SpawnLaneBlockerVariant(chunkObj.transform, laneCoords[blockedLane], 5.0f);
+                }
 
-                    SpawnTreeBranchSlideObstacle(chunkObj.transform, new Vector3(0, 0, slideZ), out _, 0, slideLane);
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(laneCoords[rockLane], 0, 7.5f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
+                // Place rewarding hearts through both open escape lanes for clear guidance
+                for (int l = 0; l < 3; l++)
+                {
+                    if (l != blockedLane)
+                    {
+                        SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[l], 0.85f, 2.0f));
+                        SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[l], 0.85f, 5.0f));
+                        SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[l], 0.85f, 8.0f));
+                    }
+                }
 
-                    int freeLane = 3 - slideLane - rockLane;
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[slideLane], 0.35f, slideZ));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[freeLane], 0.85f, 3.8f));
-                    SpawnCoinHeart(chunkObj.transform, new Vector3(laneCoords[freeLane], 0.85f, 7.5f));
+                if (Random.value < 0.08f)
+                {
+                    int openLane = (blockedLane + 1) % 3;
+                    SpawnRandomPowerUp(chunkObj.transform, new Vector3(laneCoords[openLane], 1.0f, 5.0f));
                 }
             }
             else if (type == ChunkType.HeartRun)
             {
-                // Dynamic randomized trails in any of the 3 lanes (-2.0m, 0.0m, +2.0m)
+                // Dynamic randomized trails in any of the 3 lanes (-2.0m, 0.0m, +2.0m) - 100% HAZARD-FREE REWARD SPRINT!
                 float[] allLanes = { -2.0f, 0.0f, 2.0f };
                 int primaryLane = Random.Range(0, 3);
                 int secondaryLane = (primaryLane + Random.Range(1, 3)) % 3;
@@ -1346,31 +1803,21 @@ namespace Runner.Track
                     SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[secondaryLane], 0.85f, z));
                 }
 
-                // Center rock obstacle to dodge
-                int rockLane = 3 - primaryLane - secondaryLane;
-                if (rockLane >= 0 && rockLane < 3)
-                {
-                    float rotY = Random.Range(0, 360f);
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(allLanes[rockLane], 0, 5.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, rotY);
-                }
-
                 // Decreased rare 7% chance for a random power-up
                 if (Random.value < 0.07f)
                 {
                     SpawnRandomPowerUp(chunkObj.transform, new Vector3(allLanes[primaryLane], 1.0f, 5.0f));
                 }
+
+                // Roadside tombstones (pure decor, zero collision)
+                SpawnRoadsideTombstones(chunkObj.transform);
             }
             else if (type == ChunkType.Straight)
             {
                 float[] lanes = { -2.0f, 0.0f, 2.0f };
 
-                // 40% chance of a lone big stone boulder to dodge in a lane
+                // Clean straight runway: 0% obstacle chance, pure running freedom!
                 int blockedLaneIdx = -1;
-                if (Random.value < 0.40f)
-                {
-                    blockedLaneIdx = Random.Range(0, 3);
-                    SpawnRockObstacle(chunkObj.transform, new Vector3(lanes[blockedLaneIdx], 0, 5.0f), new Vector3(0.65f, 0.55f, 0.65f), ObstacleType.LaneBlocker, Random.Range(0, 360f));
-                }
 
                 // Choose 1 or 2 random clear lanes for hearts
                 int heartLane1 = Random.Range(0, 3);
@@ -1396,13 +1843,23 @@ namespace Runner.Track
                     }
                 }
 
-                // Decreased rare 6% chance to spawn a random 3D Power-Up
-                if (Random.value < 0.06f)
+                // 7% chance to spawn a random 3D Power-Up
+                if (Random.value < 0.07f)
                 {
                     int puLaneIdx = Random.Range(0, 3);
                     if (puLaneIdx == blockedLaneIdx) puLaneIdx = (puLaneIdx + 1) % 3;
                     SpawnRandomPowerUp(chunkObj.transform, new Vector3(lanes[puLaneIdx], 1.0f, 5.0f));
                 }
+                else if (Random.value < 0.08f)
+                {
+                    // 8% chance to spawn an ancient Mystery Artifact Chest!
+                    int chestLane = Random.Range(0, 3);
+                    if (chestLane == blockedLaneIdx) chestLane = (chestLane + 1) % 3;
+                    SpawnMysteryChest(chunkObj.transform, new Vector3(lanes[chestLane], 0.35f, 5.0f));
+                }
+
+                // Roadside tombstones (pure decor, zero collision)
+                SpawnRoadsideTombstones(chunkObj.transform);
             }
             else if (type == ChunkType.CoinRun)
             {
@@ -1445,12 +1902,20 @@ namespace Runner.Track
                     }
                 }
 
-                // Decreased rare 6% chance to spawn a random 3D Power-Up
+                // 6% chance to spawn a random 3D Power-Up or Mystery Chest
                 if (Random.value < 0.06f)
                 {
                     int puLane = Random.Range(0, 3);
                     SpawnRandomPowerUp(chunkObj.transform, new Vector3(allLanes[puLane], 1.0f, 5.0f));
                 }
+                else if (Random.value < 0.07f)
+                {
+                    int chestLane = Random.Range(0, 3);
+                    SpawnMysteryChest(chunkObj.transform, new Vector3(allLanes[chestLane], 0.35f, 5.0f));
+                }
+
+                // Roadside tombstones (pure decor, zero collision)
+                SpawnRoadsideTombstones(chunkObj.transform);
             }
             else if (type == ChunkType.TJunctionLeft || type == ChunkType.TJunctionRight || type == ChunkType.TJunctionDouble)
             {
@@ -1595,19 +2060,20 @@ namespace Runner.Track
             }
 
 
-            // 3. Lush 3D Roadside Trees on BOTH sides outside the lane (dense jungle corridor with 8 trees per line)
+            // 3. Lush 3D Roadside Trees on BOTH sides outside the lane (optimized 3 trees per line for smooth 60 FPS on mobile)
             if (monsteraTreePrefab != null || pineTreePrefab != null)
             {
                 bool isLeftBranch = (type == ChunkType.TJunctionLeft || type == ChunkType.TJunctionDouble);
                 bool isRightBranch = (type == ChunkType.TJunctionRight || type == ChunkType.TJunctionDouble);
 
-                // Left side trees (outside left curb at X = -5.8m to -6.8m) - Exactly 8 trees per line
+                // Left side trees (staggered at 1.8m, 5.0m, 8.2m outside left curb)
                 if (!isLeftBranch)
                 {
-                    for (int i = 0; i < 8; i++)
+                    float[] zOffsetsL = { 1.8f, 5.0f, 8.2f };
+                    for (int i = 0; i < zOffsetsL.Length; i++)
                     {
-                        float zPos = 0.6f + i * 1.25f; // spans 0.6m to 9.35m across 10m chunk
-                        float xPos = -5.8f - (i % 3) * 0.45f;
+                        float zPos = zOffsetsL[i];
+                        float xPos = -5.8f - (i % 2) * 0.45f;
                         GameObject prefab = (i % 2 == 0) ?
                             (monsteraTreePrefab != null ? monsteraTreePrefab : pineTreePrefab) :
                             (pineTreePrefab != null ? pineTreePrefab : monsteraTreePrefab);
@@ -1617,22 +2083,27 @@ namespace Runner.Track
                             GameObject treeL = Instantiate(prefab, chunkObj.transform);
                             treeL.name = $"JungleTree_Left_{i + 1}";
                             treeL.transform.localPosition = new Vector3(xPos, 0.0f, zPos);
-                            treeL.transform.localRotation = Quaternion.Euler(0, Random.Range(0, 360), 0);
-                            float sc = (prefab == monsteraTreePrefab ? 1.35f : 1.15f) * Random.Range(0.92f, 1.15f);
+                            treeL.transform.localRotation = Quaternion.Euler(0, (i * 115f) % 360f, 0);
+                            float sc = (prefab == monsteraTreePrefab ? 1.35f : 1.15f) * Random.Range(0.95f, 1.15f);
                             treeL.transform.localScale = Vector3.one * sc;
                             foreach (var col in treeL.GetComponentsInChildren<Collider>()) Destroy(col);
+                            foreach (var r in treeL.GetComponentsInChildren<Renderer>())
+                            {
+                                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                            }
                             ApplyTreeMaterials(treeL, prefab == monsteraTreePrefab);
                         }
                     }
                 }
 
-                // Right side trees (outside right curb at X = +5.8m to +6.8m) - Exactly 8 trees per line
+                // Right side trees (staggered at 2.2m, 5.4m, 8.6m outside right curb)
                 if (!isRightBranch)
                 {
-                    for (int i = 0; i < 8; i++)
+                    float[] zOffsetsR = { 2.2f, 5.4f, 8.6f };
+                    for (int i = 0; i < zOffsetsR.Length; i++)
                     {
-                        float zPos = 0.6f + i * 1.25f; // spans 0.6m to 9.35m across 10m chunk
-                        float xPos = 5.8f + (i % 3) * 0.45f;
+                        float zPos = zOffsetsR[i];
+                        float xPos = 5.8f + (i % 2) * 0.45f;
                         GameObject prefab = (i % 2 == 0) ?
                             (pineTreePrefab != null ? pineTreePrefab : monsteraTreePrefab) :
                             (monsteraTreePrefab != null ? monsteraTreePrefab : pineTreePrefab);
@@ -1642,10 +2113,14 @@ namespace Runner.Track
                             GameObject treeR = Instantiate(prefab, chunkObj.transform);
                             treeR.name = $"JungleTree_Right_{i + 1}";
                             treeR.transform.localPosition = new Vector3(xPos, 0.0f, zPos);
-                            treeR.transform.localRotation = Quaternion.Euler(0, Random.Range(0, 360), 0);
-                            float sc = (prefab == monsteraTreePrefab ? 1.35f : 1.15f) * Random.Range(0.92f, 1.15f);
+                            treeR.transform.localRotation = Quaternion.Euler(0, (i * 135f + 45f) % 360f, 0);
+                            float sc = (prefab == monsteraTreePrefab ? 1.35f : 1.15f) * Random.Range(0.95f, 1.15f);
                             treeR.transform.localScale = Vector3.one * sc;
                             foreach (var col in treeR.GetComponentsInChildren<Collider>()) Destroy(col);
+                            foreach (var r in treeR.GetComponentsInChildren<Renderer>())
+                            {
+                                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                            }
                             ApplyTreeMaterials(treeR, prefab == monsteraTreePrefab);
                         }
                     }
@@ -1699,6 +2174,152 @@ namespace Runner.Track
             catch
             {
                 // Tag not registered yet in TagManager, ignored gracefully
+            }
+        }
+
+        private void ApplyRoadVisual(TrackChunk chunk, float chunkDistance)
+        {
+            if (chunk == null || chunk.Type == ChunkType.Gap)
+            {
+                Transform r1 = chunk != null ? chunk.transform.Find("Road3D_Tier1") : null;
+                Transform r2 = chunk != null ? chunk.transform.Find("Road3D_Tier2") : null;
+                if (r1 != null) r1.gameObject.SetActive(false);
+                if (r2 != null) r2.gameObject.SetActive(false);
+                return;
+            }
+
+            Ensure3DModels();
+            EnsureMaterials();
+
+            Transform t1 = chunk.transform.Find("Road3D_Tier1");
+            Transform t2 = chunk.transform.Find("Road3D_Tier2");
+
+            if (chunkDistance < 1000f)
+            {
+                // Tier 0: Default road surface
+                if (t1 != null) t1.gameObject.SetActive(false);
+                if (t2 != null) t2.gameObject.SetActive(false);
+            }
+            else if (chunkDistance < 2000f)
+            {
+                // Tier 1: 3D Rocky Path (1000m - 2000m)
+                if (t2 != null) t2.gameObject.SetActive(false);
+
+                if (t1 == null && rockyPathPrefab != null)
+                {
+                    GameObject rObj = Instantiate(rockyPathPrefab, chunk.transform);
+                    rObj.name = "Road3D_Tier1";
+                    rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
+                    rObj.transform.localRotation = Quaternion.identity;
+                    rObj.transform.localScale = new Vector3(3.816f, 1.0f, 7.024f);
+
+                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) Destroy(col);
+
+                    if (rockyPathMatCache != null)
+                    {
+                        foreach (var r in rObj.GetComponentsInChildren<Renderer>())
+                        {
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = rockyPathMatCache;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+                    t1 = rObj.transform;
+                }
+
+                if (t1 != null) t1.gameObject.SetActive(true);
+            }
+            else
+            {
+                // Tier 2: 3D Low-Poly Volcanic Road (2000m+)
+                if (t1 != null) t1.gameObject.SetActive(false);
+
+                if (t2 == null && lowPolyRoadPrefab != null)
+                {
+                    GameObject rObj = Instantiate(lowPolyRoadPrefab, chunk.transform);
+                    rObj.name = "Road3D_Tier2";
+                    rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
+                    rObj.transform.localRotation = Quaternion.identity;
+                    rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
+
+                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) Destroy(col);
+
+                    if (lowPolyRoadMatCache != null)
+                    {
+                        foreach (var r in rObj.GetComponentsInChildren<Renderer>())
+                        {
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = lowPolyRoadMatCache;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+                    t2 = rObj.transform;
+                }
+
+                if (t2 != null) t2.gameObject.SetActive(true);
+            }
+        }
+
+        private void CheckAndSpawnStoneGate(TrackChunk chunk, float chunkDistance)
+        {
+            if (chunk == null || chunk.IsJunction || chunk.Type == ChunkType.Gap) return;
+
+            // Only spawn on non-obstacle running chunks for clean visibility
+            bool isSafeChunk = (chunk.Type == ChunkType.Straight || chunk.Type == ChunkType.CoinRun || chunk.Type == ChunkType.HeartRun);
+
+            // 1. Guaranteed Milestone Gate at 1000m
+            if (!gateSpawnedAt1000 && chunkDistance >= 990f && chunkDistance <= 1040f && isSafeChunk)
+            {
+                gateSpawnedAt1000 = true;
+                SpawnStoneGate(chunk, 1.0f);
+                nextStoneGateDistance = chunkDistance + Random.Range(130.0f, 160.0f);
+                return;
+            }
+
+            // 2. Guaranteed Milestone Gate at 2000m
+            if (!gateSpawnedAt2000 && chunkDistance >= 1990f && chunkDistance <= 2040f && isSafeChunk)
+            {
+                gateSpawnedAt2000 = true;
+                SpawnStoneGate(chunk, 1.0f);
+                nextStoneGateDistance = chunkDistance + Random.Range(130.0f, 160.0f);
+                return;
+            }
+
+            // 3. Periodic Gate every ~120m-160m on straight chunks
+            if (chunkDistance >= nextStoneGateDistance && isSafeChunk)
+            {
+                SpawnStoneGate(chunk, 5.0f);
+                nextStoneGateDistance = chunkDistance + Random.Range(130.0f, 170.0f);
+            }
+        }
+
+        private void SpawnStoneGate(TrackChunk chunk, float localZ)
+        {
+            Ensure3DModels();
+            EnsureMaterials();
+
+            if (stoneGatePrefab == null) return;
+
+            GameObject gateObj = Instantiate(stoneGatePrefab, chunk.transform);
+            gateObj.name = "AncientStoneGate";
+            gateObj.transform.localPosition = new Vector3(0, 0.0f, localZ);
+            gateObj.transform.localRotation = Quaternion.identity;
+            gateObj.transform.localScale = Vector3.one * 11.0f;
+
+            // Destroy all colliders so central archway is completely open (zero collision)
+            foreach (var col in gateObj.GetComponentsInChildren<Collider>())
+            {
+                Destroy(col);
+            }
+
+            if (stoneGateMatCache != null)
+            {
+                foreach (var r in gateObj.GetComponentsInChildren<Renderer>())
+                {
+                    Material[] mats = new Material[r.sharedMaterials.Length];
+                    for (int m = 0; m < mats.Length; m++) mats[m] = stoneGateMatCache;
+                    r.sharedMaterials = mats;
+                }
             }
         }
         #endregion
