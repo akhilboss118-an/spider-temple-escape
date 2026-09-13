@@ -224,7 +224,6 @@ export default function Home() {
             <span>Spider<span>Temple</span></span>
           </a>
           <ul className="nav-links">
-            <li><Link href="/ui-preview" style={{ color: '#f2ca50', fontWeight: 'bold' }}>✨ Stitch UI/UX</Link></li>
             <li><a href="#roster">Roster</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#screenshots">Screenshots</a></li>
