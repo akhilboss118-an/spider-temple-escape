@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const DIRECT_APK = '/downloads/SpiderTempleEscape.apk';
+const DIRECT_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.3.0/SpiderTempleEscape.apk';
 const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.3.0/SpiderTempleEscape.apk';
 const GITHUB_LATEST_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/latest/download/SpiderTempleEscape.apk';
 const RELEASES_PAGE = 'https://github.com/akhilboss118-an/spider-temple-escape/releases';
@@ -17,7 +17,7 @@ export default function DownloadPage() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          triggerDownload(DIRECT_APK);
+          triggerDownload(GITHUB_APK);
           return 0;
         }
         return prev - 1;
@@ -27,7 +27,7 @@ export default function DownloadPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const triggerDownload = (url = DIRECT_APK) => {
+  const triggerDownload = (url = GITHUB_APK) => {
     setDownloadStarted(true);
     const link = document.createElement('a');
     link.href = url;
@@ -114,7 +114,7 @@ export default function DownloadPage() {
               boxShadow: '0 4px 20px rgba(212, 168, 83, 0.4)'
             }}
           >
-            📥 Download APK v1.3 Directly (~71 MB)
+            📥 Download APK v1.3 (~114 MB)
           </button>
 
           <a
