@@ -24,8 +24,8 @@ namespace Runner.EditorTools
 
             PlayerSettings.productName = APP_NAME;
             PlayerSettings.companyName = "SpiderHero";
-            PlayerSettings.bundleVersion = "1.3.0";
-            PlayerSettings.Android.bundleVersionCode = 4;
+            PlayerSettings.bundleVersion = "1.4.0";
+            PlayerSettings.Android.bundleVersionCode = 5;
 
             // Application ID / Package Name
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, PACKAGE_NAME);
@@ -141,6 +141,19 @@ namespace Runner.EditorTools
             if (summary.result == BuildResult.Succeeded)
             {
                 Debug.Log($"[AndroidBuildHelper] APK BUILD SUCCEEDED! Output: {apkPath} ({summary.totalSize / (1024 * 1024)} MB)");
+                try
+                {
+                    string webDownloadDir = Path.Combine(Directory.GetCurrentDirectory(), "web", "public", "downloads");
+                    if (!Directory.Exists(webDownloadDir)) Directory.CreateDirectory(webDownloadDir);
+                    string webApkPath = Path.Combine(webDownloadDir, "SpiderTempleEscape.apk");
+                    File.Copy(apkPath, webApkPath, true);
+                    Debug.Log($"[AndroidBuildHelper] Copied APK to web downloads: {webApkPath}");
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[AndroidBuildHelper] Could not copy to web/public/downloads: {ex.Message}");
+                }
+
                 if (!Application.isBatchMode)
                 {
                     EditorUtility.RevealInFinder(apkPath);
