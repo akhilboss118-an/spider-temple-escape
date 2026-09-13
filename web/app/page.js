@@ -17,16 +17,16 @@ const DIRECT_APK   = '/downloads/SpiderTempleEscape.apk';
 // ──────────────────────────────────────────────
 const CHARACTERS = [
   {
-    id: 'char_akhilboss',
-    name: 'Akhilboss',
-    title: 'Temple Master',
-    avatar: '/characters/akhilboss.png',
-    archetype: 'Master Runner',
+    id: 'char_naruto',
+    name: 'Naruto',
+    title: 'Hokage Runner',
+    avatar: '/characters/naruto.png',
+    archetype: 'Shinobi Master',
     specialty: 'Speed & Reflexes',
     speed: 1.25,
     shield: 1.10,
     agility: 1.20,
-    description: 'Elite temple runner with lightning reflexes, high speed, and fearless agility through ancient ruins.',
+    description: 'Legendary shinobi runner with lightning reflexes, high speed, and fearless agility through ancient ruins.',
   },
   {
     id: 'spiderman_classic',
@@ -41,76 +41,76 @@ const CHARACTERS = [
     description: 'Iconic agile web-slinger. Balanced athletic reflexes to leap over fallen jungle timber and slide beneath stone arches.',
   },
   {
-    id: 'char_harika',
-    name: 'Harika',
-    title: 'Jungle Voyager',
-    avatar: '/characters/harika.png',
+    id: 'char_nezuko',
+    name: 'Nezuko',
+    title: 'Demon Voyager',
+    avatar: '/characters/nezuko.png',
     archetype: 'Acrobat',
     specialty: 'Fluid Dodges',
     speed: 1.15,
     shield: 1.05,
     agility: 1.30,
-    description: 'Agile jungle explorer capable of fluid dodges, swift barrier leaps, and balanced endurance.',
+    description: 'Agile demon voyager capable of supernatural recovery, fluid obstacle evasion, and balanced endurance.',
   },
   {
-    id: 'char_nandini',
-    name: 'Nandini',
-    title: 'Mystic Scout',
-    avatar: '/characters/nandini.png',
+    id: 'char_hinata',
+    name: 'Hinata',
+    title: 'Byakugan Scout',
+    avatar: '/characters/hinata.png',
     archetype: 'Scout',
     specialty: 'Max Agility (1.35x)',
     speed: 1.20,
     shield: 0.95,
     agility: 1.35,
-    description: 'Fleet-footed temple scout with sharp reflexes and supernatural recovery navigating treacherous paths.',
+    description: 'Fleet-footed Byakugan scout with sharp instincts, high aerial grace, and lightning navigation through treacherous paths.',
   },
   {
-    id: 'char_navaneeth',
-    name: 'Navaneeth',
-    title: 'Ruin Guardian',
-    avatar: '/characters/navaneeth.png',
+    id: 'char_zoro',
+    name: 'Zoro',
+    title: 'Ruin Swordsman',
+    avatar: '/characters/zoro.png',
     archetype: 'Tank',
     specialty: 'Heavy Shield (1.30x)',
     speed: 1.10,
     shield: 1.30,
     agility: 1.00,
-    description: 'Stalwart adventurer with rock-solid stability to withstand rough collisions and power through obstacles.',
+    description: 'Stalwart swordsman with rock-solid stability to withstand rough collisions and power through obstacles.',
   },
   {
-    id: 'char_pavan',
-    name: 'Pavan',
-    title: 'Wind Striker',
-    avatar: '/characters/pavan.png',
+    id: 'char_zenitsu',
+    name: 'Zenitsu',
+    title: 'Thunder Striker',
+    avatar: '/characters/zenitsu.png',
     archetype: 'Speedster',
     specialty: 'Top Speed (1.35x)',
     speed: 1.35,
     shield: 1.00,
     agility: 1.25,
-    description: 'High-velocity runner possessing explosive speed bursts and aerial maneuvers.',
+    description: 'High-velocity thunder runner possessing explosive speed bursts and aerial maneuvers.',
   },
   {
-    id: 'char_pravalika',
-    name: 'Pravalika',
-    title: 'Shadow Runner',
-    avatar: '/characters/pravalika.png',
+    id: 'char_anya',
+    name: 'Anya',
+    title: 'Secret Telepath',
+    avatar: '/characters/anya.png',
     archetype: 'Infiltrator',
     specialty: 'Low Slides & Evasion',
     speed: 1.20,
     shield: 1.15,
     agility: 1.30,
-    description: 'Graceful acrobatic athlete specialized in swift low slides and obstacle clearance.',
+    description: 'Clever acrobatic athlete specialized in swift low slides, secret instinct, and obstacle clearance.',
   },
   {
-    id: 'char_srikar',
-    name: 'Srikar',
-    title: 'Expedition Leader',
-    avatar: '/characters/srikar.png',
+    id: 'char_sasuke',
+    name: 'Sasuke',
+    title: 'Shadow Avenger',
+    avatar: '/characters/sasuke.png',
     archetype: 'Commander',
     specialty: 'Apex Attributes',
     speed: 1.30,
     shield: 1.20,
     agility: 1.15,
-    description: 'Veteran temple explorer with masterclass attributes across speed, shield defense, and obstacle agility.',
+    description: 'Master shinobi explorer with masterclass attributes across speed, shield defense, and obstacle agility.',
   },
 ];
 
@@ -121,7 +121,7 @@ const FEATURES = [
   {
     icon: '⚡',
     name: '8 Playable Temple Heroes',
-    desc: 'Sprint as Spider-Man, Akhilboss, Harika, Nandini, Navaneeth, Pavan, Pravalika, or Srikar — each fine-tuned with custom Speed, Shield, and Agility multipliers!',
+    desc: 'Sprint as Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, or Sasuke — each fine-tuned with custom Speed, Shield, and Agility multipliers!',
   },
   {
     icon: '🎵',
@@ -158,7 +158,7 @@ const SCREENSHOTS = [
     src: '/screenshots/real_gameplay_shield_run.png',
     title: 'Energy Shield & Beast Pursuit',
     badge: 'In-Game Action · 60 FPS',
-    caption: 'Akhilboss sprinting with active invulnerability shield while the ancient relic beast charges closely behind.',
+    caption: 'Naruto sprinting with active invulnerability shield while the ancient relic beast charges closely behind.',
   },
   {
     src: '/screenshots/real_gameplay_track_overview.png',
@@ -242,7 +242,7 @@ export default function Home() {
         <div className="hero-overlay" />
 
         <div className="container hero-content">
-          <div className="hero-badge">v1.3 Release · 8 Playable Heroes · Akhilboss Edition · 60 FPS Native APK</div>
+          <div className="hero-badge">v1.3 Release · 8 Playable Heroes · Anime Edition · 60 FPS Native APK</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -250,7 +250,7 @@ export default function Home() {
           </h1>
 
           <p className="hero-subtitle">
-            Take control of Spider-Man, Akhilboss, and 6 unique heroes in ancient ruins! Leap over logs, slide beneath branches,
+            Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke in ancient ruins! Leap over logs, slide beneath branches,
             switch lanes, master individual speed & agility stats, and outrun the relentless beast guardian on Android with locked 60 FPS native physics.
           </p>
 
@@ -316,7 +316,7 @@ export default function Home() {
                 <span className="dot yellow" />
                 <span className="dot green" />
               </div>
-              <span>🕹️ 90s ARCADE CHARACTER ROSTER · SPIDER-MAN & 7 CUSTOM HEROES</span>
+              <span>🕹️ 90s ARCADE CHARACTER ROSTER · SPIDER-MAN & 7 ANIME HEROES</span>
               <span>TEMPLE EDITION</span>
             </div>
             <div className="roster-banner-img-wrap">
