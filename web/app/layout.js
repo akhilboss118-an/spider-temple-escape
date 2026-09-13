@@ -1,13 +1,13 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Spider Temple Escape — Play as Spider-Man vs Zombie Monster',
+  title: 'Spider Temple Escape — 8 Playable Heroes · Akhilboss Edition',
   description:
-    'Play as Spider-Man and escape the ancient cursed temple while being hunted by a terrifying Zombie monster in this 3D endless runner for Android. Free download.',
-  keywords: ['spider temple escape', 'spiderman runner', 'zombie monster', 'android game', 'endless runner', '3d runner', 'mobile game'],
+    'Play as Spider-Man, Akhilboss, and 6 additional custom heroes in this high-octane 3D endless runner. Outrun the ancient temple beast with unique speed, shield, and agility stats. Free Android APK.',
+  keywords: ['spider temple escape', 'akhilboss', '8 playable heroes', 'spiderman runner', 'zombie monster', 'android game', 'endless runner', '3d runner', 'mobile game'],
   openGraph: {
-    title: 'Spider Temple Escape — Spider-Man vs Zombie Monster',
-    description: 'Play as Spider-Man! Outrun the terrifying Zombie monster in an ancient temple. Available free on Android.',
+    title: 'Spider Temple Escape — 8 Playable Heroes · Akhilboss Edition',
+    description: 'Sprint through ancient cursed ruins with Spider-Man, Akhilboss, and 6 unique heroes! Outrun the relentless beast guardian on Android.',
     url: 'https://spider-temple-escape.vercel.app',
     siteName: 'Spider Temple Escape',
     type: 'website',

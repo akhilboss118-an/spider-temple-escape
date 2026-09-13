@@ -12,6 +12,16 @@ export default function DownloadPage() {
   const [downloadStarted, setDownloadStarted] = useState(false);
   const [countdown, setCountdown] = useState(2);
 
+  const triggerDownload = (url = GITHUB_APK) => {
+    setDownloadStarted(true);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'SpiderTempleEscape.apk';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -26,16 +36,6 @@ export default function DownloadPage() {
 
     return () => clearInterval(timer);
   }, []);
-
-  const triggerDownload = (url = GITHUB_APK) => {
-    setDownloadStarted(true);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'SpiderTempleEscape.apk';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <div style={{
@@ -165,8 +165,8 @@ export default function DownloadPage() {
           <Link href="/" style={{ color: '#d4a853', textDecoration: 'none', fontWeight: '600' }}>
             ← Return to Home
           </Link>
-          <Link href="/#play-demo" style={{ color: '#2aff8a', textDecoration: 'none', fontWeight: '600' }}>
-            ▶ Play Instant Web Demo
+          <Link href="/#roster" style={{ color: '#2aff8a', textDecoration: 'none', fontWeight: '600' }}>
+            👥 Meet All 8 Heroes
           </Link>
         </div>
       </div>
