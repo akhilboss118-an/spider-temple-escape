@@ -10,7 +10,7 @@ namespace Runner.EditorTools
 {
     public static class SceneSnapshotTool
     {
-        private const string BrainArtifactDir = "C:/Users/akhil/.gemini/antigravity-ide/brain/02e5c894-3595-4180-9eb9-9645c1208168";
+        private const string BrainArtifactDir = "C:/Users/akhil/.gemini/antigravity-ide/brain/f91eff17-edb1-4296-a563-9eb1d8890a72";
 
         public static void CaptureCommandLine()
         {
@@ -218,20 +218,68 @@ namespace Runner.EditorTools
                     floor.transform.SetParent(chunkObj.transform, false);
                     floor.transform.localPosition = new Vector3(0, -0.1f, 5.0f);
                     floor.transform.localScale = new Vector3(7.6f, 0.2f, 10.3f);
+                    UnityEngine.Object.DestroyImmediate(floor.GetComponent<Collider>());
                     if (floorMat != null) floor.GetComponent<MeshRenderer>().sharedMaterial = floorMat;
 
-                    // Curbs
+                    // Colossal Stone Aqueduct Sub-Foundation & Bridge Buttress (Viaduct canyon aesthetic)
+                    GameObject subFoundation = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    subFoundation.name = "Preview_Aqueduct_SubFoundation";
+                    subFoundation.transform.SetParent(chunkObj.transform, false);
+                    subFoundation.transform.localPosition = new Vector3(0, -2.6f, 5.0f);
+                    subFoundation.transform.localScale = new Vector3(7.4f, 5.0f, 10.3f);
+                    UnityEngine.Object.DestroyImmediate(subFoundation.GetComponent<Collider>());
+                    if (curbMat != null) subFoundation.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
+
+                    GameObject bridgePillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    bridgePillar.name = "Preview_Aqueduct_BridgePillar";
+                    bridgePillar.transform.SetParent(chunkObj.transform, false);
+                    bridgePillar.transform.localPosition = new Vector3(0, -9.0f, 5.0f);
+                    bridgePillar.transform.localScale = new Vector3(4.2f, 9.0f, 4.2f);
+                    UnityEngine.Object.DestroyImmediate(bridgePillar.GetComponent<Collider>());
+                    if (curbMat != null) bridgePillar.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
+
+                    // Curbs & Stepped Stone Balustrade Pilasters
                     GameObject leftCurb = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     leftCurb.transform.SetParent(chunkObj.transform, false);
                     leftCurb.transform.localPosition = new Vector3(-3.85f, 0.25f, 5.0f);
                     leftCurb.transform.localScale = new Vector3(0.7f, 0.5f, 10.3f);
+                    UnityEngine.Object.DestroyImmediate(leftCurb.GetComponent<Collider>());
                     if (curbMat != null) leftCurb.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
+
+                    GameObject pilasterL1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilasterL1.transform.SetParent(chunkObj.transform, false);
+                    pilasterL1.transform.localPosition = new Vector3(-3.85f, 0.42f, 2.5f);
+                    pilasterL1.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    UnityEngine.Object.DestroyImmediate(pilasterL1.GetComponent<Collider>());
+                    if (curbMat != null) pilasterL1.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
+
+                    GameObject pilasterL2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilasterL2.transform.SetParent(chunkObj.transform, false);
+                    pilasterL2.transform.localPosition = new Vector3(-3.85f, 0.42f, 7.5f);
+                    pilasterL2.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    UnityEngine.Object.DestroyImmediate(pilasterL2.GetComponent<Collider>());
+                    if (curbMat != null) pilasterL2.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
 
                     GameObject rightCurb = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     rightCurb.transform.SetParent(chunkObj.transform, false);
                     rightCurb.transform.localPosition = new Vector3(3.85f, 0.25f, 5.0f);
                     rightCurb.transform.localScale = new Vector3(0.7f, 0.5f, 10.3f);
+                    UnityEngine.Object.DestroyImmediate(rightCurb.GetComponent<Collider>());
                     if (curbMat != null) rightCurb.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
+
+                    GameObject pilasterR1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilasterR1.transform.SetParent(chunkObj.transform, false);
+                    pilasterR1.transform.localPosition = new Vector3(3.85f, 0.42f, 2.5f);
+                    pilasterR1.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    UnityEngine.Object.DestroyImmediate(pilasterR1.GetComponent<Collider>());
+                    if (curbMat != null) pilasterR1.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
+
+                    GameObject pilasterR2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilasterR2.transform.SetParent(chunkObj.transform, false);
+                    pilasterR2.transform.localPosition = new Vector3(3.85f, 0.42f, 7.5f);
+                    pilasterR2.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    UnityEngine.Object.DestroyImmediate(pilasterR2.GetComponent<Collider>());
+                    if (curbMat != null) pilasterR2.GetComponent<MeshRenderer>().sharedMaterial = curbMat;
 
                     // Outer jungle terrain spanning wide to eliminate empty void borders
                     GameObject leftGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -321,8 +369,11 @@ namespace Runner.EditorTools
                             heartC.AddComponent<Coin>();
                         }
 
-                        // Roadside decor on Chunk 0 is clean: lush vegetation & ancient braziers (zero white cubes)
-
+                        // Ancient Mystery Chest in left lane at Z = 6.5m (showcases barrel vault arched lid & golden bands)
+                        GameObject puChest = new GameObject("Preview_MysteryChest");
+                        puChest.transform.SetParent(chunkObj.transform, false);
+                        puChest.transform.localPosition = new Vector3(-2.0f, 0.25f, 6.5f);
+                        puChest.AddComponent<MysteryChest>();
                     }
 
                     // On Chunk 1: Minimized obstacle demonstration - single-lane tree branch jump hurdle in RIGHT lane only
@@ -437,22 +488,81 @@ namespace Runner.EditorTools
                     }
                 }
 
-                // 3. Spawn Spider-Man Player
-                GameObject spiderPrefab = Resources.Load<GameObject>("Prefabs/Player_SpiderMan");
-                if (spiderPrefab == null) spiderPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/SpiderMan/Player_SpiderMan.prefab");
-                if (spiderPrefab != null)
+                // 3. Spawn Active Character (Akhilboss with running animation and high-res texture)
+                GameObject charPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Characters/Akhilboss/Akhilboss_Prefab.prefab");
+                if (charPrefab == null) charPrefab = Resources.Load<GameObject>("Prefabs/Player_SpiderMan");
+                if (charPrefab == null) charPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/SpiderMan/Player_SpiderMan.prefab");
+                if (charPrefab != null)
                 {
-                    GameObject sp = UnityEngine.Object.Instantiate(spiderPrefab, previewRoot.transform);
-                    sp.name = "Preview_SpiderMan";
+                    GameObject sp = UnityEngine.Object.Instantiate(charPrefab, previewRoot.transform);
+                    sp.name = "Preview_Character";
                     sp.transform.localPosition = new Vector3(0, 0.05f, 4.0f);
                     sp.transform.localRotation = Quaternion.identity;
 
-                    Material spiderMat = Resources.Load<Material>("Materials/Mat_Player");
-                    if (spiderMat == null) spiderMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Player.mat");
-                    if (spiderMat != null)
+                    Texture2D charTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Characters/Akhilboss/Textures/Tex_Akhilboss.png");
+                    if (charTex != null)
                     {
+                        Material charMat = MaterialHelper.CreateSafeMaterial(Color.white, charTex);
                         foreach (var mr in sp.GetComponentsInChildren<Renderer>())
-                            mr.sharedMaterial = spiderMat;
+                            mr.sharedMaterial = charMat;
+                    }
+                    else
+                    {
+                        Material spiderMat = Resources.Load<Material>("Materials/Mat_Player");
+                        if (spiderMat == null) spiderMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Player.mat");
+                        if (spiderMat != null)
+                        {
+                            foreach (var mr in sp.GetComponentsInChildren<Renderer>())
+                                mr.sharedMaterial = spiderMat;
+                        }
+                    }
+
+                    // Add Transparent Blue Shield Aura to Preview Character
+                    GameObject shieldRoot = new GameObject("Preview_ShieldAura");
+                    shieldRoot.transform.SetParent(previewRoot.transform, false);
+                    shieldRoot.transform.position = sp.transform.position + new Vector3(0, 1.05f, 0);
+
+                    GameObject coreSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    coreSphere.transform.SetParent(shieldRoot.transform, false);
+                    coreSphere.transform.localPosition = Vector3.zero;
+                    coreSphere.transform.localScale = new Vector3(1.35f, 2.05f, 1.35f);
+                    UnityEngine.Object.DestroyImmediate(coreSphere.GetComponent<Collider>());
+
+                    GameObject ring = new GameObject("Shield_OrbitRing");
+                    ring.transform.SetParent(shieldRoot.transform, false);
+                    ring.transform.localRotation = Quaternion.Euler(20f, 0f, 15f);
+                    Mesh ringMesh = new Mesh();
+                    int rSegs = 32;
+                    Vector3[] rVerts = new Vector3[rSegs * 2];
+                    Vector2[] rUvs = new Vector2[rSegs * 2];
+                    int[] rTris = new int[rSegs * 6];
+                    for (int ri = 0; ri < rSegs; ri++)
+                    {
+                        float ra = (ri / (float)rSegs) * Mathf.PI * 2f;
+                        rVerts[ri * 2] = new Vector3(Mathf.Cos(ra) * 0.76f, 0f, Mathf.Sin(ra) * 0.76f);
+                        rVerts[ri * 2 + 1] = new Vector3(Mathf.Cos(ra) * 0.90f, 0f, Mathf.Sin(ra) * 0.90f);
+                        rUvs[ri * 2] = new Vector2(ri / (float)rSegs, 0f);
+                        rUvs[ri * 2 + 1] = new Vector2(ri / (float)rSegs, 1f);
+                        int rn = (ri + 1) % rSegs;
+                        int rtIdx = ri * 6;
+                        rTris[rtIdx] = ri * 2; rTris[rtIdx + 1] = ri * 2 + 1; rTris[rtIdx + 2] = rn * 2 + 1;
+                        rTris[rtIdx + 3] = ri * 2; rTris[rtIdx + 4] = rn * 2 + 1; rTris[rtIdx + 5] = rn * 2;
+                    }
+                    ringMesh.vertices = rVerts; ringMesh.uv = rUvs; ringMesh.triangles = rTris;
+                    ringMesh.RecalculateNormals();
+                    ring.AddComponent<MeshFilter>().sharedMesh = ringMesh;
+                    ring.AddComponent<MeshRenderer>();
+
+                    Shader sShader = Shader.Find("Custom/AAA_ShieldAura");
+                    if (sShader != null)
+                    {
+                        Material sMat = new Material(sShader);
+                        sMat.SetColor("_AuraColor", new Color(0.04f, 0.40f, 1.0f, 0.05f));
+                        sMat.SetColor("_RimColor", new Color(0.20f, 0.85f, 1.0f, 0.95f));
+                        sMat.SetFloat("_RimPower", 3.5f);
+                        sMat.SetFloat("_RimIntensity", 2.6f);
+                        coreSphere.GetComponent<MeshRenderer>().sharedMaterial = sMat;
+                        ring.GetComponent<MeshRenderer>().sharedMaterial = sMat;
                     }
                 }
 

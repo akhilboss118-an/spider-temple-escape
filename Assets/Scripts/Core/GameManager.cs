@@ -79,6 +79,7 @@ namespace Runner.Core
         public event Action<DeathType, int> OnGameOver; // (deathType, finalScore)
 
         private const string HIGH_SCORE_KEY = "Runner_HighScore";
+        public const string BEST_DISTANCE_KEY = "Runner_BestDistance";
         private const string TOTAL_COINS_KEY = "Runner_TotalCoins";
         public const string SUIT_KEY = "Runner_SelectedSuit";
         public const string SHIELD_LVL_KEY = "Runner_ShieldLvl";
@@ -92,6 +93,9 @@ namespace Runner.Core
         public const string HAPTICS_KEY = "Runner_Haptics";
 
         public int SelectedSuitIndex { get; private set; }
+        public float BestDistance { get; private set; }
+        public int TotalBankedCoins { get; private set; }
+        public int TotalBankedHearts => TotalBankedCoins;
         public int ShieldLevel { get; private set; }
         public int SpeedLevel { get; private set; }
         public int MagnetLevel { get; private set; }
@@ -100,7 +104,15 @@ namespace Runner.Core
         public float AudioVolume { get; private set; } = 1.0f;
         public int ControlScheme { get; private set; } = 0; // 0 = Swipe/Keys, 1 = Tilt
         public bool IsHapticsEnabled { get; private set; } = true;
-        public int TotalBankedCoins { get; private set; }
+
+        public bool SpendBankedHearts(int amount)
+        {
+            if (TotalBankedCoins < amount) return false;
+            TotalBankedCoins -= amount;
+            PlayerPrefs.SetInt(TOTAL_COINS_KEY, TotalBankedCoins);
+            PlayerPrefs.Save();
+            return true;
+        }
 
         private float scoreProgress = 0.0f;
 
@@ -114,6 +126,11 @@ namespace Runner.Core
 
             Instance = this;
             HighScore = PlayerPrefs.GetInt(HIGH_SCORE_KEY, 0);
+            BestDistance = PlayerPrefs.GetFloat(BEST_DISTANCE_KEY, 0f);
+            if (BestDistance <= 0f && HighScore > 0)
+            {
+                BestDistance = HighScore;
+            }
             TotalBankedCoins = PlayerPrefs.GetInt(TOTAL_COINS_KEY, 15);
             SelectedSuitIndex = PlayerPrefs.GetInt(SUIT_KEY, 0);
             ShieldLevel = PlayerPrefs.GetInt(SHIELD_LVL_KEY, 1);
@@ -129,9 +146,14 @@ namespace Runner.Core
             AudioListener.volume = IsAudioEnabled ? AudioVolume : 0.0f;
             CurrentSpeed = baseSpeed;
 
-            // Enforce smooth, stable 60 FPS on mobile with clean frame pacing
+            // Enforce smooth, stable 60 FPS on mobile with optimized rendering for smaller GPUs
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
+            QualitySettings.shadowDistance = 35f;
+            QualitySettings.shadowCascades = 1;
+            QualitySettings.shadowResolution = ShadowResolution.Medium;
+            QualitySettings.realtimeReflectionProbes = false;
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
 
             CleanPreviewObjects();
             CleanDuplicateLightsAndAtmosphere();
@@ -139,7 +161,7 @@ namespace Runner.Core
 
         public void CleanPreviewObjects()
         {
-            var allGo = FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var allGo = FindObjectsByType<GameObject>(FindObjectsInactive.Include);
             foreach (var go in allGo)
             {
                 if (go != null && (go.name == "_ScenePreviewRoot" || go.name == "PreviewCam" || go.name == "PreviewTrackManager" || go.name.StartsWith("Preview_")))
@@ -231,8 +253,13 @@ namespace Runner.Core
             {
                 stayInMenuOnLoad = false;
                 autoStartOnLoad = false;
-                SetState(GameState.Menu);
-                PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
+                CurrentState = GameState.Menu;
+                Time.timeScale = 1.0f;
+                OnGameStateChanged?.Invoke(GameState.Menu);
+                if (Runner.Characters.CharacterManager.Instance != null && PlayerController.Instance != null)
+                    Runner.Characters.CharacterManager.Instance.ApplyCharacterModelToPlayer(PlayerController.Instance.gameObject);
+                else
+                    PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
             }
             else if (autoStartOnLoad)
             {
@@ -241,15 +268,16 @@ namespace Runner.Core
             }
             else
             {
-                // In Unity Editor: auto-start into Playing state so pressing Play immediately works.
-                // On actual mobile/standalone builds: show the normal Main Menu.
-#if UNITY_EDITOR
-                StartGame();
-                Debug.Log("[GameManager] Editor Auto-Start: Game is PLAYING! Controls: W/↑/Space=Jump, S/↓=Slide, A/←=Left Lane, D/→=Right Lane. Press ESC to pause.");
-#else
-                SetState(GameState.Menu);
-                PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
-#endif
+                // Always start in the Main Menu on launch
+                autoStartOnLoad = false;
+                stayInMenuOnLoad = false;
+                CurrentState = GameState.Menu;
+                Time.timeScale = 1.0f;
+                OnGameStateChanged?.Invoke(GameState.Menu);
+                if (Runner.Characters.CharacterManager.Instance != null && PlayerController.Instance != null)
+                    Runner.Characters.CharacterManager.Instance.ApplyCharacterModelToPlayer(PlayerController.Instance.gameObject);
+                else
+                    PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
             }
         }
 
@@ -317,7 +345,10 @@ namespace Runner.Core
 
             SetState(GameState.Playing);
             OnLivesChanged?.Invoke(CurrentLives, MaxLives);
-            PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
+            if (Runner.Characters.CharacterManager.Instance != null && PlayerController.Instance != null)
+                Runner.Characters.CharacterManager.Instance.ApplyCharacterModelToPlayer(PlayerController.Instance.gameObject);
+            else
+                PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
 
             // Level 2+ Shield or Iron Spider Suit (Suit 2): start run with shield ready!
             if (ShieldLevel >= 2 || SelectedSuitIndex == 2)
@@ -425,11 +456,18 @@ namespace Runner.Core
             SetState(GameState.GameOver);
             MissionManager.Instance?.ReportRunFinished(Score, DistanceTraveled);
 
-            // Save High Score
+            // Save High Score & Best Distance
             if (Score > HighScore)
             {
                 HighScore = Score;
                 PlayerPrefs.SetInt(HIGH_SCORE_KEY, HighScore);
+                PlayerPrefs.Save();
+            }
+
+            if (DistanceTraveled > BestDistance)
+            {
+                BestDistance = DistanceTraveled;
+                PlayerPrefs.SetFloat(BEST_DISTANCE_KEY, BestDistance);
                 PlayerPrefs.Save();
             }
 
@@ -533,7 +571,10 @@ namespace Runner.Core
             SelectedSuitIndex = Mathf.Clamp(suitIndex, 0, 3);
             PlayerPrefs.SetInt(SUIT_KEY, SelectedSuitIndex);
             PlayerPrefs.Save();
-            PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
+            if (Runner.Characters.CharacterManager.Instance != null && PlayerController.Instance != null)
+                Runner.Characters.CharacterManager.Instance.ApplyCharacterModelToPlayer(PlayerController.Instance.gameObject);
+            else
+                PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
         }
 
         public bool UpgradePowerup(PowerUpType type, int cost = 5)

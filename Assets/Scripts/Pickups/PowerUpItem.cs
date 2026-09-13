@@ -110,6 +110,10 @@ namespace Runner.Pickups
             {
                 prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/PowerUps/Speedrun/speedrun.obj");
             }
+            if (prefab == null && powerUpType == PowerUpType.Magnet)
+            {
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/PowerUps/magnet.obj");
+            }
 #endif
 
             if (prefab == null) return false;
@@ -256,7 +260,7 @@ namespace Runner.Pickups
             Material silverMat = MaterialHelper.CreateSafeMaterial();
             if (silverMat == null) return;
             silverMat.name = "MagnetSilver";
-            silverMat.color = new Color(0.92f, 0.94f, 0.98f);
+            silverMat.color = new Color(0.85f, 0.90f, 0.98f);
             if (silverMat.HasProperty("_Metallic")) silverMat.SetFloat("_Metallic", 0.98f);
             if (silverMat.HasProperty("_Glossiness")) silverMat.SetFloat("_Glossiness", 0.95f);
 
@@ -367,134 +371,180 @@ namespace Runner.Pickups
             {
                 case PowerUpType.Shield:
                 {
-                    // 1. Crystal Diamond Core
-                    GameObject core = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    // 1. Crystal Diamond Core (smooth spherical energy gem)
+                    GameObject core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     core.name = "ShieldCore";
                     core.transform.SetParent(transform, false);
-                    core.transform.localRotation = Quaternion.Euler(45f, 45f, 45f);
-                    core.transform.localScale = new Vector3(0.55f, 0.55f, 0.55f);
-                    Destroy(core.GetComponent<Collider>());
-                    Material mat = MaterialHelper.CreateSafeMaterial(new Color(0.10f, 0.85f, 1.0f, 0.90f));
+                    core.transform.localScale = new Vector3(0.65f, 0.65f, 0.65f);
+                    SafeDestroy(core.GetComponent<Collider>());
+                    Material mat = MaterialHelper.CreateSafeMaterial(new Color(0.15f, 0.85f, 1.0f, 0.85f));
                     if (mat != null)
                     {
                         if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.95f);
-                        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.8f);
+                        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.6f);
+                        if (mat.HasProperty("_EmissionColor"))
+                        {
+                            mat.EnableKeyword("_EMISSION");
+                            mat.SetColor("_EmissionColor", new Color(0.15f, 0.85f, 1.0f) * 0.6f);
+                        }
                         core.GetComponent<MeshRenderer>().sharedMaterial = mat;
                     }
 
-                    // 2. Outer Protective Energy Ring
-                    GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                    ring.name = "ShieldRing";
-                    ring.transform.SetParent(transform, false);
-                    ring.transform.localRotation = Quaternion.Euler(90f, 0, 0);
-                    ring.transform.localScale = new Vector3(0.85f, 0.04f, 0.85f);
-                    Destroy(ring.GetComponent<Collider>());
+                    // 2. Dual Concentric Protective Orbiting Rings
+                    GameObject ring1 = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    ring1.name = "ShieldRing1";
+                    ring1.transform.SetParent(transform, false);
+                    ring1.transform.localRotation = Quaternion.Euler(75f, 25f, 0);
+                    ring1.transform.localScale = new Vector3(0.95f, 0.035f, 0.95f);
+                    SafeDestroy(ring1.GetComponent<Collider>());
                     Material ringMat = MaterialHelper.CreateSafeMaterial(new Color(0.35f, 0.95f, 1.0f, 0.60f));
-                    if (ringMat != null) ring.GetComponent<MeshRenderer>().sharedMaterial = ringMat;
+                    if (ringMat != null) ring1.GetComponent<MeshRenderer>().sharedMaterial = ringMat;
+
+                    GameObject ring2 = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    ring2.name = "ShieldRing2";
+                    ring2.transform.SetParent(transform, false);
+                    ring2.transform.localRotation = Quaternion.Euler(-60f, -40f, 0);
+                    ring2.transform.localScale = new Vector3(1.10f, 0.035f, 1.10f);
+                    SafeDestroy(ring2.GetComponent<Collider>());
+                    if (ringMat != null) ring2.GetComponent<MeshRenderer>().sharedMaterial = ringMat;
                     break;
                 }
                 case PowerUpType.Speedrun:
                 {
-                    // Golden Double-Chevron Rocket / Lightning
+                    // Aerodynamic Golden Rocket / Speed Capsule
                     GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     body.name = "SpeedBody";
                     body.transform.SetParent(transform, false);
                     body.transform.localRotation = Quaternion.Euler(0, 0, 90f);
-                    body.transform.localScale = new Vector3(0.42f, 0.45f, 0.42f);
-                    Destroy(body.GetComponent<Collider>());
-                    Material mat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.65f, 0.05f));
+                    body.transform.localScale = new Vector3(0.38f, 0.55f, 0.38f);
+                    SafeDestroy(body.GetComponent<Collider>());
+                    Material mat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.70f, 0.05f));
                     if (mat != null)
                     {
-                        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.90f);
-                        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.85f);
+                        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.92f);
+                        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.90f);
                         body.GetComponent<MeshRenderer>().sharedMaterial = mat;
                     }
 
-                    // Arrow Tip
-                    GameObject tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    tip.name = "SpeedTip";
-                    tip.transform.SetParent(transform, false);
-                    tip.transform.localPosition = new Vector3(0, 0.35f, 0);
-                    tip.transform.localRotation = Quaternion.Euler(45f, 45f, 0);
-                    tip.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
-                    Destroy(tip.GetComponent<Collider>());
-                    Material tipMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.92f, 0.20f));
-                    if (tipMat != null) tip.GetComponent<MeshRenderer>().sharedMaterial = tipMat;
+                    // Aerodynamic nose cone (smooth sphere)
+                    GameObject nose = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    nose.name = "SpeedNose";
+                    nose.transform.SetParent(transform, false);
+                    nose.transform.localPosition = new Vector3(0, 0.45f, 0);
+                    nose.transform.localScale = new Vector3(0.38f, 0.45f, 0.38f);
+                    SafeDestroy(nose.GetComponent<Collider>());
+                    Material tipMat = MaterialHelper.CreateSafeMaterial(new Color(0.2f, 1.0f, 0.35f));
+                    if (tipMat != null)
+                    {
+                        if (tipMat.HasProperty("_EmissionColor"))
+                        {
+                            tipMat.EnableKeyword("_EMISSION");
+                            tipMat.SetColor("_EmissionColor", new Color(0.2f, 1.0f, 0.35f) * 1.2f);
+                        }
+                        nose.GetComponent<MeshRenderer>().sharedMaterial = tipMat;
+                    }
+
+                    // Turbo exhaust ring
+                    GameObject exhaust = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    exhaust.name = "SpeedExhaust";
+                    exhaust.transform.SetParent(transform, false);
+                    exhaust.transform.localPosition = new Vector3(0, -0.40f, 0);
+                    exhaust.transform.localScale = new Vector3(0.50f, 0.04f, 0.50f);
+                    SafeDestroy(exhaust.GetComponent<Collider>());
+                    if (tipMat != null) exhaust.GetComponent<MeshRenderer>().sharedMaterial = tipMat;
                     break;
                 }
                 case PowerUpType.Magnet:
                 {
-                    // Classic 3D Horseshoe Magnet
-                    // Base curved bridge
-                    GameObject bridge = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    bridge.name = "MagnetBridge";
-                    bridge.transform.SetParent(transform, false);
-                    bridge.transform.localPosition = new Vector3(0, 0.25f, 0);
-                    bridge.transform.localScale = new Vector3(0.65f, 0.16f, 0.18f);
-                    Destroy(bridge.GetComponent<Collider>());
-                    Material redMat = MaterialHelper.CreateSafeMaterial(new Color(0.95f, 0.15f, 0.18f));
+                    // Ultra-smooth 3D Horseshoe Magnet with curved arch and cylindrical chrome tips (zero raw cubes!)
+                    Material redMat = MaterialHelper.CreateSafeMaterial(new Color(0.95f, 0.12f, 0.15f));
                     if (redMat != null)
                     {
-                        if (redMat.HasProperty("_Glossiness")) redMat.SetFloat("_Glossiness", 0.85f);
-                        bridge.GetComponent<MeshRenderer>().sharedMaterial = redMat;
+                        if (redMat.HasProperty("_Glossiness")) redMat.SetFloat("_Glossiness", 0.88f);
+                        if (redMat.HasProperty("_Metallic")) redMat.SetFloat("_Metallic", 0.40f);
+                        if (redMat.HasProperty("_EmissionColor"))
+                        {
+                            redMat.EnableKeyword("_EMISSION");
+                            redMat.SetColor("_EmissionColor", new Color(0.95f, 0.12f, 0.15f) * 0.25f);
+                        }
                     }
 
-                    // Left Leg
-                    GameObject leftLeg = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    leftLeg.name = "LeftLeg";
-                    leftLeg.transform.SetParent(transform, false);
-                    leftLeg.transform.localPosition = new Vector3(-0.25f, 0.05f, 0);
-                    leftLeg.transform.localScale = new Vector3(0.15f, 0.35f, 0.18f);
-                    Destroy(leftLeg.GetComponent<Collider>());
-                    if (redMat != null) leftLeg.GetComponent<MeshRenderer>().sharedMaterial = redMat;
-
-                    // Right Leg
-                    GameObject rightLeg = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    rightLeg.name = "RightLeg";
-                    rightLeg.transform.SetParent(transform, false);
-                    rightLeg.transform.localPosition = new Vector3(0.25f, 0.05f, 0);
-                    rightLeg.transform.localScale = new Vector3(0.15f, 0.35f, 0.18f);
-                    Destroy(rightLeg.GetComponent<Collider>());
-                    if (redMat != null) rightLeg.GetComponent<MeshRenderer>().sharedMaterial = redMat;
-
-                    // Silver Chrome North Tip
-                    Material silverMat = MaterialHelper.CreateSafeMaterial(new Color(0.90f, 0.92f, 0.95f));
+                    Material silverMat = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 0.90f, 0.98f));
                     if (silverMat != null)
                     {
-                        if (silverMat.HasProperty("_Metallic")) silverMat.SetFloat("_Metallic", 0.95f);
+                        if (silverMat.HasProperty("_Metallic")) silverMat.SetFloat("_Metallic", 0.98f);
                         if (silverMat.HasProperty("_Glossiness")) silverMat.SetFloat("_Glossiness", 0.95f);
                     }
 
-                    GameObject leftTip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    // Curved top arch: 5 radial cylinder segments for smooth sweep
+                    int archSegments = 5;
+                    float archRadius = 0.28f;
+                    float archYCenter = 0.12f;
+                    for (int s = 0; s < archSegments; s++)
+                    {
+                        float angleDeg = Mathf.Lerp(20f, 160f, (float)s / (archSegments - 1));
+                        float rad = angleDeg * Mathf.Deg2Rad;
+                        Vector3 segPos = new Vector3(Mathf.Cos(rad) * archRadius, archYCenter + Mathf.Sin(rad) * archRadius, 0);
+
+                        GameObject archSeg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                        archSeg.name = $"MagnetArch_{s}";
+                        archSeg.transform.SetParent(transform, false);
+                        archSeg.transform.localPosition = segPos;
+                        archSeg.transform.localRotation = Quaternion.Euler(0, 0, angleDeg - 90f);
+                        archSeg.transform.localScale = new Vector3(0.14f, 0.11f, 0.14f);
+                        SafeDestroy(archSeg.GetComponent<Collider>());
+                        if (redMat != null) archSeg.GetComponent<MeshRenderer>().sharedMaterial = redMat;
+                    }
+
+                    // Left Cylinder Leg
+                    GameObject leftLeg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    leftLeg.name = "LeftLeg";
+                    leftLeg.transform.SetParent(transform, false);
+                    leftLeg.transform.localPosition = new Vector3(-archRadius, -0.02f, 0);
+                    leftLeg.transform.localScale = new Vector3(0.14f, 0.20f, 0.14f);
+                    SafeDestroy(leftLeg.GetComponent<Collider>());
+                    if (redMat != null) leftLeg.GetComponent<MeshRenderer>().sharedMaterial = redMat;
+
+                    // Right Cylinder Leg
+                    GameObject rightLeg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    rightLeg.name = "RightLeg";
+                    rightLeg.transform.SetParent(transform, false);
+                    rightLeg.transform.localPosition = new Vector3(archRadius, -0.02f, 0);
+                    rightLeg.transform.localScale = new Vector3(0.14f, 0.20f, 0.14f);
+                    SafeDestroy(rightLeg.GetComponent<Collider>());
+                    if (redMat != null) rightLeg.GetComponent<MeshRenderer>().sharedMaterial = redMat;
+
+                    // Gleaming Chrome North Pole Tip (smooth cylinder)
+                    GameObject leftTip = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     leftTip.name = "LeftTip";
                     leftTip.transform.SetParent(transform, false);
-                    leftTip.transform.localPosition = new Vector3(-0.25f, -0.16f, 0);
-                    leftTip.transform.localScale = new Vector3(0.16f, 0.12f, 0.19f);
-                    Destroy(leftTip.GetComponent<Collider>());
+                    leftTip.transform.localPosition = new Vector3(-archRadius, -0.22f, 0);
+                    leftTip.transform.localScale = new Vector3(0.15f, 0.08f, 0.15f);
+                    SafeDestroy(leftTip.GetComponent<Collider>());
                     if (silverMat != null) leftTip.GetComponent<MeshRenderer>().sharedMaterial = silverMat;
 
-                    // Silver Chrome South Tip
-                    GameObject rightTip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    // Gleaming Chrome South Pole Tip (smooth cylinder)
+                    GameObject rightTip = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     rightTip.name = "RightTip";
                     rightTip.transform.SetParent(transform, false);
-                    rightTip.transform.localPosition = new Vector3(0.25f, -0.16f, 0);
-                    rightTip.transform.localScale = new Vector3(0.16f, 0.12f, 0.19f);
-                    Destroy(rightTip.GetComponent<Collider>());
+                    rightTip.transform.localPosition = new Vector3(archRadius, -0.22f, 0);
+                    rightTip.transform.localScale = new Vector3(0.15f, 0.08f, 0.15f);
+                    SafeDestroy(rightTip.GetComponent<Collider>());
                     if (silverMat != null) rightTip.GetComponent<MeshRenderer>().sharedMaterial = silverMat;
                     break;
                 }
                 case PowerUpType.MultiplierFrenzy:
                 {
-                    // Ancient Aztec Golden Winged Frenzy Totem
-                    Material goldTotemMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.78f, 0.18f));
+                    // Ancient Aztec Golden Sun Totem
+                    Material goldTotemMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.80f, 0.18f));
                     if (goldTotemMat != null)
                     {
-                        if (goldTotemMat.HasProperty("_Metallic")) goldTotemMat.SetFloat("_Metallic", 0.90f);
-                        if (goldTotemMat.HasProperty("_Glossiness")) goldTotemMat.SetFloat("_Glossiness", 0.85f);
+                        if (goldTotemMat.HasProperty("_Metallic")) goldTotemMat.SetFloat("_Metallic", 0.92f);
+                        if (goldTotemMat.HasProperty("_Glossiness")) goldTotemMat.SetFloat("_Glossiness", 0.88f);
                         if (goldTotemMat.HasProperty("_EmissionColor"))
                         {
                             goldTotemMat.EnableKeyword("_EMISSION");
-                            goldTotemMat.SetColor("_EmissionColor", new Color(1.0f, 0.65f, 0.10f) * 0.5f);
+                            goldTotemMat.SetColor("_EmissionColor", new Color(1.0f, 0.70f, 0.12f) * 0.45f);
                         }
                     }
 
@@ -502,37 +552,27 @@ namespace Runner.Pickups
                     GameObject pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     pillar.name = "TotemPillar";
                     pillar.transform.SetParent(transform, false);
-                    pillar.transform.localScale = new Vector3(0.35f, 0.55f, 0.35f);
-                    Destroy(pillar.GetComponent<Collider>());
+                    pillar.transform.localScale = new Vector3(0.35f, 0.45f, 0.35f);
+                    SafeDestroy(pillar.GetComponent<Collider>());
                     if (goldTotemMat != null) pillar.GetComponent<MeshRenderer>().sharedMaterial = goldTotemMat;
 
-                    // Left Totem Wing
-                    GameObject leftWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    leftWing.name = "TotemLeftWing";
-                    leftWing.transform.SetParent(transform, false);
-                    leftWing.transform.localPosition = new Vector3(-0.30f, 0.15f, 0);
-                    leftWing.transform.localRotation = Quaternion.Euler(0, 0, 25f);
-                    leftWing.transform.localScale = new Vector3(0.35f, 0.15f, 0.10f);
-                    Destroy(leftWing.GetComponent<Collider>());
-                    if (goldTotemMat != null) leftWing.GetComponent<MeshRenderer>().sharedMaterial = goldTotemMat;
-
-                    // Right Totem Wing
-                    GameObject rightWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    rightWing.name = "TotemRightWing";
-                    rightWing.transform.SetParent(transform, false);
-                    rightWing.transform.localPosition = new Vector3(0.30f, 0.15f, 0);
-                    rightWing.transform.localRotation = Quaternion.Euler(0, 0, -25f);
-                    rightWing.transform.localScale = new Vector3(0.35f, 0.15f, 0.10f);
-                    Destroy(rightWing.GetComponent<Collider>());
-                    if (goldTotemMat != null) rightWing.GetComponent<MeshRenderer>().sharedMaterial = goldTotemMat;
+                    // Golden Sun Disk
+                    GameObject sunDisc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    sunDisc.name = "TotemSunDisc";
+                    sunDisc.transform.SetParent(transform, false);
+                    sunDisc.transform.localPosition = new Vector3(0, 0.28f, 0);
+                    sunDisc.transform.localRotation = Quaternion.Euler(90f, 0, 0);
+                    sunDisc.transform.localScale = new Vector3(0.70f, 0.04f, 0.70f);
+                    SafeDestroy(sunDisc.GetComponent<Collider>());
+                    if (goldTotemMat != null) sunDisc.GetComponent<MeshRenderer>().sharedMaterial = goldTotemMat;
 
                     // Glowing Mystic Gem Core
                     GameObject eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     eye.name = "TotemEye";
                     eye.transform.SetParent(transform, false);
-                    eye.transform.localPosition = new Vector3(0, 0.20f, -0.18f);
-                    eye.transform.localScale = new Vector3(0.16f, 0.16f, 0.16f);
-                    Destroy(eye.GetComponent<Collider>());
+                    eye.transform.localPosition = new Vector3(0, 0.28f, -0.06f);
+                    eye.transform.localScale = new Vector3(0.22f, 0.22f, 0.22f);
+                    SafeDestroy(eye.GetComponent<Collider>());
 
                     Material eyeMat = MaterialHelper.CreateSafeMaterial(new Color(0.95f, 0.20f, 0.90f));
                     if (eyeMat != null)
@@ -548,12 +588,12 @@ namespace Runner.Pickups
                 }
                 default:
                 {
-                    // Heart Revive
+                    // Heart Revive (Smooth glowing pink sphere)
                     GameObject heart = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     heart.name = "HeartReviveCore";
                     heart.transform.SetParent(transform, false);
                     heart.transform.localScale = new Vector3(0.55f, 0.55f, 0.55f);
-                    Destroy(heart.GetComponent<Collider>());
+                    SafeDestroy(heart.GetComponent<Collider>());
                     Material heartMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.25f, 0.65f));
                     if (heartMat != null) heart.GetComponent<MeshRenderer>().sharedMaterial = heartMat;
                     break;

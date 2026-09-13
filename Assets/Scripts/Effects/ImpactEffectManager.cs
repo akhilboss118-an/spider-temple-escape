@@ -59,6 +59,7 @@ namespace Runner.Effects
         // Particle pools
         private const int POOL_SIZE = 32;
         private readonly List<GameObject> debrisPool = new List<GameObject>();
+        private readonly List<GameObject> sparkPool = new List<GameObject>();
 
         private void Awake()
         {
@@ -80,17 +81,92 @@ namespace Runner.Effects
             UpdateShieldAura();
         }
 
+        private static void SafeDestroy(UnityEngine.Object obj)
+        {
+            if (obj == null) return;
+#if UNITY_EDITOR
+            if (!Application.isPlaying) { DestroyImmediate(obj); return; }
+#endif
+            Destroy(obj);
+        }
+
+        private static Mesh cachedStoneShardMesh = null;
+        private static Mesh GetStoneShardMesh()
+        {
+            if (cachedStoneShardMesh != null) return cachedStoneShardMesh;
+            cachedStoneShardMesh = new Mesh();
+            cachedStoneShardMesh.name = "StoneShardMesh";
+            // Irregular 7-vertex faceted chipped stone shard (never a raw cube!)
+            Vector3[] vertices = new Vector3[]
+            {
+                new Vector3(-0.5f, -0.2f, -0.4f),
+                new Vector3(0.55f, -0.3f, -0.2f),
+                new Vector3(0.2f, -0.2f, 0.45f),
+                new Vector3(-0.4f, -0.35f, 0.3f),
+                new Vector3(0.0f, 0.55f, 0.0f),
+                new Vector3(-0.25f, 0.35f, -0.25f),
+                new Vector3(0.25f, 0.25f, 0.15f)
+            };
+            int[] triangles = new int[]
+            {
+                0, 1, 4,
+                1, 2, 4,
+                2, 3, 4,
+                3, 0, 4,
+                0, 5, 1,
+                1, 6, 2,
+                3, 2, 0,
+                1, 0, 2
+            };
+            Vector2[] uvs = new Vector2[]
+            {
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                new Vector2(1, 1),
+                new Vector2(0, 1),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.2f, 0.8f),
+                new Vector2(0.8f, 0.8f)
+            };
+            cachedStoneShardMesh.vertices = vertices;
+            cachedStoneShardMesh.triangles = triangles;
+            cachedStoneShardMesh.uv = uvs;
+            cachedStoneShardMesh.RecalculateNormals();
+            cachedStoneShardMesh.RecalculateBounds();
+            return cachedStoneShardMesh;
+        }
+
         private void InitializeDebrisPool()
         {
+            EnsureMaterials();
+            Mesh shardMesh = GetStoneShardMesh();
+
             for (int i = 0; i < POOL_SIZE; i++)
             {
-                GameObject debris = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                debris.name = "PooledDebris";
-                debris.transform.localScale = Vector3.one * 0.15f;
-                var mr = debris.GetComponent<MeshRenderer>();
-                if (mr != null && rockDebrisMat != null) mr.sharedMaterial = rockDebrisMat;
+                GameObject debris = new GameObject("PooledDebris");
+                debris.transform.SetParent(transform, false);
+                debris.transform.localScale = Vector3.one * 0.18f;
+                var mf = debris.AddComponent<MeshFilter>();
+                mf.sharedMesh = shardMesh;
+                var mr = debris.AddComponent<MeshRenderer>();
+                if (rockDebrisMat != null) mr.sharedMaterial = rockDebrisMat;
                 debris.SetActive(false);
                 debrisPool.Add(debris);
+            }
+
+            for (int i = 0; i < POOL_SIZE; i++)
+            {
+                GameObject spark = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                spark.name = "PooledSpark";
+                spark.transform.SetParent(transform, false);
+                spark.transform.localScale = Vector3.one * 0.12f;
+                SafeDestroy(spark.GetComponent<Collider>());
+                var mr = spark.GetComponent<MeshRenderer>();
+                if (mr != null && heartSparkleMat != null) mr.sharedMaterial = heartSparkleMat;
+                var deb = spark.AddComponent<PhysicalDebris>();
+                deb.SetRecyclable(true);
+                spark.SetActive(false);
+                sparkPool.Add(spark);
             }
         }
 
@@ -106,14 +182,42 @@ namespace Runner.Effects
                 }
                 if (!d.activeSelf) return d;
             }
-            // Expand pool if needed
-            var extra = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            extra.name = "PooledDebris";
-            extra.transform.localScale = Vector3.one * 0.15f;
-            var extraMr = extra.GetComponent<MeshRenderer>();
+            // Expand pool if needed (stone shard mesh, never raw cube)
+            var extra = new GameObject("PooledDebris");
+            extra.transform.SetParent(transform, false);
+            extra.transform.localScale = Vector3.one * 0.18f;
+            var mf = extra.AddComponent<MeshFilter>();
+            mf.sharedMesh = GetStoneShardMesh();
+            var extraMr = extra.AddComponent<MeshRenderer>();
             if (extraMr != null && rockDebrisMat != null) extraMr.sharedMaterial = rockDebrisMat;
             extra.SetActive(false);
             debrisPool.Add(extra);
+            return extra;
+        }
+
+        private GameObject GetPooledSpark()
+        {
+            for (int i = sparkPool.Count - 1; i >= 0; i--)
+            {
+                GameObject s = sparkPool[i];
+                if (s == null)
+                {
+                    sparkPool.RemoveAt(i);
+                    continue;
+                }
+                if (!s.activeSelf) return s;
+            }
+            GameObject extra = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            extra.name = "PooledSpark";
+            extra.transform.SetParent(transform, false);
+            extra.transform.localScale = Vector3.one * 0.12f;
+            SafeDestroy(extra.GetComponent<Collider>());
+            var mr = extra.GetComponent<MeshRenderer>();
+            if (mr != null && heartSparkleMat != null) mr.sharedMaterial = heartSparkleMat;
+            var deb = extra.AddComponent<PhysicalDebris>();
+            deb.SetRecyclable(true);
+            extra.SetActive(false);
+            sparkPool.Add(extra);
             return extra;
         }
 
@@ -121,13 +225,24 @@ namespace Runner.Effects
         {
             if (rockDebrisMat == null)
             {
-                rockDebrisMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.48f, 0.46f, 0.42f));
-                if (rockDebrisMat != null) rockDebrisMat.name = "RockDebrisMat";
+                Texture2D rockTex = Resources.Load<Texture2D>("Textures/Tex_Obstacle");
+#if UNITY_EDITOR
+                if (rockTex == null)
+                    rockTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Obstacle.png")
+                           ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_TempleCurb.jpg");
+#endif
+                rockDebrisMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.68f, 0.62f, 0.55f), rockTex);
+                if (rockDebrisMat != null)
+                {
+                    rockDebrisMat.name = "RockDebrisMat";
+                    if (rockDebrisMat.HasProperty("_Glossiness")) rockDebrisMat.SetFloat("_Glossiness", 0.35f);
+                }
             }
 
             if (dustPuffMat == null)
             {
-                dustPuffMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.68f, 0.64f, 0.58f, 0.6f));
+                Texture2D softDustTex = BiomeManager.GetSoftCircleTexture();
+                dustPuffMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.78f, 0.72f, 0.62f, 0.50f), softDustTex);
                 if (dustPuffMat != null)
                 {
                     dustPuffMat.name = "DustPuffMat";
@@ -141,19 +256,30 @@ namespace Runner.Effects
 
             if (shieldShardMat == null)
             {
-                shieldShardMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.25f, 0.85f, 1.0f));
-                if (shieldShardMat != null) shieldShardMat.name = "ShieldShardMat";
+                shieldShardMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.20f, 0.90f, 1.0f));
+                if (shieldShardMat != null)
+                {
+                    shieldShardMat.name = "ShieldShardMat";
+                    shieldShardMat.EnableKeyword("_EMISSION");
+                    shieldShardMat.SetColor("_EmissionColor", new Color(0.20f, 0.90f, 1.0f) * 1.8f);
+                }
             }
 
             if (heartSparkleMat == null)
             {
                 heartSparkleMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.35f, 0.70f));
-                if (heartSparkleMat != null) heartSparkleMat.name = "HeartSparkleMat";
+                if (heartSparkleMat != null)
+                {
+                    heartSparkleMat.name = "HeartSparkleMat";
+                    heartSparkleMat.EnableKeyword("_EMISSION");
+                    heartSparkleMat.SetColor("_EmissionColor", new Color(1.0f, 0.35f, 0.70f) * 1.5f);
+                }
             }
 
             if (landingDustMat == null)
             {
-                landingDustMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.55f, 0.50f, 0.42f, 0.5f));
+                Texture2D softDustTex = BiomeManager.GetSoftCircleTexture();
+                landingDustMat = Runner.Core.MaterialHelper.CreateSafeMaterial(new Color(0.65f, 0.58f, 0.48f, 0.45f), softDustTex);
                 if (landingDustMat != null)
                 {
                     landingDustMat.name = "LandingDustMat";
@@ -279,7 +405,7 @@ namespace Runner.Effects
                 float s = Random.Range(0.08f, 0.22f);
                 frag.transform.localScale = new Vector3(s, s * Random.Range(0.7f, 1.3f), s);
                 frag.GetComponent<MeshRenderer>().sharedMaterial = rockDebrisMat;
-                Destroy(frag.GetComponent<Collider>());
+                SafeDestroy(frag.GetComponent<Collider>());
 
                 Vector3 ejectVelocity = (hitNormal + Random.insideUnitSphere * 0.8f + Vector3.up * 1.2f).normalized * Random.Range(3.5f, 6.5f);
                 Vector3 tumbleTorque = Random.insideUnitSphere * 360f;
@@ -297,7 +423,7 @@ namespace Runner.Effects
                 dust.transform.position = hitPoint + Vector3.up * 0.2f + Random.insideUnitSphere * 0.15f;
                 dust.transform.localScale = Vector3.one * Random.Range(0.35f, 0.65f);
                 dust.GetComponent<MeshRenderer>().sharedMaterial = dustPuffMat;
-                Destroy(dust.GetComponent<Collider>());
+                SafeDestroy(dust.GetComponent<Collider>());
 
                 Vector3 dustDrift = (Vector3.up * 0.8f + Random.insideUnitSphere * 0.4f);
                 var deb = dust.AddComponent<PhysicalDebris>();
@@ -334,7 +460,7 @@ namespace Runner.Effects
                 dust.transform.position = position + Vector3.up * 0.05f + new Vector3(Mathf.Cos(angle) * 0.3f, 0, Mathf.Sin(angle) * 0.3f);
                 dust.transform.localScale = Vector3.one * Random.Range(0.2f, 0.45f);
                 dust.GetComponent<MeshRenderer>().sharedMaterial = landingDustMat;
-                Destroy(dust.GetComponent<Collider>());
+                SafeDestroy(dust.GetComponent<Collider>());
 
                 Vector3 burstDir = new Vector3(Mathf.Cos(angle) * 1.5f, Random.Range(0.4f, 0.8f), Mathf.Sin(angle) * 1.5f);
                 var deb = dust.AddComponent<PhysicalDebris>();
@@ -347,7 +473,7 @@ namespace Runner.Effects
             centerDust.transform.position = position + Vector3.up * 0.1f;
             centerDust.transform.localScale = Vector3.one * 0.5f;
             centerDust.GetComponent<MeshRenderer>().sharedMaterial = landingDustMat;
-            Destroy(centerDust.GetComponent<Collider>());
+            SafeDestroy(centerDust.GetComponent<Collider>());
             var centerDeb = centerDust.AddComponent<PhysicalDebris>();
             centerDeb.Initialize(Vector3.up * 0.6f, Vector3.zero, 0.5f, expand: true);
 
@@ -378,7 +504,7 @@ namespace Runner.Effects
                 float s = Random.Range(0.06f, 0.18f);
                 shard.transform.localScale = new Vector3(s, s * 2.0f, s * 0.5f);
                 shard.GetComponent<MeshRenderer>().sharedMaterial = shieldShardMat;
-                Destroy(shard.GetComponent<Collider>());
+                SafeDestroy(shard.GetComponent<Collider>());
 
                 Vector3 burstDir = Random.onUnitSphere * Random.Range(4.0f, 8.0f);
                 var deb = shard.GetComponent<PhysicalDebris>();
@@ -416,7 +542,7 @@ namespace Runner.Effects
                 float s = Random.Range(0.12f, 0.35f);
                 frag.transform.localScale = Vector3.one * s;
                 frag.GetComponent<MeshRenderer>().sharedMaterial = rockDebrisMat;
-                Destroy(frag.GetComponent<Collider>());
+                SafeDestroy(frag.GetComponent<Collider>());
 
                 Vector3 blastVel = (Random.onUnitSphere + Vector3.up * 0.8f + Vector3.forward * 1.5f).normalized * Random.Range(6.0f, 12.0f);
                 var deb = frag.GetComponent<PhysicalDebris>();
@@ -438,7 +564,7 @@ namespace Runner.Effects
         }
 
         /// <summary>
-        /// Pink heart collect: Emits subtle floating pink sparkles.
+        /// Pink heart collect: Emits subtle floating pink sparkles via pre-allocated pool (0 GC).
         /// </summary>
         public void PlayHeartCollect(Vector3 position)
         {
@@ -446,14 +572,17 @@ namespace Runner.Effects
 
             for (int i = 0; i < 6; i++)
             {
-                GameObject spark = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                GameObject spark = GetPooledSpark();
+                if (spark == null) continue;
                 spark.transform.position = position + Random.insideUnitSphere * 0.2f;
-                spark.transform.localScale = Vector3.one * Random.Range(0.08f, 0.16f);
-                spark.GetComponent<MeshRenderer>().sharedMaterial = heartSparkleMat;
-                Destroy(spark.GetComponent<Collider>());
+                float s = Random.Range(0.08f, 0.16f);
+                spark.transform.localScale = Vector3.one * s;
+                spark.SetActive(true);
 
                 Vector3 upDrift = (Vector3.up * 2.5f + Random.insideUnitSphere * 0.6f);
-                var deb = spark.AddComponent<PhysicalDebris>();
+                var deb = spark.GetComponent<PhysicalDebris>();
+                if (deb == null) deb = spark.AddComponent<PhysicalDebris>();
+                deb.SetRecyclable(true);
                 deb.Initialize(upDrift, Vector3.zero, 0.5f, expand: false, shrink: true);
             }
 
@@ -465,28 +594,27 @@ namespace Runner.Effects
         }
 
         /// <summary>
-        /// Mystery chest burst: Gold sparkles and coin rain.
+        /// Mystery chest burst: Gold sparkles and coin rain via pre-allocated pool.
         /// </summary>
         public void PlayChestBurst(Vector3 position)
         {
             EnsureMaterials();
 
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < 16; i++)
             {
-                GameObject coinSpark = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                GameObject coinSpark = GetPooledSpark();
+                if (coinSpark == null) continue;
                 coinSpark.name = "ChestCoinSpark";
                 coinSpark.transform.position = position + Random.insideUnitSphere * 0.3f;
                 float s = Random.Range(0.12f, 0.25f);
                 coinSpark.transform.localScale = new Vector3(s, s, s);
-                Destroy(coinSpark.GetComponent<Collider>());
-                if (heartSparkleMat != null)
-                {
-                    coinSpark.GetComponent<MeshRenderer>().sharedMaterial = heartSparkleMat;
-                }
+                coinSpark.SetActive(true);
 
-                Vector3 burstVelocity = (Vector3.up * Random.Range(3.5f, 7.0f)) + (Random.insideUnitSphere * Random.Range(1.5f, 4.0f));
-                var deb = coinSpark.AddComponent<PhysicalDebris>();
-                deb.Initialize(burstVelocity, Vector3.zero, Random.Range(0.6f, 1.0f), expand: false, shrink: true);
+                Vector3 blastVel = (Random.onUnitSphere + Vector3.up * 1.5f).normalized * Random.Range(4.0f, 9.0f);
+                var deb = coinSpark.GetComponent<PhysicalDebris>();
+                if (deb == null) deb = coinSpark.AddComponent<PhysicalDebris>();
+                deb.SetRecyclable(true);
+                deb.Initialize(blastVel, Random.insideUnitSphere * 300f, 0.8f);
             }
         }
         #endregion

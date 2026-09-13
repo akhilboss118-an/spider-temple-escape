@@ -97,10 +97,12 @@ export default function Home() {
       {/* ── NAV ── */}
       <nav className="nav">
         <div className="container nav-inner">
-          <a href="#" className="nav-logo">
-            Spider<span>Temple</span>
+          <a href="#" className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <img src="/app_logo.png" alt="Spider Temple Escape Logo" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover', boxShadow: '0 2px 10px rgba(212,168,83,0.3)' }} />
+            <span>Spider<span>Temple</span></span>
           </a>
           <ul className="nav-links">
+            <li><Link href="/ui-preview" style={{ color: '#f2ca50', fontWeight: 'bold' }}>✨ Stitch UI/UX</Link></li>
             <li><a href="#play-demo" className="nav-highlight">▶ Play Demo</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#screenshots">Screenshots</a></li>
@@ -108,7 +110,7 @@ export default function Home() {
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
           <Link className="nav-cta" href="/download">
-            ↓ Download APK v1.2
+            ↓ Download APK v1.3
           </Link>
         </div>
       </nav>
@@ -119,7 +121,7 @@ export default function Home() {
         <div className="hero-overlay" />
 
         <div className="container hero-content">
-          <div className="hero-badge">v1.2 Release · 3D Torch Braziers · Sunny Sky · 4 Hero Suits · WebGL Demo</div>
+          <div className="hero-badge">v1.3 Release · 7 Playable Heroes · Akhilboss Edition · 60 FPS Native APK · WebGL Demo</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -142,7 +144,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.2
+              Download APK v1.3
             </Link>
             <a className="btn-secondary" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -286,10 +288,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v1.2 · Silky 60 FPS</div>
+          <div className="download-badge">Native Android APK v1.3 · Silky 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v1.2 directly to your Android device for the most responsive touch controls, vibration haptics, and locked 60 FPS gameplay.
+            Download the native APK v1.3 directly to your Android device for the most responsive touch controls, vibration haptics, and locked 60 FPS gameplay.
           </p>
 
           <div className="download-buttons">
@@ -297,7 +299,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.2 — Free (~71 MB)
+              Download APK v1.3 — Free (~71 MB)
             </Link>
             <a
               className="download-github"

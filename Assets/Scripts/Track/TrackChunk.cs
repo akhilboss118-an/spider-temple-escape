@@ -115,14 +115,7 @@ namespace Runner.Track
             var dynamicGate = transform.Find("AncientStoneGate");
             if (dynamicGate != null)
             {
-                #if UNITY_EDITOR
-                if (!Application.isPlaying)
-                    DestroyImmediate(dynamicGate.gameObject);
-                else
-                    Destroy(dynamicGate.gameObject);
-                #else
-                Destroy(dynamicGate.gameObject);
-                #endif
+                dynamicGate.gameObject.SetActive(false);
             }
         }
 

@@ -35,7 +35,7 @@ namespace Runner.Core
         private static void EnsureGameEntitiesExist()
         {
             // 0. Immediately destroy any leftover preview roots or cameras
-            var allGo = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var allGo = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
             foreach (var go in allGo)
             {
                 if (go != null && (go.name == "_ScenePreviewRoot" || go.name == "PreviewCam" || go.name == "PreviewTrackManager" || go.name.StartsWith("Preview_")))
@@ -233,6 +233,9 @@ namespace Runner.Core
                 visualTransformField?.SetValue(player, visualMesh.transform);
                 visualRendererField?.SetValue(player, pRenderer);
             }
+
+            // Apply selected character from CharacterManager (Spider-Man or custom hero)
+            Runner.Characters.CharacterManager.EnsureInstance().ApplyCharacterModelToPlayer(playerObj);
 
             // 4. Monster GameObject (Zombie chasing visibly 4.0m behind player)
             GameObject monsterObj = new GameObject("Monster");

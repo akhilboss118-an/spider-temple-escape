@@ -48,44 +48,45 @@ namespace Runner.Pickups
             bc.center = new Vector3(0, 0.5f, 0);
         }
 
+        private static void SafeDestroy(UnityEngine.Object obj)
+        {
+            if (obj == null) return;
+#if UNITY_EDITOR
+            if (!Application.isPlaying) { DestroyImmediate(obj); return; }
+#endif
+            Destroy(obj);
+        }
+
         private void BuildChestVisual()
         {
             // Clear previous children
             for (int i = transform.childCount - 1; i >= 0; i--)
             {
-                Destroy(transform.GetChild(i).gameObject);
+                SafeDestroy(transform.GetChild(i).gameObject);
             }
 
-            // Ancient Obsidian / Mahogany Wood Chest Body
-            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            body.name = "ChestBody";
-            body.transform.SetParent(transform, false);
-            body.transform.localPosition = new Vector3(0, 0.35f, 0);
-            body.transform.localScale = new Vector3(0.95f, 0.65f, 0.70f);
-            Destroy(body.GetComponent<Collider>());
+            // High Quality Textures
+            Texture2D woodTex = Resources.Load<Texture2D>("Textures/Tex_Obstacle");
+#if UNITY_EDITOR
+            if (woodTex == null)
+                woodTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Obstacle.png")
+                       ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_TempleCurb.jpg");
+#endif
 
-            Material bodyMat = MaterialHelper.CreateSafeMaterial(new Color(0.25f, 0.14f, 0.08f));
+            // Ancient Carved Mahogany / Temple Stone Body Material
+            Material bodyMat = MaterialHelper.CreateSafeMaterial(new Color(0.42f, 0.26f, 0.18f), woodTex);
             if (bodyMat != null)
             {
-                if (bodyMat.HasProperty("_Glossiness")) bodyMat.SetFloat("_Glossiness", 0.45f);
-                body.GetComponent<MeshRenderer>().sharedMaterial = bodyMat;
+                if (bodyMat.HasProperty("_Glossiness")) bodyMat.SetFloat("_Glossiness", 0.65f);
+                if (bodyMat.HasProperty("_Metallic")) bodyMat.SetFloat("_Metallic", 0.20f);
             }
 
-            // Arched Chest Lid
-            GameObject lid = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            lid.name = "ChestLid";
-            lid.transform.SetParent(transform, false);
-            lid.transform.localPosition = new Vector3(0, 0.72f, 0);
-            lid.transform.localScale = new Vector3(0.98f, 0.22f, 0.74f);
-            Destroy(lid.GetComponent<Collider>());
-            if (bodyMat != null) lid.GetComponent<MeshRenderer>().sharedMaterial = bodyMat;
-
-            // Radiant Gold Straps & Lock
+            // Ornate Antique Gold Bands Material
             Material goldMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.82f, 0.20f));
             if (goldMat != null)
             {
-                if (goldMat.HasProperty("_Metallic")) goldMat.SetFloat("_Metallic", 0.95f);
-                if (goldMat.HasProperty("_Glossiness")) goldMat.SetFloat("_Glossiness", 0.90f);
+                if (goldMat.HasProperty("_Metallic")) goldMat.SetFloat("_Metallic", 0.96f);
+                if (goldMat.HasProperty("_Glossiness")) goldMat.SetFloat("_Glossiness", 0.92f);
                 if (goldMat.HasProperty("_EmissionColor"))
                 {
                     goldMat.EnableKeyword("_EMISSION");
@@ -93,51 +94,94 @@ namespace Runner.Pickups
                 }
             }
 
-            // Left Gold Band
-            GameObject leftBand = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            leftBand.name = "LeftGoldBand";
-            leftBand.transform.SetParent(transform, false);
-            leftBand.transform.localPosition = new Vector3(-0.32f, 0.45f, 0);
-            leftBand.transform.localScale = new Vector3(0.12f, 0.80f, 0.76f);
-            Destroy(leftBand.GetComponent<Collider>());
-            if (goldMat != null) leftBand.GetComponent<MeshRenderer>().sharedMaterial = goldMat;
-
-            // Right Gold Band
-            GameObject rightBand = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            rightBand.name = "RightGoldBand";
-            rightBand.transform.SetParent(transform, false);
-            rightBand.transform.localPosition = new Vector3(0.32f, 0.45f, 0);
-            rightBand.transform.localScale = new Vector3(0.12f, 0.80f, 0.76f);
-            Destroy(rightBand.GetComponent<Collider>());
-            if (goldMat != null) rightBand.GetComponent<MeshRenderer>().sharedMaterial = goldMat;
-
-            // Golden Front Lock Plate
-            GameObject lockPlate = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            lockPlate.name = "LockPlate";
-            lockPlate.transform.SetParent(transform, false);
-            lockPlate.transform.localPosition = new Vector3(0, 0.58f, -0.37f);
-            lockPlate.transform.localScale = new Vector3(0.18f, 0.22f, 0.08f);
-            Destroy(lockPlate.GetComponent<Collider>());
-            if (goldMat != null) lockPlate.GetComponent<MeshRenderer>().sharedMaterial = goldMat;
-
-            // Glowing Mystic Gem on Lock
-            GameObject gem = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            gem.name = "LockGem";
-            gem.transform.SetParent(transform, false);
-            gem.transform.localPosition = new Vector3(0, 0.58f, -0.42f);
-            gem.transform.localScale = new Vector3(0.10f, 0.10f, 0.10f);
-            Destroy(gem.GetComponent<Collider>());
-
-            Material gemMat = MaterialHelper.CreateSafeMaterial(new Color(0.10f, 0.95f, 1.0f));
+            // Glowing Mystic Relic Gemstone Material
+            Material gemMat = MaterialHelper.CreateSafeMaterial(new Color(0.12f, 0.95f, 0.88f));
             if (gemMat != null)
             {
                 if (gemMat.HasProperty("_EmissionColor"))
                 {
                     gemMat.EnableKeyword("_EMISSION");
-                    gemMat.SetColor("_EmissionColor", new Color(0.10f, 0.95f, 1.0f) * 1.5f);
+                    gemMat.SetColor("_EmissionColor", new Color(0.12f, 0.95f, 0.88f) * 2.2f);
                 }
-                gem.GetComponent<MeshRenderer>().sharedMaterial = gemMat;
             }
+
+            // 1. Solid Chest Base Plinth / Lower Body
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            body.name = "ChestBody";
+            body.transform.SetParent(transform, false);
+            body.transform.localPosition = new Vector3(0, 0.30f, 0);
+            body.transform.localScale = new Vector3(0.96f, 0.55f, 0.68f);
+            SafeDestroy(body.GetComponent<Collider>());
+            if (bodyMat != null) body.GetComponent<MeshRenderer>().sharedMaterial = bodyMat;
+
+            // 2. Iconic Barrel-Vault Arched Chest Lid (smooth horizontal cylinder)
+            GameObject lid = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            lid.name = "ChestLidArched";
+            lid.transform.SetParent(transform, false);
+            lid.transform.localPosition = new Vector3(0, 0.58f, 0);
+            lid.transform.localRotation = Quaternion.Euler(0, 0, 90f);
+            lid.transform.localScale = new Vector3(0.68f, 0.48f, 0.68f);
+            SafeDestroy(lid.GetComponent<Collider>());
+            if (bodyMat != null) lid.GetComponent<MeshRenderer>().sharedMaterial = bodyMat;
+
+            // 3. Left Gold Band (encircling both body & arched lid)
+            GameObject leftBand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            leftBand.name = "LeftGoldBand";
+            leftBand.transform.SetParent(transform, false);
+            leftBand.transform.localPosition = new Vector3(-0.30f, 0.46f, 0);
+            leftBand.transform.localRotation = Quaternion.Euler(0, 0, 90f);
+            leftBand.transform.localScale = new Vector3(0.70f, 0.06f, 0.70f);
+            SafeDestroy(leftBand.GetComponent<Collider>());
+            if (goldMat != null) leftBand.GetComponent<MeshRenderer>().sharedMaterial = goldMat;
+
+            // 4. Right Gold Band (encircling both body & arched lid)
+            GameObject rightBand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            rightBand.name = "RightGoldBand";
+            rightBand.transform.SetParent(transform, false);
+            rightBand.transform.localPosition = new Vector3(0.30f, 0.46f, 0);
+            rightBand.transform.localRotation = Quaternion.Euler(0, 0, 90f);
+            rightBand.transform.localScale = new Vector3(0.70f, 0.06f, 0.70f);
+            SafeDestroy(rightBand.GetComponent<Collider>());
+            if (goldMat != null) rightBand.GetComponent<MeshRenderer>().sharedMaterial = goldMat;
+
+            // 5. Center Rim Band
+            GameObject centerBand = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            centerBand.name = "CenterRimBand";
+            centerBand.transform.SetParent(transform, false);
+            centerBand.transform.localPosition = new Vector3(0, 0.57f, 0);
+            centerBand.transform.localScale = new Vector3(0.98f, 0.05f, 0.70f);
+            SafeDestroy(centerBand.GetComponent<Collider>());
+            if (goldMat != null) centerBand.GetComponent<MeshRenderer>().sharedMaterial = goldMat;
+
+            // 6. Golden Front Escutcheon Plate (Lock)
+            GameObject lockPlate = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            lockPlate.name = "LockPlate";
+            lockPlate.transform.SetParent(transform, false);
+            lockPlate.transform.localPosition = new Vector3(0, 0.48f, -0.35f);
+            lockPlate.transform.localRotation = Quaternion.Euler(90f, 0, 0);
+            lockPlate.transform.localScale = new Vector3(0.18f, 0.04f, 0.22f);
+            SafeDestroy(lockPlate.GetComponent<Collider>());
+            if (goldMat != null) lockPlate.GetComponent<MeshRenderer>().sharedMaterial = goldMat;
+
+            // 7. Glowing Mystic Power Gem on Lock
+            GameObject gem = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            gem.name = "LockGem";
+            gem.transform.SetParent(transform, false);
+            gem.transform.localPosition = new Vector3(0, 0.48f, -0.38f);
+            gem.transform.localScale = new Vector3(0.11f, 0.11f, 0.11f);
+            SafeDestroy(gem.GetComponent<Collider>());
+            if (gemMat != null) gem.GetComponent<MeshRenderer>().sharedMaterial = gemMat;
+
+            // 8. Subtle magical beacon glow light
+            GameObject glowLightObj = new GameObject("ChestBeaconLight");
+            glowLightObj.transform.SetParent(transform, false);
+            glowLightObj.transform.localPosition = new Vector3(0, 0.55f, -0.25f);
+            Light chestLight = glowLightObj.AddComponent<Light>();
+            chestLight.type = LightType.Point;
+            chestLight.color = new Color(0.2f, 0.95f, 0.85f);
+            chestLight.range = 3.5f;
+            chestLight.intensity = 1.2f;
+            chestLight.shadows = LightShadows.None;
         }
 
         private void Update()

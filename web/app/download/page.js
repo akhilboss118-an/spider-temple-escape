@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const DIRECT_APK = '/downloads/SpiderTempleEscape.apk';
-const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.2.0/SpiderTempleEscape.apk';
+const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.3.0/SpiderTempleEscape.apk';
 const GITHUB_LATEST_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/latest/download/SpiderTempleEscape.apk';
 const RELEASES_PAGE = 'https://github.com/akhilboss118-an/spider-temple-escape/releases';
 
@@ -59,7 +59,9 @@ export default function DownloadPage() {
         padding: '36px 28px',
         boxShadow: '0 25px 60px rgba(0,0,0,0.8)'
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '8px' }}>🕷️</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          <img src="/app_logo.png" alt="Spider Temple Escape Logo" style={{ width: '88px', height: '88px', borderRadius: '20px', boxShadow: '0 8px 30px rgba(212, 168, 83, 0.4)' }} />
+        </div>
 
         <div style={{
           display: 'inline-block',
@@ -74,7 +76,7 @@ export default function DownloadPage() {
           letterSpacing: '0.8px',
           textTransform: 'uppercase'
         }}>
-          v1.2 Release · Android APK
+          v1.3 Release · Android APK
         </div>
         
         <h1 style={{
@@ -89,8 +91,8 @@ export default function DownloadPage() {
 
         <p style={{ color: '#8a8a9a', fontSize: '14px', marginBottom: '24px' }}>
           {countdown > 0 
-            ? `Your v1.2 APK download will begin automatically in ${countdown}s...` 
-            : 'Your Android APK v1.2 download has started!'}
+            ? `Your v1.3 APK download will begin automatically in ${countdown}s...` 
+            : 'Your Android APK v1.3 download has started!'}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
@@ -112,7 +114,7 @@ export default function DownloadPage() {
               boxShadow: '0 4px 20px rgba(212, 168, 83, 0.4)'
             }}
           >
-            📥 Download APK v1.2 Directly (~71 MB)
+            📥 Download APK v1.3 Directly (~71 MB)
           </button>
 
           <a
@@ -133,7 +135,7 @@ export default function DownloadPage() {
               gap: '8px'
             }}
           >
-            ⚡ Download from GitHub Releases (v1.2.0)
+            ⚡ Download from GitHub Releases (v1.3.0)
           </a>
         </div>
 

@@ -2,110 +2,117 @@ Shader "Custom/AAA_ShieldAura"
 {
     Properties
     {
-        [Header(Aura Settings)]
-        _AuraColor ("Shield Color", Color) = (0.2, 0.85, 1.0, 0.15)
-        _RimColor ("Rim Color", Color) = (0.4, 0.95, 1.0, 1.0)
-        _RimPower ("Rim Power", Range(1.0, 6.0)) = 2.5
-        _RimIntensity ("Rim Intensity", Range(0.0, 4.0)) = 2.5
-        _PulseSpeed ("Pulse Speed", Range(0.0, 5.0)) = 2.0
-        _NoiseScale ("Hex/Noise Scale", Range(0.1, 10.0)) = 3.0
-        _NoiseSpeed ("Noise Flow Speed", Range(0.0, 2.0)) = 0.5
-        _ScanSpeed ("Scan Line Speed", Range(0.0, 4.0)) = 1.5
-        _FresnelPower ("Fresnel Glow Power", Range(0.5, 5.0)) = 2.0
-        _FresnelIntensity ("Fresnel Glow Intensity", Range(0.0, 3.0)) = 1.5
+        _AuraColor ("Aura Base Color (Center)", Color) = (0.04, 0.40, 1.0, 0.05)
+        _RimColor ("Rim Glow Color (Edge)", Color) = (0.25, 0.85, 1.0, 0.95)
+        _RimPower ("Rim Sharpness", Range(1.0, 6.0)) = 3.2
+        _RimIntensity ("Rim Brightness", Range(0.5, 4.0)) = 2.4
+        _PulseSpeed ("Pulse Frequency", Range(0.0, 6.0)) = 2.2
+        _HexScale ("Hex Grid Scale", Range(4.0, 30.0)) = 14.0
+        _HexIntensity ("Hex Grid Visibility", Range(0.0, 1.0)) = 0.25
+        _ScanSpeed ("Wave Scan Speed", Range(0.0, 6.0)) = 1.8
     }
 
     SubShader
     {
-        Tags { "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True" }
+        Tags { "Queue"="Transparent+100" "RenderType"="Transparent" "IgnoreProjector"="True" }
+        LOD 200
+
+        // Crystal blue transparent forcefield: standard alpha blending reveals the player inside
         Blend SrcAlpha OneMinusSrcAlpha
         ZWrite Off
-        Cull Off
+        Cull Back
 
-        CGPROGRAM
-        #pragma surface surf NoLighting alpha:fade
-        #pragma target 3.0
-
-        sampler2D _MainTex;
-        struct Input
+        Pass
         {
-            float3 worldNormal;
-            float3 viewDir;
-            float3 worldPos;
-            float4 screenPos;
-            float depth;
-        };
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 2.0
+            #include "UnityCG.cginc"
 
-        fixed4 _AuraColor;
-        fixed4 _RimColor;
-        half _RimPower;
-        half _RimIntensity;
-        half _PulseSpeed;
-        half _NoiseScale;
-        half _NoiseSpeed;
-        half _ScanSpeed;
-        half _FresnelPower;
-        half _FresnelIntensity;
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float3 normal : NORMAL;
+                float2 uv : TEXCOORD0;
+            };
 
-        // Procedural hex-like noise
-        float hexNoise(float2 p)
-        {
-            float2 h = float2(0.0, 1.0);
-            float2 a = floor(p);
-            float2 d = frac(p);
-            float v = a.x + a.y * 5.0;
-            vec4 r = vec4(a.xy, a.xy + 1.0);
-            r.xy = r.xy - float2(floor(r.x + r.y * 0.5), 0.0);
-            r.zw = r.zw - float2(floor(r.z + r.w * 0.5), 0.0);
-            float2 v1 = float2(floor(0.5 + d.x), floor(d.y));
-            float2 v2 = float2(floor(d.x), floor(0.5 + d.y));
-            float c1 = abs(dot(r.xy - d, r.xy - d));
-            float c2 = abs(dot(r.zw - d, r.zw - d));
-            float c3 = abs(dot(float2(v1.x - d.x, v1.y - d.y), float2(v1.x - d.x, v1.y - d.y)));
-            float c4 = abs(dot(float2(v2.x - d.x, v2.y - d.y), float2(v2.x - d.x, v2.y - d.y)));
-            float n = min(min(c1, c2), min(c3, c4));
-            return 1.0 - smoothstep(0.0, 0.25, n);
+            struct v2f
+            {
+                float4 pos : SV_POSITION;
+                half3 worldNormal : TEXCOORD0;
+                float3 worldPos : TEXCOORD1;
+                half3 viewDir : TEXCOORD2;
+            };
+
+            fixed4 _AuraColor;
+            fixed4 _RimColor;
+            half _RimPower;
+            half _RimIntensity;
+            half _PulseSpeed;
+            half _HexScale;
+            half _HexIntensity;
+            half _ScanSpeed;
+
+            v2f vert(appdata v)
+            {
+                v2f o;
+                o.pos = UnityObjectToClipPos(v.vertex);
+                o.worldNormal = UnityObjectToWorldNormal(v.normal);
+                o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                o.viewDir = normalize(_WorldSpaceCameraPos - o.worldPos);
+                return o;
+            }
+
+            // Mobile-optimized procedural hex lattice
+            half hexLattice(float2 p)
+            {
+                float2 q = float2(p.x * 0.866025, p.y + p.x * 0.5);
+                float2 pi = floor(q);
+                float2 pf = frac(q);
+                if (pf.x + pf.y > 1.0)
+                {
+                    pf -= float2(1.0, 1.0);
+                }
+                float d = min(min(abs(pf.x), abs(pf.y)), abs(1.0 - pf.x - pf.y));
+                return smoothstep(0.0, 0.08, d);
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+                half3 n = normalize(i.worldNormal);
+                half3 v = normalize(i.viewDir);
+                half NdotV = saturate(dot(n, v));
+
+                // Sharp Fresnel rim: high on outer contours, near 0 in center
+                half fresnel = pow(1.0 - NdotV, _RimPower) * _RimIntensity;
+
+                // Gentle rhythmic pulse
+                half pulse = 0.88 + 0.12 * sin(_Time.y * _PulseSpeed);
+
+                // Subtle hexagonal forcefield shimmer (active mainly on edges so center stays crystal clear)
+                float2 hexUV = i.worldPos.xz * _HexScale + float2(_Time.y * 0.3, _Time.y * 0.4);
+                half hex = (1.0 - hexLattice(hexUV)) * _HexIntensity;
+
+                // Gentle vertical energy ripple wave
+                half wave = 0.5 + 0.5 * sin(i.worldPos.y * 5.0 - _Time.y * _ScanSpeed);
+                wave = pow(wave, 4.0) * 0.3;
+
+                // Color interpolation: deep transparent blue in center, neon cyan on rim
+                fixed4 col;
+                col.rgb = lerp(_AuraColor.rgb, _RimColor.rgb, saturate(fresnel));
+
+                // Add energy highlights
+                half edgeEnergy = (fresnel + (hex + wave) * saturate(fresnel * 1.5)) * pulse;
+                col.rgb += _RimColor.rgb * edgeEnergy * 0.4;
+
+                // Alpha: very faint in the center (~0.08) so the player is 100% visible, glowing bright on edges
+                col.a = saturate(_AuraColor.a + edgeEnergy * _RimColor.a);
+
+                return col;
+            }
+            ENDCG
         }
-
-        float simpleNoise(float2 p)
-        {
-            return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
-        }
-
-        void surf(Input IN, inout SurfaceOutput o)
-        {
-            // Fresnel / rim glow
-            half NdotV = max(0, dot(IN.worldNormal, normalize(IN.viewDir)));
-            half fresnel = pow(1.0 - NdotV, _RimPower);
-            half pulse = 0.75 + 0.25 * sin(_Time.y * _PulseSpeed);
-
-            // Animated hex grid pattern
-            float2 uvNoise = IN.worldPos.xz * _NoiseScale + float2(_Time.y * _NoiseSpeed, _Time.y * _NoiseSpeed * 0.7);
-            float hex = hexNoise(uvNoise);
-            float hex2 = hexNoise(uvNoise * 1.5 + float2(10.0, 5.0));
-
-            // Flowing energy pattern
-            float flow = hex * 0.6 + hex2 * 0.4;
-            flow = pow(flow, 0.8);
-
-            // Scan line effect (energy flowing around the sphere)
-            float scanY = IN.worldPos.y + _Time.y * _ScanSpeed;
-            float scanLine = pow(0.5 + 0.5 * sin(scanY * 8.0), 4.0);
-
-            // Combine
-            float aura = fresnel * flow + scanLine * fresnel * 0.4;
-            aura *= pulse;
-
-            fixed4 rimCol = _RimColor * fresnel * _RimIntensity * pulse;
-            fixed4 glowCol = _AuraColor * (aura + scanLine * 0.3) * pulse;
-
-            o.Albedo = glowCol.rgb + rimCol.rgb;
-            o.Alpha = clamp((fresnel * _FresnelIntensity + aura * 0.5) * pulse, 0.0, 0.85);
-            o.Emission = o.Albedo * 1.5;
-            o.Alpha = clamp((fresnel * _FresnelIntensity + aura * 0.5) * pulse * 1.2, 0.0, 0.9);
-        }
-        ENDCG
     }
-
-    FallBack "Particles/Additive"
+    FallBack "Mobile/Particles/Alpha Blended"
 }

@@ -1,0 +1,24 @@
+=== Character Setup Started at 9/13/2026 12:15:10 PM ===
+[Akhilboss] Run: Akhil_Running.fbx, Jump: Akhil_Jump.fbx, Slide: Akhil_Running Slide.fbx, Stumble: Akhil_Jogging Stumble.fbx, Die: Akhil_Dying Backwards.fbx
+[Akhilboss] Run Avatar: Akhil_RunningAvatar
+[Akhilboss] Using clean running motion from Akhil_Run_Clean.fbx
+[Akhilboss] SUCCESS: Created SkinnedMesh prefab with 1 SkinnedMeshRenderers, Height: 0.01, Scale: 180.0000 -> Assets/Characters/Akhilboss/Akhilboss_Prefab.prefab
+[Harika] Run: Harika_Running.fbx, Jump: Harika_Jump.fbx, Slide: Harika_Running Slide.fbx, Stumble: Harika_Jogging Stumble.fbx, Die: Harika_Dying.fbx
+[Harika] Run Avatar: Harika_RunningAvatar
+[Harika] SUCCESS: Created SkinnedMesh prefab with 1 SkinnedMeshRenderers, Height: 0.01, Scale: 175.0000 -> Assets/Characters/Harika/Harika_Prefab.prefab
+[Nandini] Run: Nandini_Running.fbx, Jump: nandini_Jump.fbx, Slide: nandini_Running Slide.fbx, Stumble: Nandini_Jogging Stumble.fbx, Die: Nandini_Dying Backwards.fbx
+[Nandini] Run Avatar: Nandini_RunningAvatar
+[Nandini] SUCCESS: Created SkinnedMesh prefab with 1 SkinnedMeshRenderers, Height: 0.01, Scale: 175.0000 -> Assets/Characters/Nandini/Nandini_Prefab.prefab
+[Navaneeth] Run: Navaneeth_Running.fbx, Jump: Navaneeth_Jump.fbx, Slide: Navaneeth_Running Slide.fbx, Stumble: Navaneeth_Jogging Stumble.fbx, Die: Navaneeth_Dying Backwards.fbx
+[Navaneeth] Run Avatar: Navaneeth_RunningAvatar
+[Navaneeth] SUCCESS: Created SkinnedMesh prefab with 1 SkinnedMeshRenderers, Height: 0.01, Scale: 180.0000 -> Assets/Characters/Navaneeth/Navaneeth_Prefab.prefab
+[Pavan] Run: Pavan_Running.fbx, Jump: Pavan_Jump.fbx, Slide: Pavan_Running Slide.fbx, Stumble: Pavan_Jogging Stumble.fbx, Die: Pavan_Dying Backwards.fbx
+[Pavan] Run Avatar: Pavan_RunningAvatar
+[Pavan] SUCCESS: Created SkinnedMesh prefab with 1 SkinnedMeshRenderers, Height: 0.01, Scale: 180.0000 -> Assets/Characters/Pavan/Pavan_Prefab.prefab
+[Pravalika] Run: Pravalika_Running.fbx, Jump: Pravalika_Jump.fbx, Slide: Pravalika_Running Slide.fbx, Stumble: Pravalika_Jogging Stumble.fbx, Die: Prvalika_Dying.fbx
+[Pravalika] Run Avatar: Pravalika_RunningAvatar
+[Pravalika] SUCCESS: Created SkinnedMesh prefab with 1 SkinnedMeshRenderers, Height: 1.00, Scale: 2.0810 -> Assets/Characters/Pravalika/Pravalika_Prefab.prefab
+[Srikar] Run: Srikar_Running.fbx, Jump: Srikar_Jump.fbx, Slide: Srikar_Running Slide.fbx, Stumble: Srikar_Jogging Stumble.fbx, Die: Srikar_Dying Backwards.fbx
+[Srikar] Run Avatar: Srikar_RunningAvatar
+[Srikar] SUCCESS: Created SkinnedMesh prefab with 1 SkinnedMeshRenderers, Height: 0.01, Scale: 180.0000 -> Assets/Characters/Srikar/Srikar_Prefab.prefab
+=== Character Setup Completed at 9/13/2026 12:15:12 PM ===

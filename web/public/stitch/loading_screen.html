@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Spider Temple Escape - Loading</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&amp;family=Manrope:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-tint": "#e9c349",
+            "primary-fixed-dim": "#e9c349",
+            "on-surface-variant": "#d0c5af",
+            "secondary-fixed-dim": "#00e478",
+            "outline-variant": "#4d4635",
+            "primary-fixed": "#ffe088",
+            "primary-container": "#d4af37",
+            "on-primary-container": "#554300",
+            "tertiary": "#ffc19e",
+            "on-background": "#e1e3e4",
+            "tertiary-fixed-dim": "#ffb68b",
+            "on-secondary-fixed": "#00210c",
+            "surface-container-lowest": "#0c0f10",
+            "on-secondary": "#003919",
+            "surface-container-highest": "#323536",
+            "primary": "#f2ca50",
+            "inverse-surface": "#e1e3e4",
+            "surface": "#111415",
+            "secondary-container": "#34ff8c",
+            "on-primary-fixed": "#241a00",
+            "on-primary-fixed-variant": "#574500",
+            "error-container": "#93000a",
+            "inverse-primary": "#735c00",
+            "error": "#ffb4ab",
+            "on-tertiary-container": "#723300",
+            "on-secondary-container": "#007239",
+            "on-tertiary-fixed-variant": "#753400",
+            "on-secondary-fixed-variant": "#005227",
+            "secondary-fixed": "#60ff98",
+            "tertiary-container": "#ff9a59",
+            "on-error": "#690005",
+            "surface-container-high": "#272a2b",
+            "surface-variant": "#323536",
+            "tertiary-fixed": "#ffdbc8",
+            "surface-dim": "#111415",
+            "inverse-on-surface": "#2e3132",
+            "secondary": "#f5fff3",
+            "on-tertiary": "#522300",
+            "background": "#111415",
+            "surface-container-low": "#191c1d",
+            "on-primary": "#3c2f00",
+            "surface-bright": "#373a3b",
+            "outline": "#99907c",
+            "on-tertiary-fixed": "#321200",
+            "on-surface": "#e1e3e4",
+            "on-error-container": "#ffdad6",
+            "surface-container": "#1d2021"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "margin-desktop": "2.5rem",
+            "margin-tablet": "1.5rem",
+            "space-xs": "0.25rem",
+            "gutter-desktop": "1.5rem",
+            "gutter-tablet": "1rem",
+            "space-xl": "2rem",
+            "margin": "1rem",
+            "space-md": "0.75rem",
+            "gutter": "0.75rem",
+            "space-lg": "1.25rem"
+          },
+          "fontFamily": {
+            "body-lg": ["Manrope"],
+            "display-lg-mobile": ["Cinzel Decorative"],
+            "body-sm": ["Manrope"],
+            "label-lg": ["Space Grotesk"],
+            "label-md": ["Space Grotesk"],
+            "headline-md": ["Cinzel Decorative"],
+            "headline-sm": ["Cinzel Decorative"],
+            "display-lg": ["Cinzel Decorative"],
+            "headline-lg": ["Cinzel Decorative"],
+            "body-md": ["Manrope"],
+            "label-sm": ["Space Grotesk"]
+          },
+          "fontSize": {
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "display-lg-mobile": ["30px", { "lineHeight": "36px", "letterSpacing": "0.06em", "fontWeight": "700" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "400" }],
+            "label-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.08em", "fontWeight": "600" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.06em", "fontWeight": "600" }],
+            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "0.08em", "fontWeight": "700" }],
+            "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-sm": ["10px", { "lineHeight": "12px", "letterSpacing": "0.1em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      display: inline-block;
+      line-height: 1;
+      text-transform: none;
+      letter-spacing: normal;
+      word-wrap: normal;
+      white-space: nowrap;
+      direction: ltr;
+    }
+
+    /* Temple glow effects & animations */
+    @keyframes spin-slow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes spin-reverse-slow {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.4; filter: drop-shadow(0 0 15px rgba(242, 202, 80, 0.4)); }
+      50% { opacity: 0.85; filter: drop-shadow(0 0 35px rgba(242, 202, 80, 0.85)); }
+    }
+    @keyframes beam-shine {
+      0% { transform: translateX(-100%); }
+      50%, 100% { transform: translateX(200%); }
+    }
+    @keyframes ember-float {
+      0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.6; }
+      100% { transform: translateY(-120px) translateX(25px) scale(0.3); opacity: 0; }
+    }
+
+    .animate-spin-slow {
+      animation: spin-slow 24s linear infinite;
+    }
+    .animate-spin-reverse {
+      animation: spin-reverse-slow 18s linear infinite;
+    }
+    .animate-pulse-glow {
+      animation: pulse-glow 3.5s ease-in-out infinite;
+    }
+    .animate-beam {
+      animation: beam-shine 2.4s ease-in-out infinite;
+    }
+
+    /* Filigree Chamfer corners */
+    .aztec-corner-tl {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      width: 24px;
+      height: 24px;
+      border-top: 2px solid #d4af37;
+      border-left: 2px solid #d4af37;
+    }
+    .aztec-corner-tr {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 24px;
+      height: 24px;
+      border-top: 2px solid #d4af37;
+      border-right: 2px solid #d4af37;
+    }
+    .aztec-corner-bl {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      width: 24px;
+      height: 24px;
+      border-bottom: 2px solid #d4af37;
+      border-left: 2px solid #d4af37;
+    }
+    .aztec-corner-br {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      width: 24px;
+      height: 24px;
+      border-bottom: 2px solid #d4af37;
+      border-right: 2px solid #d4af37;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-md antialiased select-none overflow-hidden h-screen w-screen flex justify-center items-center">
+<!-- Mobile Viewport Shell (Portrait 9:16 Frame) -->
+<div class="relative w-full max-w-[430px] h-full max-h-[932px] overflow-hidden bg-background shadow-2xl flex flex-col justify-between items-center border border-outline-variant/30">
+<!-- Atmospheric Temple Background Layer -->
+<div class="absolute inset-0 z-0">
+<img alt="Subterranean mossy ancient stone corridor lit by divine rays" class="w-full h-full object-cover object-center scale-105 transform contrast-125 brightness-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrQTm2tYNuhx5QHg23cknJH79sUco3dxSuk5GDGuhKzcb9-NhJhnFzvEPj_O1C8VpmLNyYt48F492h6XENx56jBnW-U3ROh2rfA-3NHbn_FjoF3YJlVXVfSvn-OF9X7L0-vGbwGnZLEBGvSFYpatjSCHEkXPFWhH6a8nVoO7Ncx5x2F93-mPrY3vRets7cpKuABiqPkuulNhagMBv5SYxGBLTNN0krvG8unVpX9wUOh0OkE32zmTdgAyKaTGn7FYV_N4qpPnn4sUT3"/>
+<!-- Volcanic & Vignette Gradient Overlays -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/60 to-surface-container-lowest/90 mix-blend-multiply"></div>
+<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0)_20%,_rgba(12,15,16,0.95)_90%)]"></div>
+</div>
+<!-- Floating Runic Embers (Canvas / Particles Simulation) -->
+<div class="absolute inset-0 pointer-events-none z-10 overflow-hidden" id="ember-container">
+<div class="absolute w-1.5 h-1.5 rounded-full bg-primary blur-[0.5px] opacity-75 animate-[ember-float_4.5s_infinite_ease-out] left-[20%] bottom-[28%]"></div>
+<div class="absolute w-1 h-1 rounded-full bg-tertiary-container blur-[0.5px] opacity-60 animate-[ember-float_6s_infinite_ease-out_1.2s] left-[75%] bottom-[32%]"></div>
+<div class="absolute w-2 h-2 rounded-full bg-secondary-fixed blur-[1px] opacity-50 animate-[ember-float_5s_infinite_ease-out_2.5s] left-[45%] bottom-[22%]"></div>
+<div class="absolute w-1.5 h-1.5 rounded-full bg-primary-fixed blur-[0.5px] opacity-70 animate-[ember-float_7s_infinite_ease-out_0.8s] left-[85%] bottom-[40%]"></div>
+<div class="absolute w-1 h-1 rounded-full bg-secondary-container blur-[0.5px] opacity-80 animate-[ember-float_5.5s_infinite_ease-out_3s] left-[15%] bottom-[45%]"></div>
+</div>
+<!-- Aztec Stone Corner Ornamental Accents -->
+<div class="aztec-corner-tl z-20 pointer-events-none">
+<div class="w-1.5 h-1.5 bg-primary absolute -top-1 -left-1 shadow-[0_0_8px_#f2ca50]"></div>
+</div>
+<div class="aztec-corner-tr z-20 pointer-events-none">
+<div class="w-1.5 h-1.5 bg-primary absolute -top-1 -right-1 shadow-[0_0_8px_#f2ca50]"></div>
+</div>
+<div class="aztec-corner-bl z-20 pointer-events-none">
+<div class="w-1.5 h-1.5 bg-primary absolute -bottom-1 -left-1 shadow-[0_0_8px_#f2ca50]"></div>
+</div>
+<div class="aztec-corner-br z-20 pointer-events-none">
+<div class="w-1.5 h-1.5 bg-primary absolute -bottom-1 -right-1 shadow-[0_0_8px_#f2ca50]"></div>
+</div>
+<!-- Top Status Bar & Version Stamp -->
+<header class="w-full z-30 pt-7 px-6 flex justify-between items-center">
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-lowest/80 border border-outline-variant/40 backdrop-blur-md">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-ping"></span>
+<span class="font-label-sm text-label-sm text-secondary-fixed uppercase tracking-wider">REALM ACTIVE</span>
+</div>
+<div class="font-label-sm text-label-sm text-primary-fixed-dim/90 tracking-widest bg-surface-container-lowest/80 px-2.5 py-1 rounded border border-outline-variant/40 backdrop-blur-md">
+        v1.0.0
+      </div>
+</header>
+<!-- Main Central Presentation: Game Title & Golden Spider Relic -->
+<main class="relative z-20 w-full flex flex-col items-center justify-center flex-1 px-6 my-auto">
+<!-- Title Block -->
+<div class="text-center mb-6">
+<div class="flex items-center justify-center gap-2 mb-1.5">
+<span class="h-[1px] w-6 bg-gradient-to-r from-transparent to-primary"></span>
+<span class="font-label-sm text-label-sm text-primary tracking-[0.3em] uppercase">ANCIENT AZTEC DESCENT</span>
+<span class="h-[1px] w-6 bg-gradient-to-l from-transparent to-primary"></span>
+</div>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary drop-shadow-[0_4px_18px_rgba(242,202,80,0.65)] tracking-widest uppercase">
+          SPIDER TEMPLE<br/><span class="text-on-surface tracking-wider">ESCAPE</span>
+</h1>
+<div class="flex items-center justify-center gap-3 mt-2 opacity-85">
+<span class="w-1.5 h-1.5 rotate-45 bg-primary"></span>
+<span class="h-[1px] w-16 bg-outline-variant"></span>
+<span class="material-symbols-outlined text-primary text-base">token</span>
+<span class="h-[1px] w-16 bg-outline-variant"></span>
+<span class="w-1.5 h-1.5 rotate-45 bg-primary"></span>
+</div>
+</div>
+<!-- Medallion Centerpiece with Layered Rotating Runic Circles -->
+<div class="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center my-2">
+<!-- Ambient Glowing Aura -->
+<div class="absolute inset-2 rounded-full bg-primary-container/20 blur-2xl animate-pulse-glow pointer-events-none"></div>
+<!-- Outer Rotating Aztec Sun Wheel Pattern -->
+<div class="absolute inset-0 rounded-full border border-dashed border-primary/40 animate-spin-slow pointer-events-none"></div>
+<div class="absolute inset-2 rounded-full border border-outline-variant/60 animate-spin-reverse pointer-events-none"></div>
+<!-- Concentric Runic Disk Ring -->
+<div class="absolute inset-6 rounded-full border-2 border-primary-container/50 bg-surface-container-lowest/40 backdrop-blur-xs flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.9)]">
+<!-- Cardinal glyph markers -->
+<span class="absolute -top-1 text-primary-fixed font-label-sm text-label-sm">✦</span>
+<span class="absolute -bottom-1 text-primary-fixed font-label-sm text-label-sm">✦</span>
+<span class="absolute -left-1 text-primary-fixed font-label-sm text-label-sm">✦</span>
+<span class="absolute -right-1 text-primary-fixed font-label-sm text-label-sm">✦</span>
+</div>
+<!-- The Hero Golden Spider Relic Image -->
+<div class="relative w-48 h-48 sm:w-56 sm:h-56 z-10 flex items-center justify-center filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.9)]">
+<img alt="Intricate golden Aztec spider relic with glowing runic glyphs" class="w-full h-full object-contain transform transition-transform duration-700 hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCqocH9pKyZhf6sipbTC4jhY8ZrGC7ZuE11eNe7sQAOnbbvXYrowdDicIwRkppqt4wM_DNUqzbv8cby-uXhLTx23wUJF-Drdqt7ElNRAwt5ho3HnEZI6MnLEGztmA_Xx9SJ7yo7_OUSq4np5jpuC6nWn-l5O18qOf6fdJzTP8Tgs2B1kJG6BImebdDN_8mzatKJmnJobTToerBSxIQN8qWOH0R0h61x8TLbNITT78crx17fXZ6vHeyo-VL8JEPTUwc0J5SyXyDQzvM"/>
+</div>
+</div>
+</main>
+<!-- Bottom Interactive & HUD Deck (Anchored to lower 35% safe ergonomics) -->
+<footer class="w-full z-30 px-6 pb-8 pt-2 flex flex-col items-center">
+<!-- Loading Gauge Block -->
+<div class="w-full max-w-sm mb-4">
+<div class="flex justify-between items-end mb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-fixed-dim text-base animate-spin">cyclone</span>
+<span class="font-label-md text-label-md text-primary tracking-widest uppercase">
+              EXCAVATING RUNIC CORRIDORS...
+            </span>
+</div>
+<span class="font-label-md text-label-md text-secondary-fixed font-bold tracking-wider drop-shadow-[0_0_8px_rgba(0,228,120,0.7)]">
+            75%
+          </span>
+</div>
+<!-- Chiselled Obsidian & Gold Border Loading Bar Slot -->
+<div class="relative w-full h-4 bg-surface-container-lowest rounded-full p-[2px] border border-outline-variant shadow-[inset_0_2px_8px_rgba(0,0,0,0.95)] overflow-hidden">
+<!-- Subtle Segment Notches -->
+<div class="absolute inset-0 z-10 flex justify-between px-6 pointer-events-none opacity-40">
+<div class="w-[1px] h-full bg-surface-container-highest"></div>
+<div class="w-[1px] h-full bg-surface-container-highest"></div>
+<div class="w-[1px] h-full bg-surface-container-highest"></div>
+</div>
+<!-- Progress Fill: Bioluminescent Emerald Energy Core (75%) -->
+<div class="relative h-full w-[75%] rounded-full bg-gradient-to-r from-secondary-container via-secondary-fixed-dim to-secondary-fixed shadow-[0_0_16px_rgba(52,255,140,0.85)] flex items-center overflow-hidden transition-all duration-300">
+<!-- Pulsing Shimmer Beam -->
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent w-full animate-beam"></div>
+<!-- Glow cap dot -->
+<div class="absolute right-0.5 w-2 h-2 rounded-full bg-white shadow-[0_0_8px_#ffffff]"></div>
+</div>
+</div>
+<!-- Micro Runic Connection Dots -->
+<div class="flex justify-between items-center px-1 mt-1.5 opacity-70">
+<span class="font-label-sm text-label-sm text-outline tracking-widest">SECTOR 04</span>
+<div class="flex gap-1.5">
+<span class="w-1 h-1 rounded-full bg-secondary-fixed"></span>
+<span class="w-1 h-1 rounded-full bg-secondary-fixed"></span>
+<span class="w-1 h-1 rounded-full bg-secondary-fixed"></span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+</div>
+<span class="font-label-sm text-label-sm text-outline tracking-widest">SUB-SANCTUM</span>
+</div>
+</div>
+<!-- Survival HUD Card (Level 2 Frosted Obsidian Slab) -->
+<div class="w-full max-w-sm rounded-xl p-3.5 bg-surface-container-low/85 backdrop-blur-md border border-outline-variant/70 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.85)] relative overflow-hidden">
+<!-- Subtle Gold Filigree Edge Inset -->
+<div class="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-60"></div>
+<div class="flex items-start gap-3">
+<!-- Action Glyphic Icon Badge -->
+<div class="w-9 h-9 rounded-lg bg-surface-container-highest/60 border border-outline-variant flex items-center justify-center flex-shrink-0 text-primary shadow-inner">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">
+              keyboard_double_arrow_down
+            </span>
+</div>
+<!-- Tip Verbatim Text -->
+<div class="flex-1">
+<div class="flex items-center gap-1.5 mb-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-primary tracking-widest uppercase">TACTICAL ADVICE</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+<span class="font-semibold text-primary">PRO TIP:</span> Swipe <span class="text-secondary-fixed font-bold">DOWN</span> quickly to slide beneath low stone arches and spike traps!
+            </p>
+</div>
+</div>
+</div>
+<!-- Touch Hint -->
+<div class="mt-3 flex items-center gap-1.5 text-outline opacity-60">
+<span class="material-symbols-outlined text-xs">touch_app</span>
+<span class="font-label-sm text-label-sm tracking-wider uppercase">TOUCH TO PRIME RUNIC TOTEM</span>
+</div>
+</footer>
+</div>
+</body></html>

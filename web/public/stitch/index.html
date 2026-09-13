@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+  <title>Spider Temple Escape - Stitch UI/UX Interactive Suite</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;800;900&family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-tint": "#e9c349",
+            "primary": "#f2ca50",
+            "primary-container": "#d4af37",
+            "on-primary": "#3c2f00",
+            "primary-fixed": "#ffe088",
+            "primary-fixed-dim": "#e9c349",
+            "secondary": "#f5fff3",
+            "secondary-container": "#34ff8c",
+            "secondary-fixed": "#60ff98",
+            "secondary-fixed-dim": "#00e478",
+            "tertiary": "#ffc19e",
+            "tertiary-container": "#ff9a59",
+            "error": "#ffb4ab",
+            "error-container": "#93000a",
+            "surface": "#111415",
+            "surface-dim": "#111415",
+            "surface-bright": "#373a3b",
+            "surface-container-lowest": "#0c0f10",
+            "surface-container-low": "#191c1d",
+            "surface-container": "#1d2021",
+            "surface-container-high": "#272a2b",
+            "surface-container-highest": "#323536",
+            "on-surface": "#e1e3e4",
+            "on-surface-variant": "#d0c5af",
+            "outline": "#99907c",
+            "outline-variant": "#4d4635"
+          },
+          fontFamily: {
+            "display": ["'Cinzel Decorative'", "Cinzel", "serif"],
+            "title": ["'Cinzel'", "serif"],
+            "body": ["Manrope", "sans-serif"],
+            "hud": ["'Space Grotesk'", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      display: inline-block;
+      line-height: 1;
+      text-transform: none;
+      letter-spacing: normal;
+      word-wrap: normal;
+      white-space: nowrap;
+      direction: ltr;
+    }
+
+    @keyframes pulse-gold {
+      0%, 100% { filter: drop-shadow(0 0 15px rgba(242, 202, 80, 0.45)); transform: scale(1); }
+      50% { filter: drop-shadow(0 0 35px rgba(242, 202, 80, 0.85)); transform: scale(1.02); }
+    }
+    @keyframes spin-slow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes ember-float {
+      0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.6; }
+      100% { transform: translateY(-120px) translateX(25px) scale(0.3); opacity: 0; }
+    }
+
+    .animate-pulse-gold { animation: pulse-gold 3s ease-in-out infinite; }
+    .animate-spin-slow { animation: spin-slow 24s linear infinite; }
+
+    /* Custom Aztec decorative borders */
+    .gold-filigree-border {
+      border: 1px solid #7A5E12;
+      box-shadow: inset 0 0 0 1px #d4af37, 0 10px 30px rgba(0,0,0,0.85);
+    }
+    .aztec-corner-tl { position: absolute; top: 10px; left: 10px; width: 16px; height: 16px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
+    .aztec-corner-tr { position: absolute; top: 10px; right: 10px; width: 16px; height: 16px; border-top: 2px solid #d4af37; border-right: 2px solid #d4af37; }
+    .aztec-corner-bl { position: absolute; bottom: 10px; left: 10px; width: 16px; height: 16px; border-bottom: 2px solid #d4af37; border-left: 2px solid #d4af37; }
+    .aztec-corner-br { position: absolute; bottom: 10px; right: 10px; width: 16px; height: 16px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
+
+    /* Smooth screen transitions */
+    .screen-view {
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .screen-view.hidden-screen {
+      opacity: 0;
+      pointer-events: none;
+      position: absolute;
+      transform: scale(0.97);
+    }
+    .screen-view.active-screen {
+      opacity: 1;
+      pointer-events: auto;
+      position: relative;
+      transform: scale(1);
+    }
+
+    /* Modal Backdrop */
+    .modal-backdrop {
+      background: rgba(8, 12, 13, 0.88);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+<body class="bg-[#070a0b] text-[#e1e3e4] font-body antialiased min-h-screen flex flex-col items-center justify-between selection:bg-primary selection:text-black">
+
+  <!-- Top Controller Bar -->
+  <header class="w-full max-w-5xl px-4 py-3 border-b border-outline-variant/30 flex flex-wrap items-center justify-between gap-3 bg-surface-container-lowest/90 backdrop-blur-md z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-primary/10 border border-primary/40 flex items-center justify-center text-primary font-bold shadow-[0_0_12px_rgba(242,202,80,0.3)]">
+        🕷️
+      </div>
+      <div>
+        <h1 class="font-title text-base sm:text-lg text-primary tracking-wide leading-tight">Spider Temple Escape</h1>
+        <p class="text-xs text-on-surface-variant flex items-center gap-1.5 font-hud">
+          <span class="w-2 h-2 rounded-full bg-secondary-fixed animate-ping"></span>
+          STITCH DESIGN SYSTEM • INTERACTIVE SUITE
+        </p>
+      </div>
+    </div>
+
+    <!-- Screen Tabs / Navigation Controls -->
+    <div class="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl border border-outline-variant/50">
+      <button id="tab-interactive" onclick="switchScreen('interactive')" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-hud font-bold uppercase tracking-wider transition-all bg-primary text-on-primary shadow">
+        🎮 Game Flow
+      </button>
+      <button id="tab-loading" onclick="switchScreen('loading')" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-hud font-bold uppercase tracking-wider transition-all text-on-surface hover:text-primary">
+        ⏳ Loading
+      </button>
+      <button id="tab-mainmenu" onclick="switchScreen('mainmenu')" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-hud font-bold uppercase tracking-wider transition-all text-on-surface hover:text-primary">
+        🏛️ Main Menu
+      </button>
+      <button id="tab-death" onclick="switchScreen('death')" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-hud font-bold uppercase tracking-wider transition-all text-on-surface hover:text-primary">
+        💀 Death Scene
+      </button>
+    </div>
+
+    <!-- Audio & Device Toggle -->
+    <div class="flex items-center gap-2">
+      <button id="btn-audio-toggle" onclick="toggleAudio()" class="px-2.5 py-1.5 rounded-lg bg-surface-container border border-outline-variant hover:border-primary text-primary text-xs font-hud font-semibold flex items-center gap-1.5 transition-all">
+        <span class="material-symbols-outlined text-[16px]" id="audio-icon">volume_up</span>
+        <span id="audio-label">SFX ON</span>
+      </button>
+      <button id="btn-device-toggle" onclick="toggleDeviceFrame()" class="px-2.5 py-1.5 rounded-lg bg-surface-container border border-outline-variant hover:border-primary text-on-surface text-xs font-hud font-semibold flex items-center gap-1.5 transition-all">
+        <span class="material-symbols-outlined text-[16px]">smartphone</span>
+        <span id="device-label">PHONE FRAME</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Interactive Device Viewport -->
+  <main class="flex-1 w-full flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+    <div id="device-wrapper" class="relative w-full max-w-[430px] h-[884px] max-h-[92vh] rounded-[42px] p-3.5 bg-gradient-to-b from-[#1f2628] via-[#0d1214] to-[#080b0c] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] border-4 border-[#2b3538] transition-all duration-300">
+      
+      <!-- Phone Dynamic Island / Speaker Notch -->
+      <div class="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-50 flex items-center justify-end px-3">
+        <div class="w-2.5 h-2.5 rounded-full bg-[#13222a] border border-[#2b3538]"></div>
+      </div>
+
+      <!-- Inner Screen Container -->
+      <div id="screen-viewport" class="relative w-full h-full rounded-[30px] overflow-hidden bg-surface-container-lowest border border-outline-variant/30 flex flex-col justify-between">
+
+        <!-- ========================================== -->
+        <!-- SCREEN 1: LOADING SCREEN                   -->
+        <!-- ========================================== -->
+        <section id="screen-loading" class="screen-view active-screen w-full h-full flex flex-col justify-between items-center p-5 select-none relative overflow-hidden">
+          <!-- Background Image & Vignette -->
+          <div class="absolute inset-0 z-0">
+            <img class="w-full h-full object-cover brightness-[0.45] contrast-125 scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrQTm2tYNuhx5QHg23cknJH79sUco3dxSuk5GDGuhKzcb9-NhJhnFzvEPj_O1C8VpmLNyYt48F492h6XENx56jBnW-U3ROh2rfA-3NHbn_FjoF3YJlVXVfSvn-OF9X7L0-vGbwGnZLEBGvSFYpatjSCHEkXPFWhH6a8nVoO7Ncx5x2F93-mPrY3vRets7cpKuABiqPkuulNhagMBv5SYxGBLTNN0krvG8unVpX9wUOh0OkE32zmTdgAyKaTGn7FYV_N4qpPnn4sUT3" alt="Temple corridor"/>
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0c0f10] via-[#0c0f10]/70 to-[#0c0f10]/85"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0)_20%,_rgba(12,15,16,0.95)_90%)]"></div>
+          </div>
+
+          <!-- Aztec Corner Pins -->
+          <div class="aztec-corner-tl z-20"></div>
+          <div class="aztec-corner-tr z-20"></div>
+          <div class="aztec-corner-bl z-20"></div>
+          <div class="aztec-corner-br z-20"></div>
+
+          <!-- Top Status Header -->
+          <header class="w-full z-20 pt-5 flex justify-between items-center">
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-lowest/80 border border-outline-variant/40 backdrop-blur-md">
+              <span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-ping"></span>
+              <span class="font-hud text-[11px] text-secondary-fixed font-bold tracking-wider uppercase">REALM ACTIVE</span>
+            </div>
+            <div class="font-hud text-[11px] text-primary-fixed-dim tracking-widest bg-surface-container-lowest/80 px-2.5 py-1 rounded border border-outline-variant/40 backdrop-blur-md">
+              v1.0.4
+            </div>
+          </header>
+
+          <!-- Center Relic & Title -->
+          <div class="relative z-20 flex flex-col items-center justify-center my-auto text-center px-4">
+            <p class="font-hud text-xs text-primary/80 tracking-[0.25em] uppercase mb-1">ANCIENT AZTEC DESCENT</p>
+            <h2 class="font-display text-2xl sm:text-3xl text-primary font-bold tracking-wide drop-shadow-[0_2px_12px_rgba(242,202,80,0.6)]">
+              SPIDER TEMPLE<br/>ESCAPE
+            </h2>
+
+            <!-- Central Golden Spider Medallion -->
+            <div class="relative w-44 h-44 my-4 flex items-center justify-center">
+              <div class="absolute inset-0 rounded-full border border-primary/20 border-dashed animate-spin-slow"></div>
+              <div class="absolute inset-2 rounded-full border border-primary/40"></div>
+              <img class="w-36 h-36 object-contain animate-pulse-gold" src="https://lh3.googleusercontent.com/aida/AEtjO1X61PiXSUdt_ScHuPJLRh77T0qGw8QGnni4r0R5s5dXX1w0Qs1BHFrMIxrciOJoTEqKr81za9VMtLsadl4XWTVcVS94ZfRZEod5J5bczr7Di-gpE3WtWe5FLms2ghFXfIW78ajt3mB9KkLRIMCgHR-0fG4N6rFbR6b5nQA3dX8UfwoJxrSIlK5_TLpZCKWHXRoh2uUBSH4v2gql25w4BKDxSW_uA4vYrKAgq5qL1o-sZ1CNMZBbk25prnfP" alt="Spider Relic"/>
+            </div>
+
+            <p class="font-hud text-[11px] text-secondary-fixed uppercase tracking-widest">TRANSLATING RUNIC CORRIDORS</p>
+          </div>
+
+          <!-- Bottom Loading Progress & Tip -->
+          <div class="w-full z-20 pb-4 space-y-3">
+            <!-- Progress Status -->
+            <div class="flex justify-between items-center text-xs font-hud font-semibold text-on-surface">
+              <span id="loading-status-text" class="flex items-center gap-1.5 text-primary">
+                <span class="material-symbols-outlined text-[15px] animate-spin">sync</span>
+                EXCAVATING CORRIDORS...
+              </span>
+              <span id="loading-percentage" class="text-secondary-fixed font-bold">0%</span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full h-3 rounded-full bg-[#141b1d] border border-outline-variant/60 p-0.5 overflow-hidden shadow-inner">
+              <div id="loading-bar-fill" class="h-full rounded-full bg-gradient-to-r from-[#00e478] via-[#60ff98] to-[#f2ca50] shadow-[0_0_12px_#60ff98] transition-all duration-200" style="width: 0%;"></div>
+            </div>
+
+            <!-- Survival Tip Card -->
+            <div class="w-full p-2.5 rounded-xl bg-surface-container-low/90 border border-outline-variant/70 backdrop-blur-md flex items-start gap-2.5 shadow-lg">
+              <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center text-primary flex-shrink-0">
+                <span class="material-symbols-outlined text-[18px]">keyboard_double_arrow_down</span>
+              </div>
+              <div class="flex-1">
+                <span class="font-hud text-[10px] text-primary uppercase font-bold tracking-wider">TACTICAL ADVICE</span>
+                <p id="loading-tip-text" class="text-xs text-on-surface-variant font-medium leading-tight">
+                  Swipe DOWN quickly to slide beneath stone temple arches and spike traps!
+                </p>
+              </div>
+            </div>
+
+            <!-- Fast Forward Button -->
+            <button onclick="finishLoadingInstantly()" class="w-full text-center text-[11px] font-hud uppercase tracking-widest text-primary/70 hover:text-primary transition-colors py-1">
+              ⚡ Tap to skip loading sequence
+            </button>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SCREEN 2: MAIN MENU SCREEN                 -->
+        <!-- ========================================== -->
+        <section id="screen-mainmenu" class="screen-view hidden-screen w-full h-full flex flex-col justify-between items-center p-4 select-none relative overflow-hidden">
+          <!-- Background Image & Atmospheric Fog -->
+          <div class="absolute inset-0 z-0">
+            <img class="w-full h-full object-cover brightness-[0.40] contrast-125 scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrQTm2tYNuhx5QHg23cknJH79sUco3dxSuk5GDGuhKzcb9-NhJhnFzvEPj_O1C8VpmLNyYt48F492h6XENx56jBnW-U3ROh2rfA-3NHbn_FjoF3YJlVXVfSvn-OF9X7L0-vGbwGnZLEBGvSFYpatjSCHEkXPFWhH6a8nVoO7Ncx5x2F93-mPrY3vRets7cpKuABiqPkuulNhagMBv5SYxGBLTNN0krvG8unVpX9wUOh0OkE32zmTdgAyKaTGn7FYV_N4qpPnn4sUT3" alt="Temple Background"/>
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0c0f10] via-[#0c0f10]/60 to-[#0c0f10]/85"></div>
+          </div>
+
+          <!-- Top HUD Header -->
+          <header class="w-full z-20 pt-4 space-y-2">
+            <div class="flex items-center justify-between gap-1.5">
+              <!-- Explorer Profile Pill -->
+              <div class="flex items-center gap-2 bg-surface-container-low/90 backdrop-blur-md p-1 pr-2.5 rounded-full border border-outline-variant/60 shadow-md">
+                <div class="relative w-9 h-9 flex-shrink-0">
+                  <img class="w-full h-full object-cover rounded-full border-2 border-primary" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcdHQSWEXaNgAFUkb9NqBSUs9MX71pIsc0CD_La1mLCTF5N2fJXHH5h1LLqElmZUsniR20jVqVYK93rJNCZm69POTjQE0z_OC-JC_OtXKLInvXhZMUBV5oc-JMHHEsi3dJbdQzSJxtz3TgcoQ_p011TPtKxoc5w4cvsigCNz79xMBtsts5uMeEiy8PrBY7PG9fgDVjcaHFLxs--5BAejh8-hgqcPL8l7iRziX_drzYqh7TfgLRJLF3ElQKqj3EY37X63Qh-E0FO7yn" alt="Avatar"/>
+                  <span class="absolute -bottom-1 -right-1 bg-surface-container-lowest border border-primary text-primary font-hud text-[9px] font-bold px-1 rounded-full">14</span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="font-hud text-[9px] text-primary uppercase font-bold tracking-wider">EXPLORER</span>
+                  <span class="text-xs text-on-surface font-semibold leading-tight">M. Coronado</span>
+                </div>
+              </div>
+
+              <!-- Coins & Hearts Pool -->
+              <div class="flex items-center gap-1.5">
+                <!-- Relic Coins -->
+                <div class="flex items-center gap-1 bg-surface-container-low/90 border border-primary/40 backdrop-blur-md px-2.5 py-1 rounded-full shadow">
+                  <span class="text-sm">🪙</span>
+                  <span id="menu-coin-display" class="font-hud text-xs text-primary font-bold">4,850</span>
+                  <button onclick="addBonusCoins()" class="w-4 h-4 rounded-full bg-primary text-on-primary font-black text-[10px] flex items-center justify-center hover:scale-110 active:scale-95 transition-transform" title="Add Bonus Coins">+</button>
+                </div>
+
+                <!-- Lives Counter -->
+                <div class="flex items-center gap-1 bg-surface-container-low/90 border border-outline-variant/60 backdrop-blur-md px-2 py-1 rounded-full">
+                  <span class="material-symbols-outlined text-[15px] text-red-500" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                  <span id="menu-lives-display" class="font-hud text-xs text-on-surface font-bold">3/3</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Best Run Record Banner -->
+            <div class="mx-auto w-full max-w-xs flex items-center justify-center gap-2 bg-gradient-to-r from-surface-container-lowest/80 via-surface-container-high/90 to-surface-container-lowest/80 py-0.5 px-3 rounded-md border-x-2 border-primary/60 shadow">
+              <span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+              <span class="font-hud text-[10px] text-primary-fixed uppercase tracking-widest">BEST RUN:</span>
+              <span class="font-hud text-xs text-secondary-fixed-dim font-bold tracking-wider">48,290m</span>
+            </div>
+          </header>
+
+          <!-- Center Suit Showcase Card -->
+          <div class="w-full max-w-[340px] my-auto z-20 flex flex-col items-center">
+            
+            <!-- Game Title & Spider Totem -->
+            <div class="flex items-center gap-2 mb-2">
+              <img class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1X61PiXSUdt_ScHuPJLRh77T0qGw8QGnni4r0R5s5dXX1w0Qs1BHFrMIxrciOJoTEqKr81za9VMtLsadl4XWTVcVS94ZfRZEod5J5bczr7Di-gpE3WtWe5FLms2ghFXfIW78ajt3mB9KkLRIMCgHR-0fG4N6rFbR6b5nQA3dX8UfwoJxrSIlK5_TLpZCKWHXRoh2uUBSH4v2gql25w4BKDxSW_uA4vYrKAgq5qL1o-sZ1CNMZBbk25prnfP" alt="Relic"/>
+              <h2 class="font-display text-lg text-primary font-bold tracking-wider drop-shadow">SPIDER TEMPLE ESCAPE</h2>
+            </div>
+
+            <!-- Equipped Suit Interactive Panel -->
+            <div class="w-full bg-surface-container-lowest/90 backdrop-blur-xl rounded-2xl gold-filigree-border p-3 relative shadow-2xl">
+              <!-- Corner Brackets -->
+              <div class="absolute top-1.5 left-1.5 w-2 h-2 border-t-2 border-l-2 border-primary"></div>
+              <div class="absolute top-1.5 right-1.5 w-2 h-2 border-t-2 border-r-2 border-primary"></div>
+              <div class="absolute bottom-1.5 left-1.5 w-2 h-2 border-b-2 border-l-2 border-primary"></div>
+              <div class="absolute bottom-1.5 right-1.5 w-2 h-2 border-b-2 border-r-2 border-primary"></div>
+
+              <!-- Suit Preview Image Box -->
+              <div class="relative w-full h-40 rounded-xl overflow-hidden bg-surface-container-high border border-outline-variant/50 group">
+                <img id="suit-preview-img" class="w-full h-full object-cover object-center transition-all duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYDtcd_TiDgrG9SFauZQW6nNiW3RZUPo3W8jw2N2x8QcjiCZLNigLa4LDMwfhYGVsC4auXLRmj2vKyTwPPC_W-hD1DrKBYM0jxxVIopa8x67Wpno1ipHcrYmiiQmpAgZs2BF-DsQn8z6fIEGZB-C3bbsqpZ7tSPqcChYDiw-OMavDyU2tSOCwSkeXxUELbSPzZX0MDShqlSm7dWjZt5Sq3NgXNHNj99yt4nf6GNWkI48Qb6QryzWvjQ_5yroV1E9c2MSCtuoSV6hOo" alt="Suit Preview"/>
+                
+                <!-- Vignette -->
+                <div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-black/40"></div>
+
+                <!-- Suit Nav Arrows -->
+                <button onclick="prevSuit()" class="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-surface-container-lowest/80 border border-outline-variant flex items-center justify-center text-on-surface hover:text-primary active:scale-90 transition-transform">
+                  <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+                </button>
+                <button onclick="nextSuit()" class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-surface-container-lowest/80 border border-outline-variant flex items-center justify-center text-on-surface hover:text-primary active:scale-90 transition-transform">
+                  <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                </button>
+
+                <!-- Rarity Badge -->
+                <div class="absolute top-2 right-2 flex items-center gap-1 bg-surface-container-lowest/90 border border-primary-container px-2 py-0.5 rounded-full shadow">
+                  <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+                  <span id="suit-rarity-badge" class="font-hud text-[9px] text-primary font-bold tracking-widest">LEGENDARY</span>
+                </div>
+
+                <!-- Suit Name & Perk Overlay -->
+                <div class="absolute bottom-2 left-2 right-2 flex flex-col">
+                  <span id="suit-title" class="font-title text-base font-bold text-primary leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">SYMBIOTE SHADOW</span>
+                  <div class="flex items-center gap-1 mt-0.5">
+                    <span class="material-symbols-outlined text-[13px] text-secondary-fixed-dim">bolt</span>
+                    <span id="suit-perk-desc" class="font-hud text-[10px] text-secondary-fixed-dim font-bold tracking-wide">PERK: +35% MAGNET RADIUS</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Mini Stats Row -->
+              <div class="grid grid-cols-3 gap-1.5 mt-2 text-center font-hud">
+                <div class="bg-surface-container-low/70 p-1.5 rounded-lg border border-outline-variant/40">
+                  <span class="text-[9px] text-on-surface-variant block uppercase">SPEED</span>
+                  <span id="suit-stat-speed" class="text-xs font-bold text-primary">MAX</span>
+                </div>
+                <div class="bg-surface-container-low/70 p-1.5 rounded-lg border border-outline-variant/40">
+                  <span class="text-[9px] text-on-surface-variant block uppercase">ARMOR</span>
+                  <span id="suit-stat-armor" class="text-xs font-bold text-primary">880</span>
+                </div>
+                <div class="bg-surface-container-low/70 p-1.5 rounded-lg border border-outline-variant/40">
+                  <span class="text-[9px] text-on-surface-variant block uppercase">JADE LUCK</span>
+                  <span id="suit-stat-luck" class="text-xs font-bold text-secondary-fixed">+18%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Action Buttons & Giant CTA -->
+          <footer class="w-full z-20 pb-3 space-y-2.5">
+            <!-- Giant Primary CTA: START EXPEDITION -->
+            <button id="btn-start-expedition" onclick="startExpedition()" class="w-full relative py-3.5 px-4 rounded-xl font-title font-black text-base sm:text-lg tracking-widest text-[#241a00] uppercase bg-gradient-to-r from-[#ffe088] via-[#f2ca50] to-[#d4af37] border-2 border-[#fff4b8] shadow-[0_8px_25px_rgba(212,175,55,0.45)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group">
+              <span class="material-symbols-outlined text-[22px] group-hover:translate-x-1 transition-transform">explore</span>
+              <span>START EXPEDITION</span>
+              <span class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+            </button>
+
+            <!-- 4 Tactile Action Cards -->
+            <div class="grid grid-cols-4 gap-1.5">
+              <button onclick="openModal('suits')" class="p-2 rounded-xl bg-surface-container-low/90 border border-outline-variant/60 hover:border-primary/80 active:scale-95 flex flex-col items-center justify-center gap-1 transition-all shadow group">
+                <span class="material-symbols-outlined text-[20px] text-primary group-hover:scale-110 transition-transform">shield</span>
+                <span class="font-hud text-[10px] text-on-surface group-hover:text-primary font-bold">SUITS</span>
+              </button>
+
+              <button onclick="openModal('upgrades')" class="p-2 rounded-xl bg-surface-container-low/90 border border-outline-variant/60 hover:border-primary/80 active:scale-95 flex flex-col items-center justify-center gap-1 transition-all shadow group">
+                <span class="material-symbols-outlined text-[20px] text-primary group-hover:scale-110 transition-transform">offline_bolt</span>
+                <span class="font-hud text-[10px] text-on-surface group-hover:text-primary font-bold">UPGRADES</span>
+              </button>
+
+              <button onclick="openModal('leaderboard')" class="p-2 rounded-xl bg-surface-container-low/90 border border-outline-variant/60 hover:border-primary/80 active:scale-95 flex flex-col items-center justify-center gap-1 transition-all shadow group">
+                <span class="material-symbols-outlined text-[20px] text-primary group-hover:scale-110 transition-transform">leaderboard</span>
+                <span class="font-hud text-[10px] text-on-surface group-hover:text-primary font-bold">RANKS</span>
+              </button>
+
+              <button onclick="openModal('settings')" class="p-2 rounded-xl bg-surface-container-low/90 border border-outline-variant/60 hover:border-primary/80 active:scale-95 flex flex-col items-center justify-center gap-1 transition-all shadow group">
+                <span class="material-symbols-outlined text-[20px] text-primary group-hover:scale-110 transition-transform">settings</span>
+                <span class="font-hud text-[10px] text-on-surface group-hover:text-primary font-bold">OPTIONS</span>
+              </button>
+            </div>
+
+            <!-- Weekly Trial Ticker -->
+            <div class="w-full px-3 py-1 rounded-lg bg-surface-container-lowest/80 border border-outline-variant/40 flex items-center justify-between text-[10px] font-hud">
+              <span class="text-secondary-fixed flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-ping"></span>
+                WEEKLY TRIAL: 7.4km / 10km
+              </span>
+              <span class="text-primary font-bold">JADE SUIT (UNLOCK)</span>
+            </div>
+          </footer>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SCREEN 3: DEATH / GAME OVER SCENE          -->
+        <!-- ========================================== -->
+        <section id="screen-death" class="screen-view hidden-screen w-full h-full flex flex-col justify-between items-center p-4 select-none relative overflow-hidden">
+          <!-- Background Image with Crimson Danger Mist -->
+          <div class="absolute inset-0 z-0">
+            <img class="w-full h-full object-cover brightness-[0.4] contrast-150 scale-105" src="https://lh3.googleusercontent.com/aida/AEtjO1UrW948PUWRMlH1Mr1dzgSAZnP6jrRVky_lEe2txbKqxlKvVKCntRD5X5jcc3_EV_zriFywhxIlfR6IHiNIzl_hqJWOyWTCLHx3oGuV4FRMsFkr7baZhdtt_jWrinjJ38xt2fwgXbwkGxFHRdE7wq-A2W1MZhaT3DUWclvC4q4YQaMXUzxxIjMrjpv3QWf3dw9fjBaPCNPXy5YwKrW3fYuUL0hiEixl6ssUmkV_r7wBW-GEZE2bs2z60SVF" alt="Beast Mist"/>
+            <!-- Crimson Defeat Vignette Overlay -->
+            <div class="absolute inset-0 bg-gradient-to-t from-[#150505] via-[#100303]/75 to-[#1c0707]/80"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(180,20,20,0.15)_0%,_rgba(20,0,0,0.92)_85%)]"></div>
+          </div>
+
+          <!-- Aztec Corner Pins in Vermilion/Gold -->
+          <div class="aztec-corner-tl z-20 !border-red-500"></div>
+          <div class="aztec-corner-tr z-20 !border-red-500"></div>
+          <div class="aztec-corner-bl z-20 !border-red-500"></div>
+          <div class="aztec-corner-br z-20 !border-red-500"></div>
+
+          <!-- Top Status Bar -->
+          <header class="w-full z-20 pt-4 flex justify-between items-center">
+            <div class="flex items-center gap-1 bg-black/60 border border-red-900/60 px-2.5 py-1 rounded-full text-[10px] font-hud text-red-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+              FATAL PERIL ENCOUNTER
+            </div>
+            <div class="flex items-center gap-1.5 bg-black/60 border border-primary/40 px-2.5 py-1 rounded-full text-xs font-hud text-primary">
+              <span>🪙</span>
+              <span id="death-total-bank">5,190</span>
+            </div>
+          </header>
+
+          <!-- Defeat Header & Cause Badge -->
+          <div class="relative z-20 flex flex-col items-center text-center mt-1">
+            <!-- Smoldering Spider Relic Crest -->
+            <div class="w-16 h-16 mb-1 relative flex items-center justify-center">
+              <img class="w-14 h-14 object-contain filter drop-shadow-[0_0_12px_rgba(239,68,68,0.7)]" src="https://lh3.googleusercontent.com/aida/AEtjO1X61PiXSUdt_ScHuPJLRh77T0qGw8QGnni4r0R5s5dXX1w0Qs1BHFrMIxrciOJoTEqKr81za9VMtLsadl4XWTVcVS94ZfRZEod5J5bczr7Di-gpE3WtWe5FLms2ghFXfIW78ajt3mB9KkLRIMCgHR-0fG4N6rFbR6b5nQA3dX8UfwoJxrSIlK5_TLpZCKWHXRoh2uUBSH4v2gql25w4BKDxSW_uA4vYrKAgq5qL1o-sZ1CNMZBbk25prnfP" alt="Relic"/>
+            </div>
+
+            <h2 class="font-display text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-amber-400 to-red-600 tracking-wider drop-shadow-[0_4px_16px_rgba(220,38,38,0.8)]">
+              EXPEDITION FAILED
+            </h2>
+
+            <!-- Cause of Death Pill -->
+            <div class="mt-1 flex items-center gap-1.5 bg-red-950/80 border border-red-500/60 px-3 py-0.5 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+              <span class="material-symbols-outlined text-[14px] text-red-400">warning</span>
+              <span id="cause-of-death-text" class="font-hud text-[10px] text-red-200 font-bold uppercase tracking-wider">
+                OVERTAKEN BY ANCIENT GUARDIAN
+              </span>
+            </div>
+          </div>
+
+          <!-- Central Expedition Summary Stone Tablet -->
+          <div class="w-full max-w-[340px] z-20 my-auto bg-[#0d1214]/90 backdrop-blur-xl rounded-2xl gold-filigree-border p-3.5 relative shadow-2xl">
+            <!-- Record Ribbon -->
+            <div class="w-full py-0.5 mb-2 bg-gradient-to-r from-amber-600 via-amber-400 to-amber-600 rounded-md text-center text-[10px] font-hud font-black text-black uppercase tracking-widest shadow">
+              ★ NEW RECORD SURPASS! ★
+            </div>
+
+            <!-- Primary Metric: Distance -->
+            <div class="text-center mb-3">
+              <span class="text-[10px] font-hud text-on-surface-variant uppercase tracking-widest block">DISTANCE INFILTRATED</span>
+              <span id="death-stat-distance" class="font-display text-3xl font-black text-primary tracking-tight drop-shadow-[0_2px_10px_rgba(242,202,80,0.5)]">
+                4,920 METERS
+              </span>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-2 mb-2.5 font-hud">
+              <div class="p-2 rounded-xl bg-surface-container-low/80 border border-outline-variant/40">
+                <span class="text-[9px] text-on-surface-variant uppercase block">RELICS RECOVERED</span>
+                <span id="death-stat-coins" class="text-sm font-bold text-amber-400 flex items-center gap-1 mt-0.5">
+                  🪙 +340
+                </span>
+                <span class="text-[9px] text-on-surface-variant/80">Aztec Sun Runes</span>
+              </div>
+              <div class="p-2 rounded-xl bg-surface-container-low/80 border border-outline-variant/40">
+                <span class="text-[9px] text-on-surface-variant uppercase block">TOTAL SCORE</span>
+                <span id="death-stat-score" class="text-sm font-bold text-primary flex items-center gap-1 mt-0.5">
+                  52,600 PTS
+                </span>
+                <span class="text-[9px] text-secondary-fixed">+3.5x Symbiote Bonus</span>
+              </div>
+            </div>
+
+            <!-- Beast Alert Bar -->
+            <div class="p-2 rounded-xl bg-red-950/70 border border-red-600/50 flex items-center justify-between font-hud text-xs">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[16px] text-red-400">pets</span>
+                <div>
+                  <span class="text-[9px] text-red-300 block uppercase font-bold">GUARDIAN PROXIMITY</span>
+                  <span class="text-xs font-bold text-red-200">0.0m — FATAL STRIKE</span>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded bg-red-600 text-white font-black text-[10px]">CRITICAL</span>
+            </div>
+          </div>
+
+          <!-- Bottom Action Buttons -->
+          <footer class="w-full z-20 pb-3 space-y-2">
+            <!-- Free Revive (Ad/Prophecy) -->
+            <button onclick="reviveExplorer()" class="w-full py-2 px-3 rounded-xl bg-surface-container-low/90 border border-dashed border-amber-500/70 text-amber-300 hover:bg-amber-500/10 font-hud text-xs font-bold flex items-center justify-between transition-all">
+              <span class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">smart_display</span>
+                CONTINUE EXPEDITION (WATCH PROPHECY)
+              </span>
+              <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-[10px] text-amber-400">1 LEFT</span>
+            </button>
+
+            <!-- Primary Try Again Button -->
+            <button id="btn-re-enter" onclick="reEnterTemple()" class="w-full py-3 px-4 rounded-xl font-title font-black text-base tracking-widest text-[#241a00] uppercase bg-gradient-to-r from-[#ffe088] via-[#f2ca50] to-[#d4af37] border-2 border-[#fff4b8] shadow-[0_6px_20px_rgba(212,175,55,0.4)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-[20px]">refresh</span>
+              <span>RE-ENTER TEMPLE</span>
+            </button>
+
+            <!-- Main Menu / Sanctuary Button -->
+            <button onclick="returnToSanctuary()" class="w-full py-2.5 px-4 rounded-xl font-hud font-bold text-xs tracking-wider text-on-surface uppercase bg-surface-container-low/90 border border-outline-variant hover:border-primary active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-[16px] text-primary">temple_hindu</span>
+              <span>SANCTUARY (MAIN MENU)</span>
+            </button>
+          </footer>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- INTERACTIVE MODAL OVERLAYS                 -->
+        <!-- ========================================== -->
+
+        <!-- MODAL: HERO SUITS SELECTOR -->
+        <div id="modal-suits" class="modal-backdrop absolute inset-0 z-50 flex items-end sm:items-center justify-center p-3 hidden opacity-0 transition-opacity duration-200">
+          <div class="w-full max-w-sm bg-surface-container-lowest rounded-2xl gold-filigree-border p-4 shadow-2xl relative space-y-3">
+            <div class="flex items-center justify-between border-b border-outline-variant/40 pb-2">
+              <h3 class="font-title text-base font-bold text-primary flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">shield</span>
+                HERO SUITS ROSTER
+              </h3>
+              <button onclick="closeModal()" class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary">✕</button>
+            </div>
+            
+            <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <!-- Suit 1 -->
+              <div onclick="selectSuitByIndex(0)" class="p-2.5 rounded-xl bg-surface-container-low border border-primary/60 flex items-center justify-between cursor-pointer hover:bg-surface-container transition-all">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-10 h-10 rounded-lg bg-black/60 border border-primary overflow-hidden">
+                    <img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYDtcd_TiDgrG9SFauZQW6nNiW3RZUPo3W8jw2N2x8QcjiCZLNigLa4LDMwfhYGVsC4auXLRmj2vKyTwPPC_W-hD1DrKBYM0jxxVIopa8x67Wpno1ipHcrYmiiQmpAgZs2BF-DsQn8z6fIEGZB-C3bbsqpZ7tSPqcChYDiw-OMavDyU2tSOCwSkeXxUELbSPzZX0MDShqlSm7dWjZt5Sq3NgXNHNj99yt4nf6GNWkI48Qb6QryzWvjQ_5yroV1E9c2MSCtuoSV6hOo"/>
+                  </div>
+                  <div>
+                    <h4 class="font-title text-xs font-bold text-primary">SYMBIOTE SHADOW</h4>
+                    <p class="text-[10px] text-secondary-fixed font-hud font-semibold">+35% Magnet Radius</p>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-primary text-on-primary font-hud text-[10px] font-bold">EQUIPPED</span>
+              </div>
+
+              <!-- Suit 2 -->
+              <div onclick="selectSuitByIndex(1)" class="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/60 flex items-center justify-between cursor-pointer hover:bg-surface-container transition-all">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-10 h-10 rounded-lg bg-black/60 border border-outline-variant overflow-hidden">
+                    <img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYDtcd_TiDgrG9SFauZQW6nNiW3RZUPo3W8jw2N2x8QcjiCZLNigLa4LDMwfhYGVsC4auXLRmj2vKyTwPPC_W-hD1DrKBYM0jxxVIopa8x67Wpno1ipHcrYmiiQmpAgZs2BF-DsQn8z6fIEGZB-C3bbsqpZ7tSPqcChYDiw-OMavDyU2tSOCwSkeXxUELbSPzZX0MDShqlSm7dWjZt5Sq3NgXNHNj99yt4nf6GNWkI48Qb6QryzWvjQ_5yroV1E9c2MSCtuoSV6hOo"/>
+                  </div>
+                  <div>
+                    <h4 class="font-title text-xs font-bold text-on-surface">IRON SPIDER</h4>
+                    <p class="text-[10px] text-on-surface-variant font-hud">2-Hit Armor Shield</p>
+                  </div>
+                </div>
+                <button class="px-2 py-0.5 rounded bg-surface-container-high text-primary font-hud text-[10px] font-bold border border-primary/40">SELECT</button>
+              </div>
+
+              <!-- Suit 3 -->
+              <div onclick="selectSuitByIndex(2)" class="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/60 flex items-center justify-between cursor-pointer hover:bg-surface-container transition-all">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-10 h-10 rounded-lg bg-black/60 border border-outline-variant overflow-hidden">
+                    <img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYDtcd_TiDgrG9SFauZQW6nNiW3RZUPo3W8jw2N2x8QcjiCZLNigLa4LDMwfhYGVsC4auXLRmj2vKyTwPPC_W-hD1DrKBYM0jxxVIopa8x67Wpno1ipHcrYmiiQmpAgZs2BF-DsQn8z6fIEGZB-C3bbsqpZ7tSPqcChYDiw-OMavDyU2tSOCwSkeXxUELbSPzZX0MDShqlSm7dWjZt5Sq3NgXNHNj99yt4nf6GNWkI48Qb6QryzWvjQ_5yroV1E9c2MSCtuoSV6hOo"/>
+                  </div>
+                  <div>
+                    <h4 class="font-title text-xs font-bold text-on-surface">CYBER 2099</h4>
+                    <p class="text-[10px] text-on-surface-variant font-hud">2x Distance Multiplier</p>
+                  </div>
+                </div>
+                <button class="px-2 py-0.5 rounded bg-surface-container-high text-primary font-hud text-[10px] font-bold border border-primary/40">SELECT</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: UPGRADES SHOP -->
+        <div id="modal-upgrades" class="modal-backdrop absolute inset-0 z-50 flex items-end sm:items-center justify-center p-3 hidden opacity-0 transition-opacity duration-200">
+          <div class="w-full max-w-sm bg-surface-container-lowest rounded-2xl gold-filigree-border p-4 shadow-2xl relative space-y-3">
+            <div class="flex items-center justify-between border-b border-outline-variant/40 pb-2">
+              <h3 class="font-title text-base font-bold text-primary flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">offline_bolt</span>
+                RELIC UPGRADES SHOP
+              </h3>
+              <button onclick="closeModal()" class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary">✕</button>
+            </div>
+            
+            <div class="space-y-2 font-hud">
+              <!-- Upgrade 1: Shield -->
+              <div class="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/50 flex items-center justify-between">
+                <div>
+                  <h4 class="text-xs font-bold text-on-surface">SHIELD DURATION</h4>
+                  <p class="text-[10px] text-secondary-fixed">Level 3/5 (+15s absorption)</p>
+                </div>
+                <button onclick="purchaseUpgrade('Shield')" class="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-[10px] font-bold hover:brightness-110">
+                  500 🪙
+                </button>
+              </div>
+
+              <!-- Upgrade 2: Magnet -->
+              <div class="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/50 flex items-center justify-between">
+                <div>
+                  <h4 class="text-xs font-bold text-on-surface">RELIC MAGNET</h4>
+                  <p class="text-[10px] text-secondary-fixed">Level 4/5 (Wide vacuum)</p>
+                </div>
+                <button onclick="purchaseUpgrade('Magnet')" class="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-[10px] font-bold hover:brightness-110">
+                  750 🪙
+                </button>
+              </div>
+
+              <!-- Upgrade 3: Heart Capacity -->
+              <div class="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/50 flex items-center justify-between">
+                <div>
+                  <h4 class="text-xs font-bold text-on-surface">HEART CAPACITY</h4>
+                  <p class="text-[10px] text-red-400">Max Lives: 3 Hearts</p>
+                </div>
+                <button onclick="purchaseUpgrade('Heart')" class="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-[10px] font-bold hover:brightness-110">
+                  1,200 🪙
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: OPTIONS / SETTINGS -->
+        <div id="modal-settings" class="modal-backdrop absolute inset-0 z-50 flex items-end sm:items-center justify-center p-3 hidden opacity-0 transition-opacity duration-200">
+          <div class="w-full max-w-sm bg-surface-container-lowest rounded-2xl gold-filigree-border p-4 shadow-2xl relative space-y-3 font-hud">
+            <div class="flex items-center justify-between border-b border-outline-variant/40 pb-2">
+              <h3 class="font-title text-base font-bold text-primary flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">settings</span>
+                EXPEDITION OPTIONS
+              </h3>
+              <button onclick="closeModal()" class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary">✕</button>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+              <div class="flex items-center justify-between">
+                <span>Sound FX & Ambience</span>
+                <input type="checkbox" checked onchange="toggleAudio()" class="rounded border-primary text-primary focus:ring-primary w-4 h-4"/>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Target Framerate (60 FPS)</span>
+                <input type="checkbox" checked class="rounded border-primary text-primary focus:ring-primary w-4 h-4"/>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Swipe Sensitivity</span>
+                <span class="text-primary font-bold">1.2x (Optimal)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: LEADERBOARD -->
+        <div id="modal-leaderboard" class="modal-backdrop absolute inset-0 z-50 flex items-end sm:items-center justify-center p-3 hidden opacity-0 transition-opacity duration-200">
+          <div class="w-full max-w-sm bg-surface-container-lowest rounded-2xl gold-filigree-border p-4 shadow-2xl relative space-y-3 font-hud">
+            <div class="flex items-center justify-between border-b border-outline-variant/40 pb-2">
+              <h3 class="font-title text-base font-bold text-primary flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">leaderboard</span>
+                GLOBAL EXPEDITION RANKS
+              </h3>
+              <button onclick="closeModal()" class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary">✕</button>
+            </div>
+            
+            <div class="space-y-1.5 text-xs">
+              <div class="p-2 rounded-lg bg-surface-container-high flex items-center justify-between border border-primary/40">
+                <span class="font-bold text-amber-400">#1 • MayaRunner</span>
+                <span class="font-bold text-secondary-fixed">92,480m</span>
+              </div>
+              <div class="p-2 rounded-lg bg-surface-container flex items-center justify-between">
+                <span>#2 • JungleGhost</span>
+                <span>78,110m</span>
+              </div>
+              <div class="p-2 rounded-lg bg-surface-container-low flex items-center justify-between text-primary border border-primary/60">
+                <span class="font-bold">#48 • M. Coronado (YOU)</span>
+                <span class="font-bold">48,290m</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Interactive JavaScript Controller -->
+  <script>
+    // --- Web Audio SFX Synthesizer (Zero asset dependency) ---
+    let audioContext = null;
+    let audioEnabled = true;
+
+    function initAudio() {
+      if (!audioContext) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioContext = new AudioContext();
+      }
+    }
+
+    function playSound(type) {
+      if (!audioEnabled) return;
+      try {
+        initAudio();
+        if (!audioContext) return;
+        const now = audioContext.currentTime;
+
+        if (type === 'coin') {
+          // Ascending crisp golden arpeggio
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.05);
+            gain.gain.setValueAtTime(0.12, now + i * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.15);
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.15);
+          });
+        } else if (type === 'start') {
+          // Deep temple drum boom + rising synth
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(120, now);
+          osc.frequency.exponentialRampToValueAtTime(45, now + 0.5);
+          gain.gain.setValueAtTime(0.4, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'death') {
+          // Low resonant defeat gong
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(35, now + 0.9);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start(now);
+          osc.stop(now + 0.9);
+        } else if (type === 'click') {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, now);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start(now);
+          osc.stop(now + 0.06);
+        }
+      } catch (e) {
+        console.warn("Audio unavailable:", e);
+      }
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const icon = document.getElementById('audio-icon');
+      const label = document.getElementById('audio-label');
+      if (audioEnabled) {
+        icon.innerText = 'volume_up';
+        label.innerText = 'SFX ON';
+        playSound('coin');
+      } else {
+        icon.innerText = 'volume_off';
+        label.innerText = 'SFX OFF';
+      }
+    }
+
+    // --- Screen Navigation & Flow State ---
+    const screens = {
+      loading: document.getElementById('screen-loading'),
+      mainmenu: document.getElementById('screen-mainmenu'),
+      death: document.getElementById('screen-death')
+    };
+
+    let currentMode = 'interactive'; // 'interactive' | 'loading' | 'mainmenu' | 'death'
+
+    function switchScreen(target) {
+      playSound('click');
+      currentMode = target;
+
+      // Update Tab Styles
+      ['interactive', 'loading', 'mainmenu', 'death'].forEach(tab => {
+        const btn = document.getElementById(`tab-${tab}`);
+        if (tab === target) {
+          btn.className = 'tab-btn px-3 py-1.5 rounded-lg text-xs font-hud font-bold uppercase tracking-wider transition-all bg-primary text-on-primary shadow';
+        } else {
+          btn.className = 'tab-btn px-3 py-1.5 rounded-lg text-xs font-hud font-bold uppercase tracking-wider transition-all text-on-surface hover:text-primary';
+        }
+      });
+
+      if (target === 'interactive') {
+        // Run game flow starting with loading
+        showScreen('loading');
+        runLoadingProgress();
+      } else {
+        showScreen(target);
+      }
+    }
+
+    function showScreen(name) {
+      Object.keys(screens).forEach(key => {
+        if (key === name) {
+          screens[key].classList.remove('hidden-screen');
+          screens[key].classList.add('active-screen');
+        } else {
+          screens[key].classList.add('hidden-screen');
+          screens[key].classList.remove('active-screen');
+        }
+      });
+    }
+
+    // --- Loading Screen Simulation ---
+    let loadingProgress = 0;
+    let loadingInterval = null;
+    const tips = [
+      "Swipe DOWN quickly to slide beneath low stone arches and spike traps!",
+      "Swipe UP to leap across gaping chasm drops and fallen jungle timber!",
+      "Collect glowing Hearts to bank artifacts and survive fatal beast encounters!",
+      "Grab Energy Boosters for invulnerable supersonic barrier speed!"
+    ];
+    let tipIndex = 0;
+
+    function runLoadingProgress() {
+      loadingProgress = 0;
+      updateLoadingUI(0);
+      clearInterval(loadingInterval);
+
+      loadingInterval = setInterval(() => {
+        loadingProgress += Math.floor(Math.random() * 12) + 6;
+        if (loadingProgress >= 100) {
+          loadingProgress = 100;
+          updateLoadingUI(100);
+          clearInterval(loadingInterval);
+          setTimeout(() => {
+            playSound('start');
+            showScreen('mainmenu');
+          }, 450);
+        } else {
+          updateLoadingUI(loadingProgress);
+        }
+      }, 120);
+
+      // Cycle tips
+      tipIndex = (tipIndex + 1) % tips.length;
+      document.getElementById('loading-tip-text').innerText = tips[tipIndex];
+    }
+
+    function updateLoadingUI(pct) {
+      document.getElementById('loading-bar-fill').style.width = pct + '%';
+      document.getElementById('loading-percentage').innerText = pct + '%';
+      if (pct > 70) {
+        document.getElementById('loading-status-text').innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin text-secondary-fixed">done_all</span> EXPEDITION READY!';
+      } else {
+        document.getElementById('loading-status-text').innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">sync</span> EXCAVATING RUNIC CORRIDORS...';
+      }
+    }
+
+    function finishLoadingInstantly() {
+      clearInterval(loadingInterval);
+      updateLoadingUI(100);
+      playSound('start');
+      showScreen('mainmenu');
+    }
+
+    // --- Main Menu Interactions ---
+    let playerCoins = 4850;
+    function addBonusCoins() {
+      playerCoins += 100;
+      document.getElementById('menu-coin-display').innerText = playerCoins.toLocaleString();
+      playSound('coin');
+    }
+
+    // Suit Roster Data
+    const suits = [
+      {
+        title: "SYMBIOTE SHADOW",
+        rarity: "LEGENDARY",
+        perk: "PERK: +35% MAGNET RADIUS",
+        speed: "MAX",
+        armor: "880",
+        luck: "+18%",
+        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCYDtcd_TiDgrG9SFauZQW6nNiW3RZUPo3W8jw2N2x8QcjiCZLNigLa4LDMwfhYGVsC4auXLRmj2vKyTwPPC_W-hD1DrKBYM0jxxVIopa8x67Wpno1ipHcrYmiiQmpAgZs2BF-DsQn8z6fIEGZB-C3bbsqpZ7tSPqcChYDiw-OMavDyU2tSOCwSkeXxUELbSPzZX0MDShqlSm7dWjZt5Sq3NgXNHNj99yt4nf6GNWkI48Qb6QryzWvjQ_5yroV1E9c2MSCtuoSV6hOo"
+      },
+      {
+        title: "IRON SPIDER",
+        rarity: "MYTHIC",
+        perk: "PERK: 2-HIT ENERGY SHIELD",
+        speed: "920",
+        armor: "950",
+        luck: "+25%",
+        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBrQTm2tYNuhx5QHg23cknJH79sUco3dxSuk5GDGuhKzcb9-NhJhnFzvEPj_O1C8VpmLNyYt48F492h6XENx56jBnW-U3ROh2rfA-3NHbn_FjoF3YJlVXVfSvn-OF9X7L0-vGbwGnZLEBGvSFYpatjSCHEkXPFWhH6a8nVoO7Ncx5x2F93-mPrY3vRets7cpKuABiqPkuulNhagMBv5SYxGBLTNN0krvG8unVpX9wUOh0OkE32zmTdgAyKaTGn7FYV_N4qpPnn4sUT3"
+      },
+      {
+        title: "CYBER 2099",
+        rarity: "EXOTIC",
+        perk: "PERK: 2x DISTANCE MULTIPLIER",
+        speed: "980",
+        armor: "720",
+        luck: "+30%",
+        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBcdHQSWEXaNgAFUkb9NqBSUs9MX71pIsc0CD_La1mLCTF5N2fJXHH5h1LLqElmZUsniR20jVqVYK93rJNCZm69POTjQE0z_OC-JC_OtXKLInvXhZMUBV5oc-JMHHEsi3dJbdQzSJxtz3TgcoQ_p011TPtKxoc5w4cvsigCNz79xMBtsts5uMeEiy8PrBY7PG9fgDVjcaHFLxs--5BAejh8-hgqcPL8l7iRziX_drzYqh7TfgLRJLF3ElQKqj3EY37X63Qh-E0FO7yn"
+      }
+    ];
+    let currentSuitIndex = 0;
+
+    function renderSuit() {
+      const s = suits[currentSuitIndex];
+      document.getElementById('suit-title').innerText = s.title;
+      document.getElementById('suit-rarity-badge').innerText = s.rarity;
+      document.getElementById('suit-perk-desc').innerText = s.perk;
+      document.getElementById('suit-stat-speed').innerText = s.speed;
+      document.getElementById('suit-stat-armor').innerText = s.armor;
+      document.getElementById('suit-stat-luck').innerText = s.luck;
+      document.getElementById('suit-preview-img').src = s.img;
+      playSound('click');
+    }
+
+    function nextSuit() {
+      currentSuitIndex = (currentSuitIndex + 1) % suits.length;
+      renderSuit();
+    }
+    function prevSuit() {
+      currentSuitIndex = (currentSuitIndex - 1 + suits.length) % suits.length;
+      renderSuit();
+    }
+    function selectSuitByIndex(i) {
+      currentSuitIndex = i;
+      renderSuit();
+      closeModal();
+    }
+
+    // --- Expedition Launch & Death Scene ---
+    function startExpedition() {
+      playSound('start');
+      const btn = document.getElementById('btn-start-expedition');
+      btn.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-spin">sync</span> SPRINTING THROUGH TEMPLE...';
+      
+      // Simulate run encounter -> Defeat trigger
+      setTimeout(() => {
+        btn.innerHTML = '<span class="material-symbols-outlined text-[22px]">explore</span> START EXPEDITION <span class="material-symbols-outlined text-[20px]">arrow_forward</span>';
+        triggerDeathScene();
+      }, 1200);
+    }
+
+    function triggerDeathScene() {
+      playSound('death');
+      showScreen('death');
+
+      // Animate score count-up
+      let dist = 0;
+      const targetDist = 4920;
+      const distElem = document.getElementById('death-stat-distance');
+      const scoreInterval = setInterval(() => {
+        dist += 240;
+        if (dist >= targetDist) {
+          dist = targetDist;
+          clearInterval(scoreInterval);
+        }
+        distElem.innerText = dist.toLocaleString() + ' METERS';
+      }, 30);
+    }
+
+    function reEnterTemple() {
+      playSound('click');
+      showScreen('loading');
+      runLoadingProgress();
+    }
+
+    function returnToSanctuary() {
+      playSound('click');
+      showScreen('mainmenu');
+    }
+
+    function reviveExplorer() {
+      playSound('coin');
+      alert("Prophecy Accepted! +1 Revive granted. Resuming expedition!");
+      showScreen('mainmenu');
+    }
+
+    // --- Modals Management ---
+    function openModal(id) {
+      playSound('click');
+      const m = document.getElementById(`modal-${id}`);
+      if (m) {
+        m.classList.remove('hidden');
+        setTimeout(() => m.classList.remove('opacity-0'), 10);
+      }
+    }
+
+    function closeModal() {
+      playSound('click');
+      ['suits', 'upgrades', 'settings', 'leaderboard'].forEach(id => {
+        const m = document.getElementById(`modal-${id}`);
+        if (m) {
+          m.classList.add('opacity-0');
+          setTimeout(() => m.classList.add('hidden'), 200);
+        }
+      });
+    }
+
+    function purchaseUpgrade(type) {
+      if (playerCoins >= 500) {
+        playerCoins -= 500;
+        document.getElementById('menu-coin-display').innerText = playerCoins.toLocaleString();
+        playSound('coin');
+        alert(`${type} upgraded successfully!`);
+      } else {
+        alert("Not enough Gold Coins! Gather more in the temple.");
+      }
+    }
+
+    // --- Device Frame Toggle ---
+    let isPhoneFrame = true;
+    function toggleDeviceFrame() {
+      playSound('click');
+      isPhoneFrame = !isPhoneFrame;
+      const wrapper = document.getElementById('device-wrapper');
+      const label = document.getElementById('device-label');
+      if (isPhoneFrame) {
+        wrapper.className = "relative w-full max-w-[430px] h-[884px] max-h-[92vh] rounded-[42px] p-3.5 bg-gradient-to-b from-[#1f2628] via-[#0d1214] to-[#080b0c] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] border-4 border-[#2b3538] transition-all duration-300";
+        label.innerText = "PHONE FRAME";
+      } else {
+        wrapper.className = "relative w-full max-w-2xl h-[884px] max-h-[92vh] rounded-2xl p-1 bg-[#101517] shadow-2xl border border-outline-variant/50 transition-all duration-300";
+        label.innerText = "EXPANDED";
+      }
+    }
+
+    // Initialize initial game flow loading on page open
+    window.addEventListener('DOMContentLoaded', () => {
+      runLoadingProgress();
+    });
+  </script>
+</body>
+</html>

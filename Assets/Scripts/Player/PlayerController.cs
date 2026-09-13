@@ -48,11 +48,11 @@ namespace Runner.Player
         [Tooltip("Duration of slide crouch in seconds")]
         [SerializeField] private float slideDuration = 0.85f;
 
-        [Header("Visual Mesh & Procedural Squash/Stretch")]
-        [Tooltip("Child transform containing visual capsule/body mesh")]
+        [Header("Visual Mesh & Character Binding")]
+        [Tooltip("Child transform containing visual model")]
         [SerializeField] private Transform visualTransform;
 
-        [Tooltip("MeshRenderer of visual mesh for stumble color flashing")]
+        [Tooltip("Renderer of visual mesh for stumble color flashing")]
         [SerializeField] private MeshRenderer visualRenderer;
 
         // Lane tracking (-1 = Left, 0 = Center, +1 = Right)
@@ -90,12 +90,11 @@ namespace Runner.Player
         private float stumbleVisualTimer = 0.0f;
         private Color originalVisualColor = Color.cyan;
 
-        // Run Bobbing
-        private float bobTimer = 0.0f;
-
         // Junction Turn Interaction
         public JunctionTrigger ActiveJunction { get; set; }
         private Vector3 corridorAnchor = Vector3.zero;
+        private Vector3 corridorForward = Vector3.forward;
+        private Vector3 corridorRight = Vector3.right;
         private float queuedTurnAngle = 0.0f;
         private float queuedTurnTimer = 0.0f;
 
@@ -130,13 +129,27 @@ namespace Runner.Player
             {
                 animator = GetComponentInChildren<Animator>();
             }
+            if (animator != null)
+            {
+                animator.applyRootMotion = false;
+            }
 
             targetRotation = transform.rotation;
-            ForwardDirection = transform.forward;
-            RightDirection = transform.right;
+            corridorForward = transform.forward;
+            corridorRight = transform.right;
+            ForwardDirection = corridorForward;
+            RightDirection = corridorRight;
             corridorAnchor = transform.position;
 
             EnsureSpiderManSuitMaterial();
+        }
+
+        private void Start()
+        {
+            if (Runner.Characters.CharacterManager.Instance != null)
+            {
+                Runner.Characters.CharacterManager.Instance.ApplyCharacterModelToPlayer(gameObject);
+            }
         }
 
         private void EnsureSpiderManSuitMaterial()
@@ -220,6 +233,26 @@ namespace Runner.Player
 
         private void Update()
         {
+            // ALWAYS update animator every frame — even before game starts — so Run anim plays on menu
+            if (animator != null)
+            {
+                if (animator.applyRootMotion)
+                {
+                    animator.applyRootMotion = false;
+                }
+                bool isPlaying = (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Playing);
+                float forwardSpeed = isPlaying ? GameManager.Instance.CurrentSpeed : 1.0f;
+                animator.SetFloat("Speed", forwardSpeed);
+                animator.SetBool("IsGrounded", characterController.isGrounded);
+            }
+
+            // Keep visual model strictly centered without local offset drift
+            if (visualTransform != null)
+            {
+                visualTransform.localPosition = Vector3.zero;
+                visualTransform.localRotation = Quaternion.identity;
+            }
+
             if (GameManager.Instance == null || GameManager.Instance.CurrentState != GameState.Playing)
                 return;
 
@@ -258,17 +291,16 @@ namespace Runner.Player
             }
 
             // 2. Smoothly Rotate toward current heading
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, dt * rotationSlerpSpeed);
-            ForwardDirection = transform.forward;
-            RightDirection = transform.right;
-
-            // Update Animator parameters if present
-            if (animator != null)
+            if (Quaternion.Angle(transform.rotation, targetRotation) > 0.05f)
             {
-                float forwardSpeed = GameManager.Instance.CurrentSpeed;
-                animator.SetFloat("Speed", forwardSpeed);
-                animator.SetBool("IsGrounded", characterController.isGrounded);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, dt * rotationSlerpSpeed);
             }
+            else
+            {
+                transform.rotation = targetRotation;
+            }
+            ForwardDirection = corridorForward;
+            RightDirection = corridorRight;
 
             // 3. Handle Jump Ballistics
             UpdateJump(dt);
@@ -282,13 +314,23 @@ namespace Runner.Player
             // 6. Calculate Movement Vector
             MoveCharacter(dt);
 
-            // 7. Procedural Animations (Squash, Stretch, Run Bob)
-            UpdateProceduralVisuals(dt);
-
-            // 8. Void Fall Check
+            // 7. Void Fall Check
             if (transform.position.y < -3.0f && State != PlayerState.Dead)
             {
                 Die(DeathType.FallIntoVoid);
+            }
+        }
+
+        private void LateUpdate()
+        {
+            // Keep visual model strictly centered without local offset drift after animation evaluation
+            if (visualTransform != null && (State != PlayerState.Dead || animator != null))
+            {
+                visualTransform.localPosition = Vector3.zero;
+                if (animator != null)
+                {
+                    visualTransform.localRotation = Quaternion.identity;
+                }
             }
         }
 
@@ -297,8 +339,8 @@ namespace Runner.Player
         {
             float forwardSpeed = GameManager.Instance.CurrentSpeed;
 
-            // Forward displacement along forward heading
-            Vector3 forwardMove = ForwardDirection * (forwardSpeed * dt);
+            // Forward displacement strictly along the corridor forward heading
+            Vector3 forwardMove = corridorForward * (forwardSpeed * dt);
 
             // Lateral Lane Target Calculation (-1 = Left, 0 = Center, +1 = Right)
             CurrentLane = Mathf.Clamp(CurrentLane, -1, 1);
@@ -307,21 +349,22 @@ namespace Runner.Player
                 ? inputClassifier.CurrentTilt * tiltLeanMaxOffset : 0f;
             float desiredLateralOffset = targetLateralOffset + tiltOffset;
 
-            // Smoothly advance currentLaneOffset toward desiredLateralOffset
-            float prevLaneOffset = currentLaneOffset;
-            currentLaneOffset = Mathf.MoveTowards(currentLaneOffset, desiredLateralOffset, laneChangeSpeed * dt);
-            float laneDelta = currentLaneOffset - prevLaneOffset;
-
-            // Closed-loop drift correction relative to current corridor centerline:
-            // corridorAnchor is the snap center of the current track corridor.
-            // This prevents phantom world-origin offsets on 90-degree branch turns!
+            // Measured lateral offset relative to fixed corridor centerline:
+            // Projecting onto corridorRight eliminates any cross-product/lever-arm error over long running distances!
             Vector3 offsetFromCorridor = transform.position - corridorAnchor;
-            float actualLateral = Vector3.Dot(offsetFromCorridor, RightDirection);
-            float driftError = currentLaneOffset - actualLateral;
-            float maxCorrectionStep = laneChangeSpeed * dt * 1.5f;
-            float driftCorrection = Mathf.Clamp(driftError, -maxCorrectionStep, maxCorrectionStep);
+            float currentLateral = Vector3.Dot(offsetFromCorridor, corridorRight);
 
-            Vector3 lateralMove = RightDirection * (laneDelta + driftCorrection);
+            // Smooth monotonic lane interpolation with a deadzone threshold to prevent micro-vibrations
+            float lateralDiff = desiredLateralOffset - currentLateral;
+            float lateralStep = 0f;
+            if (Mathf.Abs(lateralDiff) > 0.0005f)
+            {
+                float nextLateral = Mathf.MoveTowards(currentLateral, desiredLateralOffset, laneChangeSpeed * dt);
+                lateralStep = nextLateral - currentLateral;
+            }
+
+            currentLaneOffset = currentLateral + lateralStep;
+            Vector3 lateralMove = corridorRight * lateralStep;
 
             // Vertical displacement
             Vector3 verticalMove = Vector3.up * (verticalVelocity * dt);
@@ -531,6 +574,10 @@ namespace Runner.Player
 
                 // Grid Snapping: set corridor anchor to junction snap point and clear lateral lane offsets
                 corridorAnchor = snapPos;
+                corridorForward = targetRotation * Vector3.forward;
+                corridorRight = targetRotation * Vector3.right;
+                ForwardDirection = corridorForward;
+                RightDirection = corridorRight;
                 currentLaneOffset = 0.0f;
                 CurrentLane = 0;
 
@@ -540,46 +587,16 @@ namespace Runner.Player
             {
                 targetRotation *= Quaternion.Euler(0, angleDegrees, 0);
                 transform.rotation = targetRotation;
-                ForwardDirection = transform.forward;
-                RightDirection = transform.right;
                 corridorAnchor = transform.position;
+                corridorForward = targetRotation * Vector3.forward;
+                corridorRight = targetRotation * Vector3.right;
+                ForwardDirection = corridorForward;
+                RightDirection = corridorRight;
                 currentLaneOffset = 0.0f;
                 CurrentLane = 0;
             }
         }
         #endregion
-
-        #region Procedural Squash, Stretch & Bobbing
-        private void UpdateProceduralVisuals(float dt)
-        {
-            if (visualTransform == null || animator != null) return;
-
-            Vector3 baseScale = Vector3.one;
-            Vector3 visualPosOffset = Vector3.zero;
-
-            if (State == PlayerState.Jumping)
-            {
-                // Ballistic stretch (elongate vertically)
-                baseScale = new Vector3(0.88f, 1.25f, 0.88f);
-            }
-            else if (State == PlayerState.Sliding)
-            {
-                // Slide squash (flatten and widen)
-                baseScale = new Vector3(1.30f, 0.48f, 1.35f);
-                visualPosOffset = new Vector3(0, -0.5f, 0);
-            }
-            else if (State == PlayerState.Running)
-            {
-                // Running bobbing sine wave
-                float speed = GameManager.Instance.CurrentSpeed;
-                bobTimer += dt * speed * 1.5f;
-                float bobY = Mathf.Abs(Mathf.Sin(bobTimer)) * 0.12f;
-                visualPosOffset = new Vector3(0, bobY, 0);
-            }
-
-            visualTransform.localScale = Vector3.Lerp(visualTransform.localScale, baseScale, dt * 15.0f);
-            visualTransform.localPosition = Vector3.Lerp(visualTransform.localPosition, visualPosOffset, dt * 15.0f);
-        }
 
         private AudioSource audioSource;
         private AudioClip stumbleSoundClip;
@@ -663,7 +680,6 @@ namespace Runner.Player
                 }
             }
         }
-        #endregion
 
         #region Stumble & Death Callbacks
         private void HandleStumbleStarted(int count, float decayTime)
@@ -770,81 +786,80 @@ namespace Runner.Player
         /// 2: Iron Spider / Gilded Armor (Gold aura & trail)
         /// 3: Cyber Spider 2099 (Neon cyan aura & trail)
         /// </summary>
-        public void ApplySuit(int suitIndex)
+        /// <summary>
+        /// Equips the active character. For Spider-Man, preserves original authentic materials.
+        /// When custom character models are uploaded, delegates instantiation to CharacterManager.
+        /// </summary>
+        public void ApplySuit(int characterIndex)
         {
-            Renderer[] renderers = GetComponentsInChildren<Renderer>();
-            Color suitTint = Color.white;
-            float emissionBoost = 0f;
-            Color emissionColor = Color.black;
-            Color trailColor = Color.clear;
-
-            switch (suitIndex)
+            // Apply custom 3D character prefab if assigned in CharacterManager
+            if (Runner.Characters.CharacterManager.Instance != null)
             {
-                case 0: // Classic Spider Suit
-                    suitTint = Color.white;
-                    emissionBoost = 0f;
-                    trailColor = Color.clear;
-                    break;
-                case 1: // Symbiote / Shadow Stealth Suit (Midnight black with glowing violet accents)
-                    suitTint = new Color(0.12f, 0.12f, 0.16f);
-                    emissionBoost = 0.7f;
-                    emissionColor = new Color(0.65f, 0.15f, 0.95f);
-                    trailColor = new Color(0.65f, 0.15f, 0.95f, 0.5f);
-                    break;
-                case 2: // Iron Spider / Gilded Aztec Armor (Rich metallic gold & crimson)
-                    suitTint = new Color(1.0f, 0.85f, 0.35f);
-                    emissionBoost = 0.75f;
-                    emissionColor = new Color(1.0f, 0.75f, 0.1f);
-                    trailColor = new Color(1.0f, 0.80f, 0.2f, 0.55f);
-                    break;
-                case 3: // Spider-Man 2099 / Cyber Neon (Dark indigo with electric neon cyan)
-                    suitTint = new Color(0.10f, 0.15f, 0.35f);
-                    emissionBoost = 0.85f;
-                    emissionColor = new Color(0.05f, 0.95f, 1.0f);
-                    trailColor = new Color(0.05f, 0.95f, 1.0f, 0.6f);
-                    break;
+                Runner.Characters.CharacterManager.Instance.ApplyCharacterModelToPlayer(gameObject);
             }
 
-            foreach (var r in renderers)
+            // Restore pure authentic materials for Spider-Man ONLY (do not modify custom 3D models!)
+            bool isSpiderMan = (Runner.Characters.CharacterManager.Instance == null || 
+                                Runner.Characters.CharacterManager.Instance.SelectedCharacterIndex == 0);
+
+            if (isSpiderMan)
             {
-                if (r == null || r.gameObject.name.Contains("Oval") || r.gameObject.name.Contains("Shield")) continue;
-                foreach (var mat in r.materials)
+                Renderer[] renderers = GetComponentsInChildren<Renderer>();
+                foreach (var r in renderers)
                 {
-                    if (mat == null) continue;
-                    mat.color = suitTint;
-                    if (emissionBoost > 0f)
+                    if (r == null || r.gameObject.name.Contains("Oval") || r.gameObject.name.Contains("Shield") || r.gameObject.name.Contains("Custom")) continue;
+                    foreach (var mat in r.materials)
                     {
-                        mat.EnableKeyword("_EMISSION");
-                        mat.SetColor("_EmissionColor", emissionColor * emissionBoost);
-                    }
-                    else
-                    {
+                        if (mat == null) continue;
+                        mat.color = Color.white;
                         mat.DisableKeyword("_EMISSION");
                     }
                 }
             }
 
-            // Configure dynamic suit trail
-            if (trailColor.a > 0.05f)
+            if (suitTrail != null)
             {
-                if (suitTrail == null)
-                {
-                    suitTrail = gameObject.GetComponent<TrailRenderer>();
-                    if (suitTrail == null) suitTrail = gameObject.AddComponent<TrailRenderer>();
-                    suitTrail.time = 0.35f;
-                    suitTrail.startWidth = 0.40f;
-                    suitTrail.endWidth = 0.02f;
-                    suitTrail.material = Runner.Core.MaterialHelper.CreateSafeMaterial(trailColor);
-                }
-                suitTrail.startColor = trailColor;
-                suitTrail.endColor = new Color(trailColor.r, trailColor.g, trailColor.b, 0f);
-                suitTrail.enabled = true;
-            }
-            else if (suitTrail != null)
-            {
+                suitTrail.emitting = false;
                 suitTrail.enabled = false;
             }
+        }
+
+        /// <summary>
+        /// Dynamically re-binds active visual model and animator when custom characters are equipped.
+        /// </summary>
+        public void SetActiveVisualModel(Transform newVisualTransform, Animator newAnimator)
+        {
+            this.visualTransform = newVisualTransform;
+            this.animator = newAnimator;
+            if (newAnimator != null)
+            {
+                newAnimator.applyRootMotion = false;
+            }
+            if (newVisualTransform != null)
+            {
+                newVisualTransform.localPosition = Vector3.zero;
+                newVisualTransform.localRotation = Quaternion.identity;
+                this.visualRenderer = newVisualTransform.GetComponentInChildren<MeshRenderer>();
+            }
+        }
+
+        /// <summary>
+        /// Primes the animator Speed and IsGrounded params right after equip
+        /// so the Run state starts immediately without waiting for first Update.
+        /// </summary>
+        public void SyncAnimatorSpeed(Animator anim)
+        {
+            if (anim == null) return;
+            anim.applyRootMotion = false;
+            float speed = (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Playing)
+                ? GameManager.Instance.CurrentSpeed
+                : 1.0f;
+            anim.SetFloat("Speed", speed);
+            anim.SetBool("IsGrounded", true);
+            // Ensure the Run state is actively playing
+            anim.Play("Run", 0, 0f);
         }
         #endregion
     }
 }
+

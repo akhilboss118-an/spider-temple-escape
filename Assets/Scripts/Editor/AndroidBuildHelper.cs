@@ -24,11 +24,19 @@ namespace Runner.EditorTools
 
             PlayerSettings.productName = APP_NAME;
             PlayerSettings.companyName = "SpiderHero";
-            PlayerSettings.bundleVersion = "1.2.0";
-            PlayerSettings.Android.bundleVersionCode = 3;
+            PlayerSettings.bundleVersion = "1.3.0";
+            PlayerSettings.Android.bundleVersionCode = 4;
 
             // Application ID / Package Name
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, PACKAGE_NAME);
+
+            // Set App Icon
+            Texture2D icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/UI/app_logo.png");
+            if (icon != null)
+            {
+                PlayerSettings.SetIconsForTargetGroup(BuildTargetGroup.Unknown, new Texture2D[] { icon });
+                PlayerSettings.SetIconsForTargetGroup(BuildTargetGroup.Android, new Texture2D[] { icon });
+            }
 
             // Portrait Lock
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;

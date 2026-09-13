@@ -1550,7 +1550,7 @@ namespace Runner.Track
                 pillar.transform.SetParent(brazier.transform, false);
                 pillar.transform.localPosition = new Vector3(0, 0.35f, 0);
                 pillar.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
-                Destroy(pillar.GetComponent<Collider>());
+                SafeDestroy(pillar.GetComponent<Collider>());
                 if (curbMatCache != null) pillar.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
 
                 GameObject bowl = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -1558,7 +1558,7 @@ namespace Runner.Track
                 bowl.transform.SetParent(brazier.transform, false);
                 bowl.transform.localPosition = new Vector3(0, 0.72f, 0);
                 bowl.transform.localScale = new Vector3(0.50f, 0.20f, 0.50f);
-                Destroy(bowl.GetComponent<Collider>());
+                SafeDestroy(bowl.GetComponent<Collider>());
                 if (curbMatCache != null) bowl.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
 
                 GameObject fireCore = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -1566,7 +1566,7 @@ namespace Runner.Track
                 fireCore.transform.SetParent(brazier.transform, false);
                 fireCore.transform.localPosition = new Vector3(0, 0.85f, 0);
                 fireCore.transform.localScale = new Vector3(0.24f, 0.32f, 0.24f);
-                Destroy(fireCore.GetComponent<Collider>());
+                SafeDestroy(fireCore.GetComponent<Collider>());
                 Material fireMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.55f, 0.05f));
                 if (fireMat != null)
                 {
@@ -1587,6 +1587,130 @@ namespace Runner.Track
             torchLight.range = 8.5f;
             torchLight.intensity = 2.8f;
             torchLight.shadows = LightShadows.None;
+        }
+
+        /// <summary>
+        /// Builds an authentic ancient Mayan/Aztec temple stone wall facade with plinth,
+        /// flanking columns, carved lintel, and glowing runic turn tablets.
+        /// Replaces placeholder primitive cubes completely!
+        /// </summary>
+        private GameObject BuildAncientTempleWallFacade(Transform parent, Vector3 localPos, Vector3 localScale, bool isDeadEnd, bool canLeft = false, bool canRight = false)
+        {
+            EnsureMaterials();
+            Ensure3DModels();
+
+            GameObject wallRoot = new GameObject(isDeadEnd ? "DeadEndTempleFacade" : "TempleBarrierWall");
+            wallRoot.transform.SetParent(parent, false);
+            wallRoot.transform.localPosition = localPos;
+
+            Material stoneMat = curbMatCache != null ? curbMatCache : obstacleMatCache;
+            Material reliefMat = sidewalkMatCache != null ? sidewalkMatCache : stoneMat;
+
+            // 1. Central Carved Stone Wall Slab with depth
+            GameObject mainWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            mainWall.name = "CentralWallSlab";
+            mainWall.transform.SetParent(wallRoot.transform, false);
+            mainWall.transform.localPosition = Vector3.zero;
+            mainWall.transform.localScale = localScale;
+            SafeDestroy(mainWall.GetComponent<Collider>());
+            if (stoneMat != null) mainWall.GetComponent<MeshRenderer>().sharedMaterial = stoneMat;
+
+            // 2. Stepped Base Foundation
+            GameObject basePlinth = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            basePlinth.name = "BasePlinth";
+            basePlinth.transform.SetParent(wallRoot.transform, false);
+            basePlinth.transform.localPosition = new Vector3(0, -localScale.y * 0.45f, 0);
+            basePlinth.transform.localScale = new Vector3(localScale.x * 1.04f, localScale.y * 0.18f, localScale.z * 1.35f);
+            SafeDestroy(basePlinth.GetComponent<Collider>());
+            if (reliefMat != null) basePlinth.GetComponent<MeshRenderer>().sharedMaterial = reliefMat;
+
+            // 3. Top Carved Lintel Architrave
+            GameObject topCornice = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            topCornice.name = "TopCornice";
+            topCornice.transform.SetParent(wallRoot.transform, false);
+            topCornice.transform.localPosition = new Vector3(0, localScale.y * 0.48f, 0);
+            topCornice.transform.localScale = new Vector3(localScale.x * 1.05f, localScale.y * 0.16f, localScale.z * 1.4f);
+            SafeDestroy(topCornice.GetComponent<Collider>());
+            if (reliefMat != null) topCornice.GetComponent<MeshRenderer>().sharedMaterial = reliefMat;
+
+            // 4. Flanking Carved Pillars on the left & right sides
+            float halfW = localScale.x * 0.48f;
+            float colRadius = Mathf.Clamp(localScale.z * 1.15f, 0.55f, 1.25f);
+
+            GameObject pillarL = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pillarL.name = "Column_Left";
+            pillarL.transform.SetParent(wallRoot.transform, false);
+            pillarL.transform.localPosition = new Vector3(-halfW, 0, 0);
+            pillarL.transform.localScale = new Vector3(colRadius, localScale.y * 0.52f, colRadius);
+            SafeDestroy(pillarL.GetComponent<Collider>());
+            if (stoneMat != null) pillarL.GetComponent<MeshRenderer>().sharedMaterial = stoneMat;
+
+            GameObject pillarR = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pillarR.name = "Column_Right";
+            pillarR.transform.SetParent(wallRoot.transform, false);
+            pillarR.transform.localPosition = new Vector3(halfW, 0, 0);
+            pillarR.transform.localScale = new Vector3(colRadius, localScale.y * 0.52f, colRadius);
+            SafeDestroy(pillarR.GetComponent<Collider>());
+            if (stoneMat != null) pillarR.GetComponent<MeshRenderer>().sharedMaterial = stoneMat;
+
+            // 5. If this is a Dead End Wall at a T-Junction:
+            if (isDeadEnd)
+            {
+                // Flanking flaming braziers on the temple facade
+                SpawnRoadsideBrazier(wallRoot.transform, new Vector3(-halfW, localScale.y * 0.15f, -colRadius * 0.6f));
+                SpawnRoadsideBrazier(wallRoot.transform, new Vector3(halfW, localScale.y * 0.15f, -colRadius * 0.6f));
+
+                // Carved Central Stone Tablet with Emissive Gold Runic Turn Runes
+                GameObject tablet = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                tablet.name = "RunicTurnTablet";
+                tablet.transform.SetParent(wallRoot.transform, false);
+                tablet.transform.localPosition = new Vector3(0, localScale.y * 0.10f, -localScale.z * 0.53f);
+                tablet.transform.localScale = new Vector3(3.2f, 1.05f, 0.15f);
+                SafeDestroy(tablet.GetComponent<Collider>());
+                Material tabletMat = MaterialHelper.CreateSafeMaterial(new Color(0.12f, 0.10f, 0.08f));
+                if (tabletMat != null) tablet.GetComponent<MeshRenderer>().sharedMaterial = tabletMat;
+
+                Material arrowMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.85f, 0.15f));
+                if (arrowMat != null)
+                {
+                    arrowMat.EnableKeyword("_EMISSION");
+                    arrowMat.SetColor("_EmissionColor", new Color(1.0f, 0.80f, 0.10f) * 1.5f);
+                }
+
+                if (canLeft)
+                {
+                    GameObject leftArrow = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    leftArrow.name = "LeftTurnArrow";
+                    leftArrow.transform.SetParent(tablet.transform, false);
+                    leftArrow.transform.localPosition = new Vector3(canRight ? -0.28f : 0.0f, 0, -0.6f);
+                    leftArrow.transform.localRotation = Quaternion.Euler(0, 0, 45f);
+                    leftArrow.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+                    SafeDestroy(leftArrow.GetComponent<Collider>());
+                    if (arrowMat != null) leftArrow.GetComponent<MeshRenderer>().sharedMaterial = arrowMat;
+                }
+
+                if (canRight)
+                {
+                    GameObject rightArrow = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    rightArrow.name = "RightTurnArrow";
+                    rightArrow.transform.SetParent(tablet.transform, false);
+                    rightArrow.transform.localPosition = new Vector3(canLeft ? 0.28f : 0.0f, 0, -0.6f);
+                    rightArrow.transform.localRotation = Quaternion.Euler(0, 0, 45f);
+                    rightArrow.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+                    SafeDestroy(rightArrow.GetComponent<Collider>());
+                    if (arrowMat != null) rightArrow.GetComponent<MeshRenderer>().sharedMaterial = arrowMat;
+                }
+            }
+
+            // Root BoxCollider for collision
+            BoxCollider bc = wallRoot.AddComponent<BoxCollider>();
+            bc.size = new Vector3(localScale.x, localScale.y, localScale.z * 1.15f);
+            bc.center = Vector3.zero;
+
+            var obs = wallRoot.AddComponent<Obstacle>();
+            obs.SetObstacleType(ObstacleType.DeadEndWall);
+
+            return wallRoot;
         }
 
         private TrackChunk CreateProceduralChunk(ChunkType type)
@@ -1611,6 +1735,24 @@ namespace Runner.Track
                 SafeSetTag(floor, "Ground");
                 floor.GetComponent<MeshRenderer>().sharedMaterial = trackMatCache;
 
+                // Colossal Stone Aqueduct Sub-Foundation & Bridge Buttress (Grounds the runway into the canyon!)
+                GameObject subFoundation = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                subFoundation.name = "Aqueduct_SubFoundation";
+                subFoundation.transform.SetParent(chunkObj.transform, false);
+                subFoundation.transform.localPosition = new Vector3(0, -2.6f, 5.0f);
+                subFoundation.transform.localScale = new Vector3(7.4f, 5.0f, 10.3f);
+                SafeDestroy(subFoundation.GetComponent<Collider>());
+                if (curbMatCache != null) subFoundation.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
+                // Grand Arched Stone Bridge Pillar descending into the depths
+                GameObject bridgePillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                bridgePillar.name = "Aqueduct_BridgePillar";
+                bridgePillar.transform.SetParent(chunkObj.transform, false);
+                bridgePillar.transform.localPosition = new Vector3(0, -9.0f, 5.0f);
+                bridgePillar.transform.localScale = new Vector3(4.2f, 9.0f, 4.2f);
+                SafeDestroy(bridgePillar.GetComponent<Collider>());
+                if (curbMatCache != null) bridgePillar.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
                 bool isLeftJunc = (type == ChunkType.TJunctionLeft || type == ChunkType.TJunctionDouble);
                 bool isRightJunc = (type == ChunkType.TJunctionRight || type == ChunkType.TJunctionDouble);
 
@@ -1623,6 +1765,23 @@ namespace Runner.Track
                     leftCurb.transform.localPosition = new Vector3(-3.85f, 0.25f, 5.0f);
                     leftCurb.transform.localScale = new Vector3(0.7f, 0.5f, 10.3f);
                     leftCurb.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
+                    // Stepped stone balustrade blocks along curb for ancient architectural richness
+                    GameObject pilaster1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilaster1.name = "LeftCurbPilaster_0";
+                    pilaster1.transform.SetParent(chunkObj.transform, false);
+                    pilaster1.transform.localPosition = new Vector3(-3.85f, 0.42f, 2.5f);
+                    pilaster1.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    SafeDestroy(pilaster1.GetComponent<Collider>());
+                    if (curbMatCache != null) pilaster1.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
+                    GameObject pilaster2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilaster2.name = "LeftCurbPilaster_1";
+                    pilaster2.transform.SetParent(chunkObj.transform, false);
+                    pilaster2.transform.localPosition = new Vector3(-3.85f, 0.42f, 7.5f);
+                    pilaster2.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    SafeDestroy(pilaster2.GetComponent<Collider>());
+                    if (curbMatCache != null) pilaster2.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
 
                     // Left outer jungle ground (lush tropical undergrowth)
                     GameObject leftGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -1659,6 +1818,23 @@ namespace Runner.Track
                     rightCurb.transform.localPosition = new Vector3(3.85f, 0.25f, 5.0f);
                     rightCurb.transform.localScale = new Vector3(0.7f, 0.5f, 10.3f);
                     rightCurb.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
+                    // Stepped stone balustrade blocks along curb for ancient architectural richness
+                    GameObject pilasterR1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilasterR1.name = "RightCurbPilaster_0";
+                    pilasterR1.transform.SetParent(chunkObj.transform, false);
+                    pilasterR1.transform.localPosition = new Vector3(3.85f, 0.42f, 2.5f);
+                    pilasterR1.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    SafeDestroy(pilasterR1.GetComponent<Collider>());
+                    if (curbMatCache != null) pilasterR1.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
+
+                    GameObject pilasterR2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    pilasterR2.name = "RightCurbPilaster_1";
+                    pilasterR2.transform.SetParent(chunkObj.transform, false);
+                    pilasterR2.transform.localPosition = new Vector3(3.85f, 0.42f, 7.5f);
+                    pilasterR2.transform.localScale = new Vector3(0.82f, 0.75f, 0.82f);
+                    SafeDestroy(pilasterR2.GetComponent<Collider>());
+                    if (curbMatCache != null) pilasterR2.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
 
                     // Right outer jungle ground (lush tropical undergrowth)
                     GameObject rightGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -1920,16 +2096,6 @@ namespace Runner.Track
             else if (type == ChunkType.TJunctionLeft || type == ChunkType.TJunctionRight || type == ChunkType.TJunctionDouble)
             {
                 // 90-Degree T-Junction:
-                // Forward dead-end wall
-                GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                wall.name = "DeadEndWall";
-                wall.transform.SetParent(chunkObj.transform, false);
-                wall.transform.localPosition = new Vector3(0, 1.8f, 9.15f);
-                wall.transform.localScale = new Vector3(7.6f, 3.6f, 0.7f);
-                wall.GetComponent<MeshRenderer>().sharedMaterial = obstacleMatCache;
-                var obs = wall.AddComponent<Obstacle>();
-                obs.SetObstacleType(ObstacleType.DeadEndWall);
-
                 // Junction Turn Zone
                 var triggerObj = new GameObject("JunctionTrigger");
                 triggerObj.transform.SetParent(chunkObj.transform, false);
@@ -1940,46 +2106,8 @@ namespace Runner.Track
                 bool canRight = (type == ChunkType.TJunctionRight || type == ChunkType.TJunctionDouble);
                 junc.Configure(canLeft, canRight);
 
-                // Add glowing 3D turn arrows on the dead-end wall so player clearly sees available turn directions
-                GameObject signBoard = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                signBoard.name = "TurnSignBoard";
-                signBoard.transform.SetParent(chunkObj.transform, false);
-                signBoard.transform.localPosition = new Vector3(0, 2.0f, 8.75f);
-                signBoard.transform.localScale = new Vector3(3.2f, 0.9f, 0.1f);
-                Destroy(signBoard.GetComponent<Collider>());
-                Material signMat = MaterialHelper.CreateSafeMaterial(new Color(0.1f, 0.1f, 0.12f));
-                if (signMat != null) signBoard.GetComponent<MeshRenderer>().sharedMaterial = signMat;
-
-                Material arrowMat = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.85f, 0.1f));
-                if (arrowMat != null)
-                {
-                    arrowMat.EnableKeyword("_EMISSION");
-                    arrowMat.SetColor("_EmissionColor", new Color(1.0f, 0.85f, 0.1f) * 0.85f);
-                }
-
-                if (canLeft)
-                {
-                    GameObject leftArrow = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    leftArrow.name = "LeftTurnArrow";
-                    leftArrow.transform.SetParent(signBoard.transform, false);
-                    leftArrow.transform.localPosition = new Vector3(canRight ? -0.28f : 0.0f, 0, -0.6f);
-                    leftArrow.transform.localRotation = Quaternion.Euler(0, 0, 45f);
-                    leftArrow.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
-                    Destroy(leftArrow.GetComponent<Collider>());
-                    if (arrowMat != null) leftArrow.GetComponent<MeshRenderer>().sharedMaterial = arrowMat;
-                }
-
-                if (canRight)
-                {
-                    GameObject rightArrow = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    rightArrow.name = "RightTurnArrow";
-                    rightArrow.transform.SetParent(signBoard.transform, false);
-                    rightArrow.transform.localPosition = new Vector3(canLeft ? 0.28f : 0.0f, 0, -0.6f);
-                    rightArrow.transform.localRotation = Quaternion.Euler(0, 0, 45f);
-                    rightArrow.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
-                    Destroy(rightArrow.GetComponent<Collider>());
-                    if (arrowMat != null) rightArrow.GetComponent<MeshRenderer>().sharedMaterial = arrowMat;
-                }
+                // High-Fidelity Ancient Mayan/Aztec Temple Wall Facade with carved columns, glowing runic arrows & braziers
+                BuildAncientTempleWallFacade(chunkObj.transform, new Vector3(0, 1.8f, 9.15f), new Vector3(7.6f, 3.6f, 0.7f), true, canLeft, canRight);
 
                 // Branch Corridors extending out 90 degrees (strictly outside track |X| >= 3.85m)
                 if (canLeft)
@@ -2009,15 +2137,8 @@ namespace Runner.Track
                 }
                 else
                 {
-                    // Barrier wall on non-turning left side
-                    GameObject leftBarrier = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    leftBarrier.name = "LeftBarrier";
-                    leftBarrier.transform.SetParent(chunkObj.transform, false);
-                    leftBarrier.transform.localPosition = new Vector3(-3.85f, 1.5f, 5.0f);
-                    leftBarrier.transform.localScale = new Vector3(0.7f, 3.0f, 10.3f);
-                    leftBarrier.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
-                    var obsL = leftBarrier.AddComponent<Obstacle>();
-                    obsL.SetObstacleType(ObstacleType.DeadEndWall);
+                    // Ancient carved temple stone barrier on non-turning left side
+                    BuildAncientTempleWallFacade(chunkObj.transform, new Vector3(-3.85f, 1.5f, 5.0f), new Vector3(0.7f, 3.0f, 10.3f), false, false, false);
                 }
 
                 if (canRight)
@@ -2047,15 +2168,8 @@ namespace Runner.Track
                 }
                 else
                 {
-                    // Barrier wall on non-turning right side
-                    GameObject rightBarrier = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    rightBarrier.name = "RightBarrier";
-                    rightBarrier.transform.SetParent(chunkObj.transform, false);
-                    rightBarrier.transform.localPosition = new Vector3(3.85f, 1.5f, 5.0f);
-                    rightBarrier.transform.localScale = new Vector3(0.7f, 3.0f, 10.3f);
-                    rightBarrier.GetComponent<MeshRenderer>().sharedMaterial = curbMatCache;
-                    var obsR = rightBarrier.AddComponent<Obstacle>();
-                    obsR.SetObstacleType(ObstacleType.DeadEndWall);
+                    // Ancient carved temple stone barrier on non-turning right side
+                    BuildAncientTempleWallFacade(chunkObj.transform, new Vector3(3.85f, 1.5f, 5.0f), new Vector3(0.7f, 3.0f, 10.3f), false, false, false);
                 }
             }
 
@@ -2177,6 +2291,15 @@ namespace Runner.Track
             }
         }
 
+        private static void SafeDestroy(UnityEngine.Object obj)
+        {
+            if (obj == null) return;
+#if UNITY_EDITOR
+            if (!Application.isPlaying) { DestroyImmediate(obj); return; }
+#endif
+            Destroy(obj);
+        }
+
         private void ApplyRoadVisual(TrackChunk chunk, float chunkDistance)
         {
             if (chunk == null || chunk.Type == ChunkType.Gap)
@@ -2213,7 +2336,7 @@ namespace Runner.Track
                     rObj.transform.localRotation = Quaternion.identity;
                     rObj.transform.localScale = new Vector3(3.816f, 1.0f, 7.024f);
 
-                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) Destroy(col);
+                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
 
                     if (rockyPathMatCache != null)
                     {
@@ -2242,7 +2365,7 @@ namespace Runner.Track
                     rObj.transform.localRotation = Quaternion.identity;
                     rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
 
-                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) Destroy(col);
+                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
 
                     if (lowPolyRoadMatCache != null)
                     {
@@ -2309,7 +2432,7 @@ namespace Runner.Track
             // Destroy all colliders so central archway is completely open (zero collision)
             foreach (var col in gateObj.GetComponentsInChildren<Collider>())
             {
-                Destroy(col);
+                SafeDestroy(col);
             }
 
             if (stoneGateMatCache != null)

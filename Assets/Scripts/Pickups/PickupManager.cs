@@ -99,9 +99,15 @@ namespace Runner.Pickups
         public float MultiplierFrenzyTimeRemaining => GetPowerUpTimeRemaining(PowerUpType.MultiplierFrenzy);
         public float MultiplierFrenzyTotalDuration => GetPowerUpTotalDuration(PowerUpType.MultiplierFrenzy);
 
-        // Player Shield & Frenzy Aura
+        // Player Shield, Frenzy, Magnet & Speedrun Auras
         private GameObject shieldAuraObj;
         private GameObject frenzyAuraObj;
+        private GameObject magnetAuraObj;
+        private GameObject speedrunAuraObj;
+        private GameObject magnetRing1;
+        private GameObject magnetRing2;
+        private GameObject speedWindRibbon1;
+        private GameObject speedWindRibbon2;
 
         // Events
         public event Action<bool> OnShieldStateChanged;
@@ -196,6 +202,7 @@ namespace Runner.Pickups
 
             if (magnetWasActive != IsMagnetActive)
             {
+                SetMagnetAura(IsMagnetActive);
                 OnMagnetStateChanged?.Invoke(IsMagnetActive, MagnetTimeRemaining);
                 OnPowerUpStateChanged?.Invoke(PowerUpType.Magnet, IsMagnetActive);
             }
@@ -215,12 +222,35 @@ namespace Runner.Pickups
                 OnMultiplierFrenzyStateChanged?.Invoke(true, MultiplierFrenzyTimeRemaining);
             }
 
-            // Animate Transparent Blue Shield Oval
+            // Animate AAA Transparent Blue Forcefield Shield & Orbiting Energy Ring
             if (HasShield && shieldAuraObj != null)
             {
-                float pulse = 1.0f + Mathf.Sin(Time.time * 3.5f) * 0.025f;
-                shieldAuraObj.transform.localScale = new Vector3(1.35f, 2.15f, 1.35f) * pulse;
-                shieldAuraObj.transform.Rotate(0, 30f * dt, 0, Space.Self);
+                shieldAnimTimer += dt;
+                float entryScale = Mathf.Clamp01(shieldAnimTimer * 4.5f);
+                float bounce = 1.0f + Mathf.Sin(Time.time * 3.0f) * 0.03f;
+                shieldAuraObj.transform.localScale = Vector3.one * (entryScale * bounce);
+                shieldAuraObj.transform.Rotate(0, 22f * dt, 0, Space.Self);
+                if (shieldRingObj != null)
+                {
+                    shieldRingObj.transform.Rotate(0, 75f * dt, 0, Space.Self);
+                }
+            }
+
+            // Animate Magnet Dual Orbiting Electric Flux Rings
+            if (IsMagnetActive && magnetAuraObj != null)
+            {
+                if (magnetRing1 != null) magnetRing1.transform.Rotate(0, 150f * dt, 0, Space.Self);
+                if (magnetRing2 != null) magnetRing2.transform.Rotate(0, -130f * dt, 0, Space.Self);
+                float magPulse = 1.0f + Mathf.Sin(Time.time * 6.0f) * 0.05f;
+                magnetAuraObj.transform.localScale = Vector3.one * magPulse;
+            }
+
+            // Animate Speedrun Aerodynamic Sonic Wind Ribbons
+            if (IsSpeedrunActive && speedrunAuraObj != null)
+            {
+                float windStretch = 1.0f + Mathf.Sin(Time.time * 20.0f) * 0.20f;
+                if (speedWindRibbon1 != null) speedWindRibbon1.transform.localScale = new Vector3(0.04f, 0.16f, 1.25f * windStretch);
+                if (speedWindRibbon2 != null) speedWindRibbon2.transform.localScale = new Vector3(0.04f, 0.16f, 1.25f * windStretch);
             }
 
             // Animate Radiant Gold/Amethyst Frenzy Aura
@@ -245,6 +275,7 @@ namespace Runner.Pickups
                     OnSpeedrunStateChanged?.Invoke(false, 0f);
                     break;
                 case PowerUpType.Magnet:
+                    SetMagnetAura(false);
                     OnMagnetStateChanged?.Invoke(false, 0f);
                     break;
                 case PowerUpType.MultiplierFrenzy:
@@ -434,6 +465,7 @@ namespace Runner.Pickups
                 inst.Activate(total);
             }
 
+            SetMagnetAura(true);
             OnMagnetStateChanged?.Invoke(true, total);
             OnPowerUpStateChanged?.Invoke(PowerUpType.Magnet, true);
             Runner.Audio.AudioManager.Instance?.PlayPowerUp();
@@ -487,6 +519,7 @@ namespace Runner.Pickups
 
             SetShieldAura(false);
             SetSpeedrunAura(false);
+            SetMagnetAura(false);
             SetFrenzyAura(false);
 
             OnShieldStateChanged?.Invoke(false);
@@ -497,62 +530,166 @@ namespace Runner.Pickups
         #endregion
 
         #region Player Aura Visuals
+        private GameObject shieldRingObj;
+        private float shieldAnimTimer = 0f;
+
         private void EnsurePlayerAuraObjects()
         {
             if (PlayerController.Instance == null) return;
             Transform playerT = PlayerController.Instance.transform;
 
-            // 1. Create Shield AAA Rim-Glow Energy Field Aura around character
+            // 1. Create Shield AAA Shimmering Forcefield Ward
+            // Blue transparent shield where player is clearly visible from inside
             if (shieldAuraObj == null)
             {
-                shieldAuraObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                shieldAuraObj.name = "Player_ShieldBlueOval";
+                shieldAuraObj = new GameObject("Player_ShieldAuraRoot");
                 shieldAuraObj.transform.SetParent(playerT, false);
                 shieldAuraObj.transform.localPosition = new Vector3(0, 1.05f, 0);
-                shieldAuraObj.transform.localScale = new Vector3(1.35f, 2.15f, 1.35f);
-                Destroy(shieldAuraObj.GetComponent<Collider>());
 
-                // Try to use the AAA ShieldAura shader for maximum visual impact
+                // Core energy sphere
+                GameObject coreSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                coreSphere.name = "Shield_EnergyShell";
+                coreSphere.transform.SetParent(shieldAuraObj.transform, false);
+                coreSphere.transform.localPosition = Vector3.zero;
+                coreSphere.transform.localScale = new Vector3(1.4f, 2.1f, 1.4f);
+                Destroy(coreSphere.GetComponent<Collider>());
+
+                // Outer orbiting hollow energy ring
+                shieldRingObj = CreateHollowRingObject("Shield_OrbitRing", shieldAuraObj.transform, 0.76f, 0.90f);
+                shieldRingObj.transform.localPosition = Vector3.zero;
+                shieldRingObj.transform.localRotation = Quaternion.Euler(20f, 0f, 15f);
+
+                // Assign AAA ShieldAura shader (crystal-blue transparent center, glowing cyan rim)
                 Shader shieldShader = Shader.Find("Custom/AAA_ShieldAura");
                 Material shieldMat;
                 if (shieldShader != null)
                 {
                     shieldMat = new Material(shieldShader);
-                    shieldMat.SetColor("_AuraColor", new Color(0.12f, 0.60f, 1.0f, 0.15f));
-                    shieldMat.SetColor("_RimColor", new Color(0.4f, 0.90f, 1.0f, 1.0f));
-                    shieldMat.SetFloat("_RimPower", 2.5f);
-                    shieldMat.SetFloat("_RimIntensity", 2.0f);
-                    shieldMat.SetFloat("_PulseSpeed", 2.0f);
-                    shieldMat.SetFloat("_FresnelIntensity", 1.8f);
+                    shieldMat.SetColor("_AuraColor", new Color(0.04f, 0.40f, 1.0f, 0.05f)); // Player clearly visible inside
+                    shieldMat.SetColor("_RimColor", new Color(0.20f, 0.85f, 1.0f, 0.95f));  // Electric cyan outer edge
+                    shieldMat.SetFloat("_RimPower", 3.5f);
+                    shieldMat.SetFloat("_RimIntensity", 2.6f);
+                    shieldMat.SetFloat("_PulseSpeed", 2.2f);
+                    shieldMat.SetFloat("_HexScale", 14.0f);
+                    shieldMat.SetFloat("_HexIntensity", 0.18f);
+                    shieldMat.SetFloat("_ScanSpeed", 1.8f);
                 }
                 else
                 {
-                    // Fallback: Premium transparent material with emission
                     shieldMat = MaterialHelper.CreateSafeMaterial();
-                    if (shieldMat == null) return;
-                    shieldMat.name = "TransparentBlueShieldMat";
-                    shieldMat.SetFloat("_Mode", 3);
-                    shieldMat.SetOverrideTag("RenderType", "Transparent");
-                    shieldMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                    shieldMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                    shieldMat.SetInt("_ZWrite", 0);
-                    shieldMat.EnableKeyword("_ALPHABLEND_ON");
-                    shieldMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                    shieldMat.color = new Color(0.12f, 0.60f, 1.0f, 0.28f);
-                    if (shieldMat.HasProperty("_Metallic")) shieldMat.SetFloat("_Metallic", 0.25f);
-                    if (shieldMat.HasProperty("_Glossiness")) shieldMat.SetFloat("_Glossiness", 0.94f);
-                    if (shieldMat.HasProperty("_EmissionColor"))
+                    if (shieldMat != null)
                     {
-                        shieldMat.EnableKeyword("_EMISSION");
-                        shieldMat.SetColor("_EmissionColor", new Color(0.10f, 0.65f, 1.0f) * 0.50f);
+                        shieldMat.name = "TransparentBlueShieldMat";
+                        shieldMat.SetFloat("_Mode", 3);
+                        shieldMat.SetOverrideTag("RenderType", "Transparent");
+                        shieldMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        shieldMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        shieldMat.SetInt("_ZWrite", 0);
+                        shieldMat.EnableKeyword("_ALPHABLEND_ON");
+                        shieldMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 50;
+                        shieldMat.color = new Color(0.05f, 0.50f, 1.0f, 0.15f);
                     }
                 }
 
-                shieldAuraObj.GetComponent<MeshRenderer>().sharedMaterial = shieldMat;
+                if (shieldMat != null)
+                {
+                    coreSphere.GetComponent<MeshRenderer>().sharedMaterial = shieldMat;
+                    shieldRingObj.GetComponent<MeshRenderer>().sharedMaterial = shieldMat;
+                }
+
                 shieldAuraObj.SetActive(false);
             }
 
-            // 2. Create Frenzy Radiant Gold / Amber Pulsing Energy Aura
+            // 2. Create Magnet Visual Aura (Electromagnetic Gyroscopic Flux Rings)
+            if (magnetAuraObj == null)
+            {
+                magnetAuraObj = new GameObject("Player_MagnetAuraRoot");
+                magnetAuraObj.transform.SetParent(playerT, false);
+                magnetAuraObj.transform.localPosition = new Vector3(0, 0.95f, 0);
+
+                magnetRing1 = CreateHollowRingObject("Magnet_RingPrimary", magnetAuraObj.transform, 0.70f, 0.82f);
+                magnetRing1.transform.localRotation = Quaternion.Euler(45f, 0f, 0f);
+
+                magnetRing2 = CreateHollowRingObject("Magnet_RingSecondary", magnetAuraObj.transform, 0.60f, 0.71f);
+                magnetRing2.transform.localRotation = Quaternion.Euler(-45f, 0f, 30f);
+
+                Shader shieldShader = Shader.Find("Custom/AAA_ShieldAura");
+                Material magMat1 = shieldShader != null ? new Material(shieldShader) : MaterialHelper.CreateSafeMaterial();
+                if (magMat1 != null)
+                {
+                    magMat1.SetColor("_AuraColor", new Color(0.1f, 0.8f, 1.0f, 0.08f));
+                    magMat1.SetColor("_RimColor", new Color(0.2f, 0.95f, 1.0f, 0.95f)); // Neon cyan flux
+                    magMat1.SetFloat("_RimPower", 2.2f);
+                    magMat1.SetFloat("_RimIntensity", 2.8f);
+                    magMat1.SetFloat("_PulseSpeed", 4.0f);
+                }
+                Material magMat2 = shieldShader != null ? new Material(shieldShader) : MaterialHelper.CreateSafeMaterial();
+                if (magMat2 != null)
+                {
+                    magMat2.SetColor("_AuraColor", new Color(0.7f, 0.15f, 1.0f, 0.08f));
+                    magMat2.SetColor("_RimColor", new Color(0.85f, 0.35f, 1.0f, 0.95f)); // Magnetic violet flux
+                    magMat2.SetFloat("_RimPower", 2.2f);
+                    magMat2.SetFloat("_RimIntensity", 2.8f);
+                    magMat2.SetFloat("_PulseSpeed", 4.0f);
+                }
+
+                if (magMat1 != null) magnetRing1.GetComponent<MeshRenderer>().sharedMaterial = magMat1;
+                if (magMat2 != null) magnetRing2.GetComponent<MeshRenderer>().sharedMaterial = magMat2;
+
+                magnetAuraObj.SetActive(false);
+            }
+
+            // 3. Create Speedrun Visual Aura (Supersonic Aerodynamic Slipstream Ribbons)
+            if (speedrunAuraObj == null)
+            {
+                speedrunAuraObj = new GameObject("Player_SpeedrunAuraRoot");
+                speedrunAuraObj.transform.SetParent(playerT, false);
+                speedrunAuraObj.transform.localPosition = new Vector3(0, 0.85f, 0);
+
+                // Left wind streak
+                speedWindRibbon1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                speedWindRibbon1.name = "Speed_WindRibbonLeft";
+                speedWindRibbon1.transform.SetParent(speedrunAuraObj.transform, false);
+                speedWindRibbon1.transform.localPosition = new Vector3(-0.45f, 0f, -0.4f);
+                speedWindRibbon1.transform.localRotation = Quaternion.Euler(0f, 12f, 0f);
+                speedWindRibbon1.transform.localScale = new Vector3(0.04f, 0.15f, 1.2f);
+                Destroy(speedWindRibbon1.GetComponent<Collider>());
+
+                // Right wind streak
+                speedWindRibbon2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                speedWindRibbon2.name = "Speed_WindRibbonRight";
+                speedWindRibbon2.transform.SetParent(speedrunAuraObj.transform, false);
+                speedWindRibbon2.transform.localPosition = new Vector3(0.45f, 0f, -0.4f);
+                speedWindRibbon2.transform.localRotation = Quaternion.Euler(0f, -12f, 0f);
+                speedWindRibbon2.transform.localScale = new Vector3(0.04f, 0.15f, 1.2f);
+                Destroy(speedWindRibbon2.GetComponent<Collider>());
+
+                // Ground shockwave hollow ring
+                GameObject speedRing = CreateHollowRingObject("Speed_ShockwaveRing", speedrunAuraObj.transform, 0.58f, 0.72f);
+                speedRing.transform.localPosition = new Vector3(0f, -0.75f, 0f);
+
+                Shader shieldShader = Shader.Find("Custom/AAA_ShieldAura");
+                Material speedMat = shieldShader != null ? new Material(shieldShader) : MaterialHelper.CreateSafeMaterial();
+                if (speedMat != null)
+                {
+                    speedMat.SetColor("_AuraColor", new Color(1.0f, 0.85f, 0.15f, 0.12f));
+                    speedMat.SetColor("_RimColor", new Color(1.0f, 0.95f, 0.40f, 0.95f)); // Golden sonic streaks
+                    speedMat.SetFloat("_RimPower", 1.8f);
+                    speedMat.SetFloat("_RimIntensity", 2.6f);
+                    speedMat.SetFloat("_PulseSpeed", 5.0f);
+                }
+
+                if (speedMat != null)
+                {
+                    speedWindRibbon1.GetComponent<MeshRenderer>().sharedMaterial = speedMat;
+                    speedWindRibbon2.GetComponent<MeshRenderer>().sharedMaterial = speedMat;
+                    speedRing.GetComponent<MeshRenderer>().sharedMaterial = speedMat;
+                }
+
+                speedrunAuraObj.SetActive(false);
+            }
+
+            // 4. Create Frenzy Radiant Gold / Amber Pulsing Energy Aura
             if (frenzyAuraObj == null)
             {
                 frenzyAuraObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -568,12 +705,11 @@ namespace Runner.Pickups
                 if (frenzyShader != null)
                 {
                     fMat = new Material(frenzyShader);
-                    fMat.SetColor("_AuraColor", new Color(1.0f, 0.70f, 0.10f, 0.18f));
+                    fMat.SetColor("_AuraColor", new Color(1.0f, 0.70f, 0.10f, 0.15f));
                     fMat.SetColor("_RimColor", new Color(1.0f, 0.85f, 0.2f, 1.0f));
                     fMat.SetFloat("_RimPower", 2.0f);
                     fMat.SetFloat("_RimIntensity", 2.5f);
                     fMat.SetFloat("_PulseSpeed", 4.0f);
-                    fMat.SetFloat("_FresnelIntensity", 2.2f);
                     fMat.SetFloat("_ScanSpeed", 3.0f);
                 }
                 else
@@ -606,7 +742,26 @@ namespace Runner.Pickups
             EnsurePlayerAuraObjects();
             if (shieldAuraObj != null)
             {
+                if (active) shieldAnimTimer = 0f;
                 shieldAuraObj.SetActive(active);
+            }
+        }
+
+        private void SetMagnetAura(bool active)
+        {
+            EnsurePlayerAuraObjects();
+            if (magnetAuraObj != null)
+            {
+                magnetAuraObj.SetActive(active);
+            }
+        }
+
+        private void SetSpeedrunAura(bool active)
+        {
+            EnsurePlayerAuraObjects();
+            if (speedrunAuraObj != null)
+            {
+                speedrunAuraObj.SetActive(active);
             }
         }
 
@@ -619,10 +774,51 @@ namespace Runner.Pickups
             }
         }
 
-        private void SetSpeedrunAura(bool active)
+        private static GameObject CreateHollowRingObject(string name, Transform parent, float innerRadius, float outerRadius, int segments = 32)
         {
-            // Pure running effect: 1.6x speed boost, dynamic camera FOV, and fast running animation
-            // No intrusive down yellow bar on the ground
+            GameObject obj = new GameObject(name);
+            obj.transform.SetParent(parent, false);
+
+            Mesh mesh = new Mesh();
+            mesh.name = $"{name}_Mesh";
+            Vector3[] vertices = new Vector3[segments * 2];
+            Vector2[] uvs = new Vector2[segments * 2];
+            int[] triangles = new int[segments * 6];
+
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = (i / (float)segments) * Mathf.PI * 2f;
+                float cos = Mathf.Cos(angle);
+                float sin = Mathf.Sin(angle);
+
+                vertices[i * 2] = new Vector3(cos * innerRadius, 0f, sin * innerRadius);
+                vertices[i * 2 + 1] = new Vector3(cos * outerRadius, 0f, sin * outerRadius);
+
+                uvs[i * 2] = new Vector2(i / (float)segments, 0f);
+                uvs[i * 2 + 1] = new Vector2(i / (float)segments, 1f);
+
+                int next = (i + 1) % segments;
+                int t = i * 6;
+                triangles[t] = i * 2;
+                triangles[t + 1] = i * 2 + 1;
+                triangles[t + 2] = next * 2 + 1;
+
+                triangles[t + 3] = i * 2;
+                triangles[t + 4] = next * 2 + 1;
+                triangles[t + 5] = next * 2;
+            }
+
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            MeshFilter mf = obj.AddComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+            obj.AddComponent<MeshRenderer>();
+
+            return obj;
         }
         #endregion
     }

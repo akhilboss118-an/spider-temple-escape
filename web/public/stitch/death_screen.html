@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Spider Temple Escape - Game Over</title>
+<!-- Tailwind CSS CDN with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration for Game Theme -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            obsidian: {
+              900: '#07090b',
+              800: '#0e1217',
+              700: '#161c24',
+              600: '#232b35',
+            },
+            aztec: {
+              gold: '#F5C242',
+              'gold-light': '#FFE394',
+              'gold-dark': '#8E6714',
+              crimson: '#D62222',
+              'crimson-dark': '#4D0808',
+              emerald: '#29D981',
+            }
+          },
+          fontFamily: {
+            display: ['"Cinzel Decorative"', 'serif'],
+            serif: ['"Cinzel"', 'serif'],
+            sans: ['"Outfit"', 'sans-serif'],
+          },
+          boxShadow: {
+            'crimson-glow': '0 0 25px rgba(214, 34, 34, 0.45)',
+            'gold-glow': '0 0 28px rgba(245, 194, 66, 0.4)',
+            'tablet': 'inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(245, 194, 66, 0.35)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- Google Fonts: Cinzel & Cinzel Decorative + Outfit -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&amp;family=Cinzel:wght@600;700;800;900&amp;family=Outfit:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Core Layout Styles -->
+<style data-purpose="layout">
+    body {
+      background-color: #050608;
+      font-family: 'Outfit', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    
+    /* Device Frame Simulation for iOS Portrait */
+    .mobile-screen {
+      width: 100%;
+      max-width: 430px;
+      min-height: 844px;
+      height: 100dvh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    /* Hide scrollbars for clean HUD appearance */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<!-- Game UI Visual Effects Styles -->
+<style data-purpose="game-visuals">
+    /* Chiseled Metallic Text Glow */
+    .title-metallic-death {
+      background: linear-gradient(180deg, #FFFFFF 0%, #FFB677 30%, #D83324 75%, #6B0808 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 16px rgba(214, 34, 34, 0.65));
+      letter-spacing: 0.04em;
+    }
+
+    .gold-emboss {
+      background: linear-gradient(180deg, #FFF1B8 0%, #F5C242 45%, #C28B12 85%, #694403 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+    }
+
+    /* Ancient stone texture gradient */
+    .obsidian-tablet {
+      background: radial-gradient(120% 100% at 50% 0%, #1a222c 0%, #0d1217 60%, #080a0d 100%);
+    }
+
+    /* Golden primary CTA metallic surface */
+    .gold-btn-gradient {
+      background: linear-gradient(180deg, #FFE896 0%, #F2B82C 24%, #D48C07 68%, #7C4F02 100%);
+      box-shadow: 0 4px 0 #543400, 0 8px 25px rgba(242, 184, 44, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+    .gold-btn-gradient:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #543400, 0 4px 15px rgba(242, 184, 44, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    /* Aztec runic corner embellishment */
+    .corner-bracket {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-color: #F5C242;
+      pointer-events: none;
+    }
+    .corner-tl { top: 6px; left: 6px; border-top: 2px solid; border-left: 2px solid; }
+    .corner-tr { top: 6px; right: 6px; border-top: 2px solid; border-right: 2px solid; }
+    .corner-bl { bottom: 6px; left: 6px; border-bottom: 2px solid; border-left: 2px solid; }
+    .corner-br { bottom: 6px; right: 6px; border-bottom: 2px solid; border-right: 2px solid; }
+
+    /* Pulsing crimson danger animation */
+    @keyframes pulse-crimson {
+      0%, 100% {
+        box-shadow: 0 0 12px rgba(214, 34, 34, 0.4), inset 0 0 8px rgba(214, 34, 34, 0.25);
+        border-color: rgba(214, 34, 34, 0.8);
+      }
+      50% {
+        box-shadow: 0 0 24px rgba(214, 34, 34, 0.85), inset 0 0 14px rgba(214, 34, 34, 0.5);
+        border-color: rgba(255, 87, 87, 1);
+      }
+    }
+    .pulse-danger {
+      animation: pulse-crimson 2.4s infinite ease-in-out;
+    }
+
+    /* Ambient floating ember particles */
+    @keyframes float-ember {
+      0% { transform: translateY(0) translateX(0); opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.6; }
+      100% { transform: translateY(-70px) translateX(12px); opacity: 0; }
+    }
+    .ember-particle {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: #FFA43B;
+      border-radius: 9999px;
+      box-shadow: 0 0 6px #FF4500, 0 0 10px #FF0000;
+      animation: float-ember 4s infinite linear;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="flex justify-center items-center min-h-screen bg-black text-gray-200">
+<!-- Mobile Screen Container -->
+<main class="mobile-screen no-scrollbar relative flex flex-col justify-between overflow-hidden shadow-2xl bg-neutral-950 border-x border-neutral-900">
+<!-- BEGIN: Fullscreen Atmospheric Background -->
+<div class="absolute inset-0 z-0 pointer-events-none overflow-hidden" data-purpose="background-layer">
+<!-- High Fidelity AAA Aztec Temple Corridor Background -->
+<img alt="AAA mobile game game-over death screen background: dark ominous ancient Aztec temple corridor ruin filled with swirling crimson red mist, volumetric foggy darkness, looming terrifying giant multi-eyed arachnid Ancient Beast Guardian shadow lurking in the distant deep corridor with glowing menacing red eyes, faint cobwebs draped over cracked obsidian basalt stone pillars, smoldering crimson ash and glowing embers, cinematic dark fantasy horror lighting, 9:16 vertical orientation, high resolution, no text, no UI." class="w-full h-full object-cover object-center scale-[1.03] transform filter brightness-[0.78] contrast-[1.08]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWadjNQq4djjEOt-GJLAB9_bnQeMAz_9OQGcOfbSzT4P-fuUnIZ7tYFJ7134ayAzwGyH3gtdmB2ZdoCB7zVOwvcEDtY4au6hVylUJ5VRJ4PFNqkyHn4v3MdQ21PofNQWWNbxLEAEcGAZ3tiXgCc64qBtJP1SkjbUql-cvekU6ad7hJB6CwNHgYPObPR8GXNaAlyl9HHbtNoFw8Rriuzssezku4tURC-JRQzXKseHqOIpFmdtxBchcy6c9Rp29VmQuHIFHCWv3ILQSq"/>
+<!-- Vignette Gradients for Text Contrast and Dark Fantasy Mood -->
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/85"></div>
+<div class="absolute inset-0 bg-radial-at-c from-transparent via-black/30 to-black/90"></div>
+<div class="absolute inset-0 bg-red-950/25 mix-blend-color-burn"></div>
+<!-- Atmospheric Embers Simulated -->
+<div class="ember-particle" style="bottom: 28%; left: 18%; animation-delay: 0.3s;"></div>
+<div class="ember-particle" style="bottom: 34%; left: 82%; animation-delay: 1.7s;"></div>
+<div class="ember-particle" style="bottom: 22%; left: 45%; animation-delay: 2.5s;"></div>
+<div class="ember-particle" style="bottom: 40%; left: 62%; animation-delay: 0.9s;"></div>
+</div>
+<!-- END: Fullscreen Atmospheric Background -->
+<!-- BEGIN: Top Status & Header -->
+<header class="relative z-10 pt-5 px-5 flex flex-col items-center w-full" data-purpose="top-navigation-and-title">
+<!-- Top Utility Controls Bar -->
+<div class="w-full flex justify-between items-center text-xs tracking-wider font-semibold text-amber-200/60 pb-2">
+<!-- Sanctuary Audio State -->
+<button aria-label="Audio mute toggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 border border-amber-500/20 backdrop-blur-md active:scale-95 transition-transform" type="button">
+<svg class="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewbox="0 0 20 20">
+<path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z"></path>
+</svg>
+<span class="text-[10px] font-mono uppercase tracking-widest text-amber-300/80">Audio On</span>
+</button>
+<!-- Relic Token Currency Counter -->
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 border border-amber-500/30 backdrop-blur-md">
+<div class="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-300 border border-amber-100 flex items-center justify-center text-[8px] font-bold text-black shadow-sm">◈</div>
+<span class="text-[11px] font-mono font-bold text-amber-300 tracking-wider">18,450</span>
+</div>
+<!-- Settings Cog -->
+<button aria-label="Expedition Settings" class="w-8 h-8 rounded-full bg-black/60 border border-amber-500/20 backdrop-blur-md flex items-center justify-center text-amber-400 active:rotate-45 transition-transform" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<!-- Central Relic Medallion Emblem -->
+<div class="relative mt-2 mb-1 flex items-center justify-center">
+<!-- Glow Backlight Behind Relic -->
+<div class="absolute w-24 h-24 rounded-full bg-red-600/30 blur-xl pointer-events-none"></div>
+<div class="absolute w-20 h-20 rounded-full bg-amber-500/25 blur-lg pointer-events-none"></div>
+<!-- Relic Medallion Asset -->
+<img alt="Mystical golden ancient spider relic medallion artifact, intricate Mayan Aztec filigree jewelry, glowing amber gemstone eyes, carved obsidian and polished ancient Aztec gold, central mystical sun stone glyphs, glowing runes, isolated on solid pure black background, AAA game asset icon, photorealistic 3D render, glowing magical aura." class="w-20 h-20 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)] filter brightness-105 transform hover:rotate-6 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida/AEtjO1X61PiXSUdt_ScHuPJLRh77T0qGw8QGnni4r0R5s5dXX1w0Qs1BHFrMIxrciOJoTEqKr81za9VMtLsadl4XWTVcVS94ZfRZEod5J5bczr7Di-gpE3WtWe5FLms2ghFXfIW78ajt3mB9KkLRIMCgHR-0fG4N6rFbR6b5nQA3dX8UfwoJxrSIlK5_TLpZCKWHXRoh2uUBSH4v2gql25w4BKDxSW_uA4vYrKAgq5qL1o-sZ1CNMZBbk25prnfP"/>
+</div>
+<!-- Main Game Over Title -->
+<h1 class="font-display font-black text-2xl sm:text-3xl text-center uppercase title-metallic-death tracking-widest leading-none mt-1">
+        EXPEDITION FAILED
+      </h1>
+<!-- Cause of Death Indicator Pill -->
+<div class="mt-2.5 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/80 border border-red-600/80 backdrop-blur-md pulse-danger shadow-crimson-glow" data-purpose="cause-of-death-badge">
+<!-- Pulsing Red Beast Eye Glyph -->
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+</span>
+<span class="font-serif font-bold text-[11px] tracking-wider uppercase text-red-300">
+          Overtaken By Ancient Guardian
+        </span>
+</div>
+</header>
+<!-- END: Top Status & Header -->
+<!-- BEGIN: Expedition Summary Tablet (Basalt & Gold Plaque) -->
+<section class="relative z-10 mx-4 my-2 px-4 py-4 rounded-2xl obsidian-tablet shadow-tablet border border-aztec-gold/40 backdrop-blur-md" data-purpose="summary-tablet">
+<!-- Intricate Corner Filigree Ornaments -->
+<div class="corner-bracket corner-tl"></div>
+<div class="corner-bracket corner-tr"></div>
+<div class="corner-bracket corner-bl"></div>
+<div class="corner-bracket corner-br"></div>
+<!-- Runic Edge Center Dots -->
+<div class="absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-2 bg-gradient-to-r from-transparent via-aztec-gold to-transparent opacity-80"></div>
+<div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-2 bg-gradient-to-r from-transparent via-aztec-gold to-transparent opacity-80"></div>
+<!-- Ribbon Badge: Personal Best -->
+<div class="flex justify-center -mt-7 mb-2">
+<div class="relative px-4 py-1 rounded-md bg-gradient-to-r from-amber-700 via-yellow-500 to-amber-700 border border-yellow-200/60 shadow-lg flex items-center gap-1.5">
+<span class="text-xs text-yellow-100">★</span>
+<span class="font-serif font-extrabold text-[10px] tracking-widest uppercase text-stone-950">NEW RECORD SURPASS!</span>
+<span class="text-xs text-yellow-100">★</span>
+</div>
+</div>
+<!-- Primary Distance Metric Block -->
+<div class="text-center my-1">
+<p class="font-serif text-[10px] font-semibold uppercase tracking-[0.25em] text-amber-300/75 mb-0.5">
+          Distance Infiltrated
+        </p>
+<div class="flex items-baseline justify-center gap-1">
+<span class="font-display font-black text-4xl sm:text-5xl tracking-tight gold-emboss">
+            4,920
+          </span>
+<span class="font-serif font-bold text-lg sm:text-xl text-aztec-gold tracking-wide">
+            METERS
+          </span>
+</div>
+</div>
+<!-- Run Statistics Grid -->
+<div class="grid grid-cols-2 gap-2.5 mt-3 pt-3 border-t border-amber-500/20">
+<!-- Left Metric Box: Relics Found -->
+<div class="bg-black/55 rounded-xl p-2.5 border border-amber-500/20 flex flex-col justify-between">
+<span class="text-[9.5px] font-serif uppercase tracking-wider text-amber-200/70 block mb-1">
+            Relics Recovered
+          </span>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="text-base text-amber-400">🪙</span>
+<span class="font-mono font-black text-base text-amber-300 tracking-wide">+340</span>
+</div>
+<span class="text-[9px] font-sans text-amber-400/60 mt-1">Aztec Sun Runes</span>
+</div>
+<!-- Right Metric Box: Expedition Score -->
+<div class="bg-black/55 rounded-xl p-2.5 border border-amber-500/20 flex flex-col justify-between">
+<span class="text-[9.5px] font-serif uppercase tracking-wider text-amber-200/70 block mb-1">
+            Total Score
+          </span>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="font-mono font-black text-base text-white tracking-wide">52,600</span>
+<span class="text-[9px] font-bold text-amber-300 font-serif">PTS</span>
+</div>
+<span class="text-[9px] font-semibold text-emerald-400 flex items-center gap-1 mt-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+            +3.5x Symbiote Bonus
+          </span>
+</div>
+</div>
+<!-- Beast Proximity Incident Banner -->
+<div class="mt-3 px-3 py-2 rounded-lg bg-red-950/40 border border-red-700/40 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<!-- Skull / Hazard Icon -->
+<div class="w-5 h-5 rounded bg-red-900/60 border border-red-500/40 flex items-center justify-center text-red-300 text-xs font-bold">
+            ☠
+          </div>
+<div class="flex flex-col">
+<span class="text-[9px] font-serif tracking-widest text-red-300/80 uppercase">Guardian Proximity</span>
+<span class="text-[11px] font-mono font-bold text-red-200">0.0m — FATAL STRIKE</span>
+</div>
+</div>
+<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-red-900/60 text-red-300 border border-red-600/30 uppercase tracking-tight font-bold">
+          CRITICAL
+        </span>
+</div>
+</section>
+<!-- END: Expedition Summary Tablet -->
+<!-- BEGIN: Thumb-Friendly Action Cluster -->
+<footer class="relative z-10 w-full px-5 pb-6 pt-2 flex flex-col gap-2.5" data-purpose="interaction-action-cluster">
+<!-- Secondary Opportunity: Free Ad Revive Banner -->
+<button aria-label="Revive with Ad" class="w-full group relative overflow-hidden px-3.5 py-2 rounded-xl bg-amber-950/35 hover:bg-amber-950/50 border border-dashed border-amber-400/60 active:scale-[0.98] transition-all flex items-center justify-between backdrop-blur-md" type="button">
+<div class="flex items-center gap-2.5">
+<!-- Video Ad Icon Badge -->
+<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-700 flex items-center justify-center text-stone-950 shadow-md">
+<svg class="w-4 h-4 ml-0.5" fill="currentColor" viewbox="0 0 20 20">
+<path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm8 6.5l-5 3V6.5l5 3.5z"></path>
+</svg>
+</div>
+<div class="text-left">
+<p class="font-serif font-bold text-xs text-amber-200 uppercase tracking-wide group-hover:text-white transition-colors">
+              Continue Expedition
+            </p>
+<p class="text-[10px] font-sans text-amber-400/70">Watch quick prophecy (+1 Revive)</p>
+</div>
+</div>
+<!-- Remaining Token Tag -->
+<span class="text-[10px] font-mono font-bold px-2 py-1 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40 tracking-wider">
+          1 LEFT
+        </span>
+</button>
+<!-- Primary Action CTA: Try Again (Giant Gold Vault Seal Button) -->
+<button aria-label="Restart Expedition" class="w-full relative py-3.5 px-6 rounded-2xl gold-btn-gradient flex flex-col items-center justify-center text-stone-950 transition-transform cursor-pointer" type="button">
+<!-- Gold Shimmer Highlight Stripe -->
+<div class="absolute inset-x-0 top-0 h-[2px] bg-white/70 rounded-t-2xl"></div>
+<div class="flex items-center justify-center gap-2">
+<!-- Reload / Phoenix Feather Circular Glyph -->
+<svg class="w-5 h-5 text-stone-950 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="font-display font-extrabold text-xl tracking-wider uppercase text-stone-950 drop-shadow-sm">
+            RE-ENTER TEMPLE
+          </span>
+</div>
+<!-- Subtext: Heart cost -->
+<span class="text-[10px] font-serif font-bold tracking-widest uppercase text-stone-900/80 mt-0.5">
+          COST: 1 EXPLORER HEART (2/3 REMAINING)
+        </span>
+</button>
+<!-- Secondary CTA: Retreat to Temple Sanctum (Main Menu) -->
+<button aria-label="Return to Sanctuary Main Menu" class="w-full py-2.5 px-4 rounded-xl bg-obsidian-800/80 hover:bg-obsidian-700/80 border border-amber-500/30 text-amber-200/80 hover:text-amber-100 flex items-center justify-center gap-2 active:scale-[0.98] transition-all backdrop-blur-md" type="button">
+<svg class="w-4 h-4 text-amber-400/80" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="font-serif font-bold text-xs tracking-widest uppercase">
+          SANCTUARY (MAIN MENU)
+        </span>
+</button>
+<!-- iOS Home Indicator Spacing Bar -->
+<div aria-hidden="true" class="w-32 h-1 bg-white/20 rounded-full mx-auto mt-1"></div>
+</footer>
+<!-- END: Thumb-Friendly Action Cluster -->
+</main>
+</body></html>

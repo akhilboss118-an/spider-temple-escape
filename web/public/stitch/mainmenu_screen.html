@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>SPIDER TEMPLE ESCAPE</title>
+<!-- Google Fonts: Cinzel Decorative, Space Grotesk, Manrope -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@600;700;900&amp;family=Manrope:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary": "#ffc19e",
+            "surface-container-lowest": "#0c0f10",
+            "inverse-surface": "#e1e3e4",
+            "primary-container": "#d4af37",
+            "background": "#111415",
+            "outline-variant": "#4d4635",
+            "on-background": "#e1e3e4",
+            "on-primary-fixed-variant": "#574500",
+            "surface-tint": "#e9c349",
+            "surface-container-highest": "#323536",
+            "tertiary-fixed": "#ffdbc8",
+            "on-primary-fixed": "#241a00",
+            "on-error": "#690005",
+            "inverse-primary": "#735c00",
+            "surface-container": "#1d2021",
+            "outline": "#99907c",
+            "secondary-fixed-dim": "#00e478",
+            "surface-dim": "#111415",
+            "surface-container-low": "#191c1d",
+            "primary-fixed-dim": "#e9c349",
+            "primary": "#f2ca50",
+            "on-secondary": "#003919",
+            "surface-container-high": "#272a2b",
+            "on-surface": "#e1e3e4",
+            "on-secondary-container": "#007239",
+            "primary-fixed": "#ffe088",
+            "on-tertiary-container": "#723300",
+            "secondary": "#f5fff3",
+            "on-secondary-fixed-variant": "#005227",
+            "error-container": "#93000a",
+            "surface": "#111415",
+            "tertiary-fixed-dim": "#ffb68b",
+            "on-primary-container": "#554300",
+            "error": "#ffb4ab",
+            "surface-variant": "#323536",
+            "tertiary-container": "#ff9a59",
+            "on-tertiary-fixed": "#321200",
+            "on-tertiary": "#522300",
+            "inverse-on-surface": "#2e3132",
+            "on-secondary-fixed": "#00210c",
+            "surface-bright": "#373a3b",
+            "secondary-fixed": "#60ff98",
+            "on-surface-variant": "#d0c5af",
+            "on-error-container": "#ffdad6",
+            "secondary-container": "#34ff8c",
+            "on-primary": "#3c2f00",
+            "on-tertiary-fixed-variant": "#753400"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-md": "0.75rem",
+            "margin-tablet": "1.5rem",
+            "space-xl": "2rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.25rem",
+            "gutter-desktop": "1.5rem",
+            "space-xs": "0.25rem",
+            "gutter-tablet": "1rem",
+            "margin": "1rem",
+            "margin-desktop": "2.5rem",
+            "gutter": "0.75rem"
+          },
+          "fontFamily": {
+            "headline-md": ["Cinzel Decorative"],
+            "display-lg-mobile": ["Cinzel Decorative"],
+            "label-sm": ["Space Grotesk"],
+            "label-md": ["Space Grotesk"],
+            "headline-lg": ["Cinzel Decorative"],
+            "display-lg": ["Cinzel Decorative"],
+            "label-lg": ["Space Grotesk"],
+            "headline-sm": ["Cinzel Decorative"],
+            "body-sm": ["Manrope"],
+            "body-md": ["Manrope"],
+            "body-lg": ["Manrope"]
+          },
+          "fontSize": {
+            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "display-lg-mobile": ["30px", { "lineHeight": "36px", "letterSpacing": "0.06em", "fontWeight": "700" }],
+            "label-sm": ["10px", { "lineHeight": "12px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.06em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+            "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "0.08em", "fontWeight": "700" }],
+            "label-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.08em", "fontWeight": "600" }],
+            "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Custom game atmospheric keyframes & textures */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 12px rgba(242, 202, 80, 0.45)); }
+      50% { opacity: 1; transform: scale(1.02); filter: drop-shadow(0 0 24px rgba(242, 202, 80, 0.8)); }
+    }
+    @keyframes runicBreathe {
+      0%, 100% { opacity: 0.6; text-shadow: 0 0 8px rgba(0, 228, 120, 0.5); }
+      50% { opacity: 1; text-shadow: 0 0 18px rgba(0, 228, 120, 0.95); }
+    }
+    @keyframes particleDrift {
+      0% { transform: translateY(0) translateX(0); opacity: 0; }
+      50% { opacity: 0.8; }
+      100% { transform: translateY(-70px) translateX(25px); opacity: 0; }
+    }
+    .animate-pulse-glow {
+      animation: pulseGlow 3.5s ease-in-out infinite;
+    }
+    .animate-runic {
+      animation: runicBreathe 2.8s ease-in-out infinite;
+    }
+    .mote-1 { animation: particleDrift 5s ease-in-out infinite; }
+    .mote-2 { animation: particleDrift 7s ease-in-out infinite 1.5s; }
+    .mote-3 { animation: particleDrift 6s ease-in-out infinite 3s; }
+    
+    /* Tactile Gold Inset Filigree Borders */
+    .gold-filigree-border {
+      border: 1px solid #7A5E12;
+      box-shadow: inset 0 0 0 1px #D4AF37, 0 12px 32px -4px rgba(0, 0, 0, 0.9);
+    }
+    .gold-rim-specular {
+      box-shadow: inset 0 1px 1px rgba(255, 244, 184, 0.5), inset 0 -2px 4px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(212, 175, 55, 0.35);
+    }
+    .emerald-glow-box {
+      box-shadow: 0 0 20px rgba(0, 228, 120, 0.25), inset 0 0 12px rgba(0, 228, 120, 0.15);
+    }
+    /* Mobile safe area & thumb viewport constraints */
+    .mobile-frame {
+      max-width: 480px;
+      min-height: 100vh;
+      margin: 0 auto;
+      position: relative;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface select-none antialiased overflow-x-hidden font-body-md">
+<!-- Mobile Screen Container -->
+<div class="mobile-frame flex flex-col justify-between min-h-screen relative overflow-hidden bg-surface-container-lowest">
+<!-- BACKGROUND ATMOSPHERE: Temple Corridor, Vignette, Fog & Bioluminescent Particles -->
+<div class="absolute inset-0 z-0 pointer-events-none">
+<!-- High atmosphere background image -->
+<div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida/AEtjO1VALQZtnuJCkQC8ukpSyHqUfoX5dkLKmweuyRseG81BlJSbAQYCSrohiI_LlI6C-uRSH24M060UOqdIYOPddcE8TnozY6kIPE4S_FFI13DesVtOM2RowytUXVqJKNJ5WC_A4EddKsVWIWQSsFC_Qonqr6d2AsIV5gJR7stlafwrS0FD5jE585s7QT3_QIgqxarcccLyLREiNw99U-34GTiNzuIAG4w0ZmxfTNGyjP8JtjvSsRd3MUAqfqo');"></div>
+<!-- Obsidian vignette & subterranean shadows -->
+<div class="absolute inset-0 bg-gradient-to-b from-surface-container-lowest/90 via-surface-container-lowest/50 to-surface-container-lowest/95"></div>
+<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_30%,_#0c0f10_90%)]"></div>
+<!-- Floating Bioluminescent Moss Dust & Spores -->
+<div class="absolute top-1/4 left-1/5 w-1.5 h-1.5 rounded-full bg-secondary-fixed mote-1 blur-[0.5px]"></div>
+<div class="absolute top-1/3 right-1/4 w-2 h-2 rounded-full bg-primary-fixed mote-2 blur-[0.5px]"></div>
+<div class="absolute top-2/3 left-1/3 w-1 h-1 rounded-full bg-secondary-fixed-dim mote-3 blur-[0.5px]"></div>
+<div class="absolute top-1/2 right-1/6 w-1.5 h-1.5 rounded-full bg-tertiary-container mote-1 blur-[0.5px]"></div>
+</div>
+<!-- 1. SHARED COMPONENT: TopAppBar (Mandatory JSON anchor implementation) -->
+<header class="flex justify-between items-center w-full px-4 py-3 fixed top-0 left-0 z-50 bg-surface-container-lowest/80 dark:bg-surface-container-lowest/80 backdrop-blur-md border-b border-outline-variant/40 shadow-2xl shadow-surface-container-lowest">
+<!-- Leading Icon / Back / Escape -->
+<button aria-label="Back" class="flex items-center justify-center w-9 h-9 rounded-lg bg-surface-container-high/60 border border-outline-variant/50 text-primary dark:text-primary hover:text-secondary-fixed-dim hover:bg-surface-container-high/50 transition-colors duration-200 active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
+</button>
+<!-- Exact Headline Token / Brand Anchor -->
+<h1 class="text-headline-sm font-headline-sm text-primary dark:text-primary tracking-widest uppercase text-center drop-shadow-[0_2px_8px_rgba(242,202,80,0.5)]">
+        SPIDER TEMPLE ESCAPE
+      </h1>
+<!-- Trailing Icon / Settings -->
+<button aria-label="Settings" class="flex items-center justify-center w-9 h-9 rounded-lg bg-surface-container-high/60 border border-outline-variant/50 text-primary dark:text-primary hover:text-secondary-fixed-dim hover:bg-surface-container-high/50 transition-colors duration-200 active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</header>
+<!-- CONTENT CANVAS: Padded below TopAppBar -->
+<div class="relative z-10 flex flex-col flex-1 pt-16 pb-4 px-4 justify-between">
+<!-- TOP HUD METRICS & HIGH SCORE BANNER -->
+<section class="flex flex-col gap-2 mt-1">
+<!-- Top HUD Row -->
+<div class="flex items-center justify-between gap-2">
+<!-- Explorer Avatar & Level Gauge -->
+<div class="flex items-center gap-2.5 bg-surface-container-low/85 backdrop-blur-md p-1 pr-3 rounded-full border border-outline-variant/60 shadow-lg">
+<div class="relative w-11 h-11 flex-shrink-0">
+<!-- Radial XP ring glow -->
+<div class="absolute -inset-0.5 rounded-full bg-secondary-fixed-dim/40 blur-[2px]"></div>
+<img alt="Avatar" class="w-full h-full object-cover rounded-full border-2 border-primary relative z-10 shadow-inner" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcdHQSWEXaNgAFUkb9NqBSUs9MX71pIsc0CD_La1mLCTF5N2fJXHH5h1LLqElmZUsniR20jVqVYK93rJNCZm69POTjQE0z_OC-JC_OtXKLInvXhZMUBV5oc-JMHHEsi3dJbdQzSJxtz3TgcoQ_p011TPtKxoc5w4cvsigCNz79xMBtsts5uMeEiy8PrBY7PG9fgDVjcaHFLxs--5BAejh8-hgqcPL8l7iRziX_drzYqh7TfgLRJLF3ElQKqj3EY37X63Qh-E0FO7yn"/>
+<span class="absolute -bottom-1 -right-1 bg-surface-container-lowest border border-primary text-primary font-label-sm text-label-sm px-1 rounded-full z-20">14</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-wider">EXPLORER</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant font-semibold leading-tight">M. Coronado</span>
+</div>
+</div>
+<!-- Currency & Health Pill Container -->
+<div class="flex items-center gap-2">
+<!-- Relic Gold Pill -->
+<div class="flex items-center gap-1.5 bg-surface-container-low/90 border border-primary/40 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md">
+<span class="text-[15px] filter drop-shadow-[0_0_6px_rgba(242,202,80,0.8)]">🪙</span>
+<span class="font-label-md text-label-md text-primary font-bold tracking-tight">4,850</span>
+<button aria-label="Add Coins" class="w-4 h-4 rounded-full bg-primary text-on-primary font-black text-[10px] flex items-center justify-center ml-0.5 hover:scale-110 active:scale-95 transition-transform" type="button">+</button>
+</div>
+<!-- Lives Pool (Hearts) & Sound Trigger -->
+<div class="flex items-center gap-1 bg-surface-container-low/90 border border-outline-variant/60 backdrop-blur-md px-2 py-1 rounded-full">
+<span class="material-symbols-outlined text-[16px] text-error" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<span class="font-label-sm text-label-sm text-on-surface font-bold mr-1">3/3</span>
+<button aria-label="Toggle Audio" class="w-6 h-6 flex items-center justify-center rounded-full bg-surface-container-high text-primary hover:text-secondary-fixed-dim transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px]">volume_up</span>
+</button>
+</div>
+</div>
+</div>
+<!-- High Score Record Plaque -->
+<div class="mx-auto w-full max-w-xs flex items-center justify-center gap-2 bg-gradient-to-r from-surface-container-lowest/80 via-surface-container-high/90 to-surface-container-lowest/80 py-1 px-4 rounded-md border-x-2 border-primary/60 shadow-lg">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+<span class="font-label-md text-label-md text-primary-fixed uppercase tracking-widest">BEST RUN:</span>
+<span class="font-label-lg text-label-lg text-secondary-fixed-dim font-bold tracking-wider">48,290m</span>
+<span class="w-1.5 h-1.5 rotate-45 bg-primary/70 ml-1"></span>
+</div>
+</section>
+<!-- CENTER HERO SECTION: Mesoamerican Spider Relic & Equipped Suit Showcase -->
+<section class="flex flex-col items-center my-auto py-2">
+<!-- Sacred Spider Relic Emblem (Floating Header Totem) -->
+<div class="relative flex flex-col items-center mb-1">
+<div class="relative w-28 h-28 -mb-4 z-20 animate-pulse-glow">
+<!-- Central Golden Spider Medallion https://lh3.googleusercontent.com/aida/AEtjO1X61PiXSUdt_ScHuPJLRh77T0qGw8QGnni4r0R5s5dXX1w0Qs1BHFrMIxrciOJoTEqKr81za9VMtLsadl4XWTVcVS94ZfRZEod5J5bczr7Di-gpE3WtWe5FLms2ghFXfIW78ajt3mB9KkLRIMCgHR-0fG4N6rFbR6b5nQA3dX8UfwoJxrSIlK5_TLpZCKWHXRoh2uUBSH4v2gql25w4BKDxSW_uA4vYrKAgq5qL1o-sZ1CNMZBbk25prnfP -->
+<img alt="Golden Spider Relic" class="w-full h-full object-contain filter drop-shadow-[0_0_18px_rgba(212,175,55,0.7)]" src="https://lh3.googleusercontent.com/aida/AEtjO1X61PiXSUdt_ScHuPJLRh77T0qGw8QGnni4r0R5s5dXX1w0Qs1BHFrMIxrciOJoTEqKr81za9VMtLsadl4XWTVcVS94ZfRZEod5J5bczr7Di-gpE3WtWe5FLms2ghFXfIW78ajt3mB9KkLRIMCgHR-0fG4N6rFbR6b5nQA3dX8UfwoJxrSIlK5_TLpZCKWHXRoh2uUBSH4v2gql25w4BKDxSW_uA4vYrKAgq5qL1o-sZ1CNMZBbk25prnfP"/>
+</div>
+<div class="text-center z-20">
+<span class="font-label-sm text-label-sm text-secondary-fixed-dim uppercase tracking-[0.25em] block animate-runic">SUBTERRANEAN ODYSSEY</span>
+</div>
+</div>
+<!-- Equipped Suit Preview Card (Level 2 Interactive Relic Panel) -->
+<div class="w-full max-w-[340px] bg-surface-container-lowest/90 backdrop-blur-xl rounded-xl gold-filigree-border relative p-3 overflow-hidden shadow-2xl">
+<!-- Mesoamerican Corner Accents -->
+<div class="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-primary"></div>
+<div class="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-primary"></div>
+<div class="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-primary"></div>
+<div class="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-primary"></div>
+<!-- Hero Gear Display Frame -->
+<div class="relative w-full h-44 rounded-lg overflow-hidden bg-surface-container-high border border-outline-variant/40 group">
+<!-- Suit Character Showcase Image -->
+<img alt="Equipped Suit" class="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYDtcd_TiDgrG9SFauZQW6nNiW3RZUPo3W8jw2N2x8QcjiCZLNigLa4LDMwfhYGVsC4auXLRmj2vKyTwPPC_W-hD1DrKBYM0jxxVIopa8x67Wpno1ipHcrYmiiQmpAgZs2BF-DsQn8z6fIEGZB-C3bbsqpZ7tSPqcChYDiw-OMavDyU2tSOCwSkeXxUELbSPzZX0MDShqlSm7dWjZt5Sq3NgXNHNj99yt4nf6GNWkI48Qb6QryzWvjQ_5yroV1E9c2MSCtuoSV6hOo"/>
+<!-- Vignette inside suit frame -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-black/30"></div>
+<!-- Inspect / Switch Arrows -->
+<button aria-label="Previous Suit" class="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-surface-container-lowest/80 border border-outline-variant/70 flex items-center justify-center text-on-surface hover:text-primary active:scale-90 transition-transform" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button aria-label="Next Suit" class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-surface-container-lowest/80 border border-outline-variant/70 flex items-center justify-center text-on-surface hover:text-primary active:scale-90 transition-transform" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+<!-- Rarity Tag Top Right -->
+<div class="absolute top-2 right-2 flex items-center gap-1 bg-surface-container-lowest/90 border border-primary-container px-2 py-0.5 rounded-full shadow">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+<span class="font-label-sm text-label-sm text-primary font-bold tracking-widest">LEGENDARY</span>
+</div>
+<!-- Bottom Suit Info Overlay -->
+<div class="absolute bottom-2 left-2 right-2 flex flex-col">
+<span class="font-headline-sm text-headline-sm text-primary leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">SYMBIOTE SHADOW</span>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="material-symbols-outlined text-[14px] text-secondary-fixed-dim">bolt</span>
+<span class="font-label-sm text-label-sm text-secondary-fixed-dim font-bold tracking-wide">PERK: +35% MAGNET RADIUS</span>
+</div>
+</div>
+</div>
+<!-- Quick Gear Specs Bar -->
+<div class="grid grid-cols-3 gap-1.5 mt-2.5 text-center">
+<div class="bg-surface-container/70 py-1 px-1 rounded border border-outline-variant/30">
+<span class="font-label-sm text-label-sm text-outline block">SPEED</span>
+<span class="font-label-md text-label-md text-on-surface font-bold">MAX</span>
+</div>
+<div class="bg-surface-container/70 py-1 px-1 rounded border border-outline-variant/30">
+<span class="font-label-sm text-label-sm text-outline block">ARMOR</span>
+<span class="font-label-md text-label-md text-primary font-bold">880</span>
+</div>
+<div class="bg-surface-container/70 py-1 px-1 rounded border border-outline-variant/30">
+<span class="font-label-sm text-label-sm text-outline block">JADE LUCK</span>
+<span class="font-label-md text-label-md text-secondary-fixed-dim font-bold">+18%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- BOTTOM THUMB-ARC INTERACTION CLUSTER -->
+<section class="flex flex-col gap-2.5 mt-auto">
+<!-- PRIMARY HERO CTA: Stone Vault Seal "START EXPEDITION" -->
+<button class="relative group w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#2a220b] via-primary-container to-[#2a220b] text-on-primary gold-rim-specular active:scale-[0.98] transition-all duration-150 overflow-hidden cursor-pointer" type="button">
+<!-- Animated sheen reflection -->
+<div class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+<div class="flex items-center justify-center gap-3 relative z-10">
+<span class="material-symbols-outlined text-[26px] text-on-primary filter drop-shadow" style="font-variation-settings: 'FILL' 1;">explore</span>
+<div class="flex flex-col items-center">
+<span class="font-headline-md text-headline-md text-on-primary tracking-wider uppercase drop-shadow font-extrabold">START EXPEDITION</span>
+<span class="font-label-sm text-label-sm text-on-primary/90 tracking-widest -mt-0.5">SECTOR 05 • RUNIC DESCENT</span>
+</div>
+<span class="material-symbols-outlined text-[24px] text-on-primary animate-pulse" style="font-variation-settings: 'FILL' 1;">arrow_forward</span>
+</div>
+</button>
+<!-- 4 TACTILE GLASSMORPHIC ACTION CARDS (Bento thumb grid) -->
+<div class="grid grid-cols-4 gap-2">
+<!-- Card 1: HERO SUITS -->
+<button class="relative flex flex-col items-center justify-center p-2 rounded-lg bg-surface-container/80 backdrop-blur-md border border-outline-variant/50 hover:border-primary/70 active:scale-95 transition-all group" type="button">
+<span class="absolute -top-1 -right-1 bg-secondary-fixed text-on-secondary-fixed font-label-sm text-[9px] px-1 rounded-full font-bold shadow">NEW</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-high/90 flex items-center justify-center text-primary mb-1 group-hover:text-secondary-fixed-dim transition-colors">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant group-hover:text-primary tracking-tight">SUITS</span>
+</button>
+<!-- Card 2: UPGRADES -->
+<button class="flex flex-col items-center justify-center p-2 rounded-lg bg-surface-container/80 backdrop-blur-md border border-outline-variant/50 hover:border-primary/70 active:scale-95 transition-all group" type="button">
+<div class="w-8 h-8 rounded-full bg-surface-container-high/90 flex items-center justify-center text-primary mb-1 group-hover:text-secondary-fixed-dim transition-colors">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">offline_bolt</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant group-hover:text-primary tracking-tight">UPGRADES</span>
+</button>
+<!-- Card 3: LEADERBOARD -->
+<button class="relative flex flex-col items-center justify-center p-2 rounded-lg bg-surface-container/80 backdrop-blur-md border border-outline-variant/50 hover:border-primary/70 active:scale-95 transition-all group" type="button">
+<span class="absolute -top-1 -right-1 bg-primary text-on-primary font-label-sm text-[8px] px-1 rounded-full font-bold">1%</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-high/90 flex items-center justify-center text-primary mb-1 group-hover:text-secondary-fixed-dim transition-colors">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">leaderboard</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant group-hover:text-primary tracking-tight">RANKS</span>
+</button>
+<!-- Card 4: SETTINGS / AUDIO -->
+<button class="flex flex-col items-center justify-center p-2 rounded-lg bg-surface-container/80 backdrop-blur-md border border-outline-variant/50 hover:border-primary/70 active:scale-95 transition-all group" type="button">
+<div class="w-8 h-8 rounded-full bg-surface-container-high/90 flex items-center justify-center text-primary mb-1 group-hover:text-secondary-fixed-dim transition-colors">
+<span class="material-symbols-outlined text-[20px]">tune</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant group-hover:text-primary tracking-tight">OPTIONS</span>
+</button>
+</div>
+<!-- WEEKLY CHALLENGE RUNIC TICKER BAR -->
+<div class="flex items-center gap-2 bg-surface-container-lowest/90 border border-secondary-fixed-dim/40 rounded-lg px-3 py-1.5 shadow-inner">
+<span class="material-symbols-outlined text-[16px] text-secondary-fixed-dim animate-runic">bolt</span>
+<div class="flex flex-col flex-1 overflow-hidden">
+<div class="flex justify-between items-center text-[10px] leading-tight">
+<span class="font-label-sm text-secondary-fixed-dim font-bold uppercase tracking-wider">WEEKLY TRIAL</span>
+<span class="font-label-sm text-on-surface-variant">7.4km / 10km</span>
+</div>
+<!-- Progress Mini-Bar -->
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+<div class="bg-gradient-to-r from-secondary-fixed-dim to-primary h-full w-[74%] rounded-full shadow-[0_0_8px_rgba(0,228,120,0.8)]"></div>
+</div>
+</div>
+<span class="font-label-sm text-primary text-[10px] uppercase font-bold tracking-tight">JADE SUIT</span>
+</div>
+</section>
+</div>
+</div>
+</body></html>

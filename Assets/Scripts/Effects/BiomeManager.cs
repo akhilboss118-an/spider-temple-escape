@@ -324,6 +324,166 @@ namespace Runner.Effects
         }
         #endregion
 
+        #region Procedural Particle Textures & Materials
+        private static Texture2D _cachedSoftCircleTex;
+        private static Texture2D _cachedSoftCloudTex;
+        private static Texture2D _cachedSpeedStreakTex;
+
+        public static Texture2D GetSoftCircleTexture()
+        {
+            if (_cachedSoftCircleTex != null) return _cachedSoftCircleTex;
+
+            int size = 64;
+            _cachedSoftCircleTex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            _cachedSoftCircleTex.name = "Procedural_SoftCircle";
+            _cachedSoftCircleTex.wrapMode = TextureWrapMode.Clamp;
+            _cachedSoftCircleTex.filterMode = FilterMode.Bilinear;
+
+            Color[] pixels = new Color[size * size];
+            Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+            float maxDist = size * 0.48f;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), center);
+                    float t = Mathf.Clamp01(dist / maxDist);
+                    // Smooth cosine falloff
+                    float alpha = 0.5f * (1.0f + Mathf.Cos(t * Mathf.PI));
+                    if (t >= 1.0f) alpha = 0f;
+                    alpha = Mathf.Pow(alpha, 1.6f); // Soft edge
+
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            _cachedSoftCircleTex.SetPixels(pixels);
+            _cachedSoftCircleTex.Apply();
+            return _cachedSoftCircleTex;
+        }
+
+        public static Texture2D GetSoftCloudTexture()
+        {
+            if (_cachedSoftCloudTex != null) return _cachedSoftCloudTex;
+
+            int size = 64;
+            _cachedSoftCloudTex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            _cachedSoftCloudTex.name = "Procedural_SoftCloud";
+            _cachedSoftCloudTex.wrapMode = TextureWrapMode.Clamp;
+            _cachedSoftCloudTex.filterMode = FilterMode.Bilinear;
+
+            Color[] pixels = new Color[size * size];
+            Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+            float maxDist = size * 0.46f;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), center);
+                    float t = Mathf.Clamp01(dist / maxDist);
+                    float alpha = Mathf.SmoothStep(1.0f, 0.0f, t);
+                    alpha = Mathf.Pow(alpha, 2.2f); // Very soft wispy mist falloff
+
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            _cachedSoftCloudTex.SetPixels(pixels);
+            _cachedSoftCloudTex.Apply();
+            return _cachedSoftCloudTex;
+        }
+
+        public static Texture2D GetSpeedStreakTexture()
+        {
+            if (_cachedSpeedStreakTex != null) return _cachedSpeedStreakTex;
+
+            int width = 64;
+            int height = 16;
+            _cachedSpeedStreakTex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            _cachedSpeedStreakTex.name = "Procedural_SpeedStreak";
+            _cachedSpeedStreakTex.wrapMode = TextureWrapMode.Clamp;
+            _cachedSpeedStreakTex.filterMode = FilterMode.Bilinear;
+
+            Color[] pixels = new Color[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                float ny = Mathf.Abs((y - (height * 0.5f)) / (height * 0.5f));
+                float yFalloff = Mathf.Clamp01(1.0f - ny * ny);
+
+                for (int x = 0; x < width; x++)
+                {
+                    float nx = (float)x / (width - 1);
+                    // Tapered aerodynamic speed line
+                    float xFalloff = Mathf.Sin(nx * Mathf.PI);
+                    float alpha = yFalloff * xFalloff;
+
+                    pixels[y * width + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            _cachedSpeedStreakTex.SetPixels(pixels);
+            _cachedSpeedStreakTex.Apply();
+            return _cachedSpeedStreakTex;
+        }
+
+        public static Material CreateParticleMaterial(Color color, Texture2D texture, bool isAdditive = false)
+        {
+            Shader s = null;
+            if (isAdditive)
+            {
+                s = Shader.Find("Mobile/Particles/Additive")
+                 ?? Shader.Find("Particles/Additive")
+                 ?? Shader.Find("Legacy Shaders/Particles/Additive")
+                 ?? Shader.Find("Particles/Standard Unlit")
+                 ?? Shader.Find("Sprites/Default");
+            }
+            else
+            {
+                s = Shader.Find("Mobile/Particles/Alpha Blended")
+                 ?? Shader.Find("Particles/Alpha Blended")
+                 ?? Shader.Find("Legacy Shaders/Particles/Alpha Blended")
+                 ?? Shader.Find("Particles/Standard Unlit")
+                 ?? Shader.Find("Sprites/Default");
+            }
+
+            if (s == null)
+            {
+                s = Shader.Find("Unlit/Transparent") ?? Shader.Find("Standard");
+            }
+
+            Material mat = new Material(s);
+            mat.name = isAdditive ? "Particle_Additive" : "Particle_AlphaBlend";
+
+            if (texture != null)
+            {
+                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", texture);
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", texture);
+            }
+
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", color);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+
+            // If Standard or Standard Unlit, configure explicit transparency
+            if (s.name.Contains("Standard"))
+            {
+                mat.SetFloat("_Mode", isAdditive ? 3 : 2); // 2 = Fade, 3 = Transparent
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)(isAdditive ? UnityEngine.Rendering.BlendMode.SrcAlpha : UnityEngine.Rendering.BlendMode.SrcAlpha));
+                mat.SetInt("_DstBlend", (int)(isAdditive ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha));
+                mat.SetInt("_ZWrite", 0);
+                mat.DisableKeyword("_ALPHATEST_ON");
+                mat.EnableKeyword("_ALPHABLEND_ON");
+                mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            }
+
+            mat.renderQueue = 3000;
+            return mat;
+        }
+        #endregion
+
         #region Speed Wind Lines Particles
         private void InitializeSpeedWindParticles()
         {
@@ -333,13 +493,13 @@ namespace Runner.Effects
             speedWindParticles = windObj.AddComponent<ParticleSystem>();
             PrepareParticleSystemForSetup(speedWindParticles);
             var main = speedWindParticles.main;
-            main.maxParticles = 60;
+            main.maxParticles = 50;
             main.duration = 1.0f;
             main.loop = true;
             main.startLifetime = 0.35f;
             main.startSpeed = 35.0f;
             main.startSize = 0.08f;
-            main.startColor = new Color(1f, 1f, 1f, 0.35f);
+            main.startColor = new Color(0.85f, 0.96f, 1.0f, 0.45f);
             main.simulationSpace = ParticleSystemSimulationSpace.World;
 
             var emission = speedWindParticles.emission;
@@ -351,9 +511,11 @@ namespace Runner.Effects
 
             var renderer = windObj.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = 0.15f;
-            renderer.lengthScale = 3.5f;
-            renderer.sharedMaterial = MaterialHelper.CreateSafeMaterial(new Color(1f, 1f, 1f, 0.4f));
+            renderer.velocityScale = 0.18f;
+            renderer.lengthScale = 4.0f;
+
+            // Dedicated translucent speed streak material — zero solid white boxes!
+            renderer.sharedMaterial = CreateParticleMaterial(new Color(0.85f, 0.98f, 1.0f, 0.45f), GetSpeedStreakTexture(), isAdditive: true);
         }
 
         private void UpdateSpeedWindParticles(float speed)
@@ -370,7 +532,7 @@ namespace Runner.Effects
             if (speed >= speedWindThreshold)
             {
                 float t = Mathf.InverseLerp(speedWindThreshold, 20.0f, speed);
-                emission.rateOverTime = Mathf.Lerp(15f, 60f, t);
+                emission.rateOverTime = Mathf.Lerp(15f, 50f, t);
                 if (!speedWindParticles.isPlaying) speedWindParticles.Play();
             }
             else
@@ -389,28 +551,27 @@ namespace Runner.Effects
             ambientMotesParticles = moteObj.AddComponent<ParticleSystem>();
             PrepareParticleSystemForSetup(ambientMotesParticles);
             var main = ambientMotesParticles.main;
-            main.maxParticles = 40;
+            main.maxParticles = 35;
             main.duration = 1f;
             main.loop = true;
-            main.startLifetime = 6f;
-            main.startSpeed = 0.3f;
-            main.startSize = 0.04f;
-            main.startColor = new Color(1f, 0.95f, 0.7f, 0.25f);
+            main.startLifetime = 5f;
+            main.startSpeed = 0.25f;
+            main.startSize = 0.05f;
+            main.startColor = new Color(1.0f, 0.90f, 0.50f, 0.50f); // Warm golden sunlit spores
             main.simulationSpace = ParticleSystemSimulationSpace.World;
 
             var emission = ambientMotesParticles.emission;
-            emission.rateOverTime = 8;
+            emission.rateOverTime = 7;
 
             var shape = ambientMotesParticles.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(12f, 6f, 12f);
+            shape.scale = new Vector3(10f, 5f, 10f);
 
             var renderer = moteObj.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
 
-            Material moteMat = MaterialHelper.CreateSafeMaterial(new Color(1f, 0.92f, 0.6f, 0.2f));
-            moteMat.EnableKeyword("_ALPHABLEND_ON");
-            renderer.sharedMaterial = moteMat;
+            // Dedicated soft circular golden dust particle material — zero solid white squares!
+            renderer.sharedMaterial = CreateParticleMaterial(new Color(1.0f, 0.88f, 0.45f, 0.60f), GetSoftCircleTexture(), isAdditive: true);
 
             // Start hidden until player starts
             ambientMotesParticles.Stop();
@@ -424,27 +585,27 @@ namespace Runner.Effects
             groundMistParticles = mistObj.AddComponent<ParticleSystem>();
             PrepareParticleSystemForSetup(groundMistParticles);
             var main = groundMistParticles.main;
-            main.maxParticles = 25;
+            main.maxParticles = 20;
             main.duration = 1f;
             main.loop = true;
             main.startLifetime = 5f;
-            main.startSpeed = 0.15f;
-            main.startSize = 0.8f;
-            main.startColor = new Color(0.8f, 0.85f, 0.8f, 0.08f);
+            main.startSpeed = 0.12f;
+            main.startSize = 1.6f;
+            main.startColor = new Color(0.80f, 0.92f, 0.82f, 0.07f); // Wispy emerald canyon mist
             main.simulationSpace = ParticleSystemSimulationSpace.World;
 
             var emission = groundMistParticles.emission;
-            emission.rateOverTime = 5;
+            emission.rateOverTime = 4;
 
             var shape = groundMistParticles.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(14f, 1.5f, 14f);
+            shape.scale = new Vector3(14f, 1.2f, 14f);
 
             var renderer = mistObj.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
 
-            Material mistMat = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 0.9f, 0.8f, 0.06f));
-            renderer.sharedMaterial = mistMat;
+            // Dedicated soft radial cloud mist material — zero solid white squares!
+            renderer.sharedMaterial = CreateParticleMaterial(new Color(0.82f, 0.92f, 0.85f, 0.08f), GetSoftCloudTexture(), isAdditive: false);
 
             groundMistParticles.Stop();
         }
@@ -460,10 +621,10 @@ namespace Runner.Effects
             main.maxParticles = 30;
             main.duration = 1f;
             main.loop = true;
-            main.startLifetime = 3f;
-            main.startSpeed = 1.2f;
-            main.startSize = 0.06f;
-            main.startColor = new Color(1f, 0.4f, 0.05f, 0.7f);
+            main.startLifetime = 2.5f;
+            main.startSpeed = 1.4f;
+            main.startSize = 0.07f;
+            main.startColor = new Color(1f, 0.55f, 0.10f, 0.8f);
             main.simulationSpace = ParticleSystemSimulationSpace.World;
 
             var emission = emberParticles.emission;
@@ -474,12 +635,10 @@ namespace Runner.Effects
             shape.scale = new Vector3(12f, 1f, 12f);
 
             var renderer = emberObj.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = 0.1f;
-            renderer.lengthScale = 2f;
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
 
-            Material emberMat = MaterialHelper.CreateSafeMaterial(new Color(1f, 0.35f, 0.05f, 0.6f));
-            renderer.sharedMaterial = emberMat;
+            // Dedicated soft fiery ember material — zero solid white squares!
+            renderer.sharedMaterial = CreateParticleMaterial(new Color(1f, 0.55f, 0.12f, 0.85f), GetSoftCircleTexture(), isAdditive: true);
         }
 
         private void UpdateAmbientParticles(float speed, BiomeType biome)
