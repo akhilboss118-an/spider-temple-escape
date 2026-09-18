@@ -259,7 +259,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.4
+              Download APK v1.5
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
