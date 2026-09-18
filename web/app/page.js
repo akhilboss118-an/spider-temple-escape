@@ -392,6 +392,7 @@ function Counter({ target, suffix = '' }) {
 // ──────────────────────────────────────────────
 export default function Home() {
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState(0);
+  const [faqOpenIndex, setFaqOpenIndex] = useState(null);
 
   const activeHero = CHARACTERS[selectedCharacterIndex] || CHARACTERS[0];
 
@@ -742,7 +743,13 @@ export default function Home() {
           <h2 className="section-title">Frequently Asked</h2>
           <div className="faq-list">
             {FAQ.map((item, i) => (
-              <FAQItem key={i} item={item} index={i} />
+              <FAQItem
+                key={i}
+                item={item}
+                index={i}
+                isOpen={faqOpenIndex === i}
+                onToggle={() => setFaqOpenIndex(faqOpenIndex === i ? null : i)}
+              />
             ))}
           </div>
         </div>
