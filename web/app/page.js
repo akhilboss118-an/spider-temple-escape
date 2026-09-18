@@ -175,6 +175,187 @@ const SCREENSHOTS = [
 ];
 
 // ──────────────────────────────────────────────
+//  FAQ Data
+// ──────────────────────────────────────────────
+const FAQ = [
+  { q: 'Is Spider Temple Escape free?', a: 'Yes, 100% free with zero in-app purchases and zero ads. Download the APK and play the full game instantly.' },
+  { q: 'Which Android versions are supported?', a: 'Android 8.0 (Oreo) and above. The APK includes both ARM64 and ARMv7 native libraries for maximum device compatibility.' },
+  { q: 'How do I install the APK?', a: 'Download the APK, open it from your Notifications or Downloads folder, enable "Install from unknown sources" if prompted, then tap Install. The whole process takes under a minute.' },
+  { q: 'What are character abilities?', a: "Each of the 8 heroes has a unique special ability that triggers automatically during gameplay — like Naruto's extended magnet radius, Zenitsu's thunder speed burst, or Nezuko's demon regeneration." },
+  { q: 'How does the progressive difficulty work?', a: 'The game gets harder the further you run. After 500m, hazard density increases. At 2000m+, the monster enters Phase 2 with visual changes. Beyond 5000m, Phase 3 activates fire trails and aggressive lunges.' },
+  { q: 'Does it work offline?', a: 'Absolutely. Once installed, the game runs entirely offline — no internet connection required. Perfect for commutes and travel.' },
+  { q: 'Can I play as all 8 characters from the start?', a: "Yes! All 8 heroes — Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke — are fully unlocked and playable from your first run." },
+  { q: 'What frame rate does the game run at?', a: 'Locked 60 FPS on all compatible devices. The game uses Unity 6 IL2CPP native compilation for butter-smooth physics and rendering.' },
+];
+
+// ──────────────────────────────────────────────
+//  How To Play Steps
+// ──────────────────────────────────────────────
+const CONTROLS = [
+  { gesture: '👆', label: 'Swipe Up', action: 'Jump', desc: 'Leap over fallen logs, stone barriers, and low obstacles' },
+  { gesture: '👇', label: 'Swipe Down', action: 'Slide', desc: 'Duck beneath arches, branches, and overhead beams' },
+  { gesture: '👈', label: 'Swipe Left', action: 'Lane Left', desc: 'Dodge into the left lane to avoid center obstacles' },
+  { gesture: '👉', label: 'Swipe Right', action: 'Lane Right', desc: 'Switch to the right lane to evade incoming hazards' },
+  { gesture: '⏸', label: 'Tap Screen', action: 'Power-Up', desc: 'Trigger your collected Shield, Magnet, or Speed Boost' },
+];
+
+// ──────────────────────────────────────────────
+//  Parallax Floating Particles
+// ──────────────────────────────────────────────
+const PARALLAX_ITEMS = [
+  { char: '🪙', size: 28, x: 8,  y: 15, speed: 12, delay: 0 },
+  { char: '🪙', size: 22, x: 85, y: 25, speed: 15, delay: 2 },
+  { char: '🕸️', size: 32, x: 12, y: 70, speed: 18, delay: 1 },
+  { char: '🪙', size: 20, x: 72, y: 60, speed: 14, delay: 3 },
+  { char: '🕷️', size: 26, x: 92, y: 45, speed: 16, delay: 0.5 },
+  { char: '🍃', size: 18, x: 25, y: 35, speed: 20, delay: 1.5 },
+  { char: '🪙', size: 16, x: 55, y: 80, speed: 13, delay: 4 },
+  { char: '🕸️', size: 24, x: 38, y: 10, speed: 17, delay: 2.5 },
+  { char: '🍃', size: 14, x: 65, y: 90, speed: 19, delay: 0.8 },
+  { char: '🕷️', size: 20, x: 5,  y: 50, speed: 11, delay: 3.5 },
+  { char: '🪙', size: 24, x: 45, y: 45, speed: 14, delay: 1.2 },
+  { char: '🍃', size: 16, x: 78, y: 80, speed: 22, delay: 2.8 },
+];
+
+// ──────────────────────────────────────────────
+//  Scroll Animation Hook
+// ──────────────────────────────────────────────
+function useScrollReveal(threshold = 0.15) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return [ref, visible];
+}
+
+function RevealSection({ children, className = '', id }) {
+  const [ref, visible] = useScrollReveal(0.1);
+  return (
+    <section id={id} ref={ref} className={`${className} reveal ${visible ? 'revealed' : ''}`}>
+      {children}
+    </section>
+  );
+}
+
+// ──────────────────────────────────────────────
+//  FAQ Accordion Item
+// ──────────────────────────────────────────────
+function FAQItem({ item, index, isOpen, onToggle }) {
+  return (
+    <div className={`faq-item ${isOpen ? 'open' : ''}`}>
+      <button className="faq-question" onClick={onToggle} type="button">
+        <span className="faq-index">{String(index + 1).padStart(2, '0')}</span>
+        <span className="faq-q-text">{item.q}</span>
+        <span className="faq-chevron">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        </span>
+      </button>
+      <div className="faq-answer-wrap">
+        <div className="faq-answer">{item.a}</div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+//  Character Comparison Component
+// ──────────────────────────────────────────────
+function CharacterCompare({ characters }) {
+  const [leftIdx, setLeftIdx] = useState(0);
+  const [rightIdx, setRightIdx] = useState(3);
+  const left = characters[leftIdx];
+  const right = characters[rightIdx];
+  const statMeta = {
+    speed:  { bar: 'var(--gold)',  glow: 'rgba(212,168,83,0.6)', label: '⚡' },
+    shield: { bar: 'var(--green-accent)', glow: 'rgba(42,255,138,0.6)', label: '🛡️' },
+    agility:{ bar: '#38bdf8', glow: 'rgba(56,189,248,0.6)', label: '🌪️' },
+  };
+  const maxVal = 1.5;
+
+  return (
+    <div className="compare-container">
+      <div className="compare-pick-row">
+        <div className="compare-pick">
+          <label className="compare-label">Challenger A</label>
+          <select className="compare-select" value={leftIdx} onChange={(e) => setLeftIdx(Number(e.target.value))}>
+            {characters.map((c, i) => <option key={c.id} value={i}>{c.name} — {c.title}</option>)}
+          </select>
+        </div>
+        <div className="compare-vs">VS</div>
+        <div className="compare-pick">
+          <label className="compare-label">Challenger B</label>
+          <select className="compare-select" value={rightIdx} onChange={(e) => setRightIdx(Number(e.target.value))}>
+            {characters.map((c, i) => <option key={c.id} value={i}>{c.name} — {c.title}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="compare-cards">
+        {[left, right].map((hero, side) => (
+          <div key={`${hero.id}-${side}`} className={`compare-card ${side === 0 ? 'left' : 'right'}`}>
+            <div className="compare-card-avatar-wrap">
+              <Image src={hero.avatar} alt={hero.name} width={80} height={80} className="compare-card-avatar" />
+            </div>
+            <h4 className="compare-card-name">{hero.name}</h4>
+            <span className="compare-card-title">{hero.title}</span>
+            <span className="compare-card-archetype">{hero.archetype}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="compare-stats">
+        {Object.entries(statMeta).map(([key, cfg]) => {
+          const lv = left[key], rv = right[key];
+          const lw = lv > rv, rw = rv > lv, tie = lv === rv;
+          return (
+            <div key={key} className="compare-stat-row">
+              <div className="compare-stat-side left">
+                <span className={`compare-stat-val ${lw ? 'winner' : tie ? 'tie' : ''}`}>{lv.toFixed(2)}x</span>
+                {lw && <span className="compare-crown">👑</span>}
+              </div>
+              <div className="compare-stat-center">
+                <span className="compare-stat-icon">{cfg.label}</span>
+                <span className="compare-stat-name">{key.charAt(0).toUpperCase() + key.slice(1)}</span>
+              </div>
+              <div className="compare-stat-side right">
+                {rw && <span className="compare-crown">👑</span>}
+                <span className={`compare-stat-val ${rw ? 'winner' : tie ? 'tie' : ''}`}>{rv.toFixed(2)}x</span>
+              </div>
+              <div className="compare-bar-wrap">
+                <div className="compare-bar-track lt">
+                  <div className="compare-bar-fill" style={{ width: `${(lv / maxVal) * 100}%`, background: cfg.bar, boxShadow: `0 0 12px ${cfg.glow}`, float: 'right' }} />
+                </div>
+                <div className="compare-bar-track rt">
+                  <div className="compare-bar-fill" style={{ width: `${(rv / maxVal) * 100}%`, background: cfg.bar, boxShadow: `0 0 12px ${cfg.glow}` }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="compare-verdict">
+        {(() => {
+          const ls = left.speed + left.shield + left.agility;
+          const rs = right.speed + right.shield + right.agility;
+          if (ls > rs) return <span><strong>{left.name}</strong> has the edge — total stat sum {ls.toFixed(2)} vs {rs.toFixed(2)}</span>;
+          if (rs > ls) return <span><strong>{right.name}</strong> has the edge — total stat sum {rs.toFixed(2)} vs {ls.toFixed(2)}</span>;
+          return <span>Perfectly matched! Both heroes share a total stat sum of {ls.toFixed(2)}</span>;
+        })()}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
 //  Animated Counter
 // ──────────────────────────────────────────────
 function Counter({ target, suffix = '' }) {
@@ -225,13 +406,16 @@ export default function Home() {
           </a>
           <ul className="nav-links">
             <li><a href="#roster">Roster</a></li>
+            <li><a href="#compare">Compare</a></li>
+            <li><a href="#how-to-play">How to Play</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#screenshots">Screenshots</a></li>
+            <li><a href="#faq">FAQ</a></li>
             <li><a href="#download">Download</a></li>
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
           <Link className="nav-cta" href="/download">
-            ↓ Download APK v1.6
+            ↓ Download APK v1.7
           </Link>
         </div>
       </nav>
@@ -241,8 +425,26 @@ export default function Home() {
         <div className="hero-bg" />
         <div className="hero-overlay" />
 
+        <div className="parallax-layer">
+          {PARALLAX_ITEMS.map((p, i) => (
+            <span
+              key={i}
+              className="parallax-particle"
+              style={{
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                fontSize: `${p.size}px`,
+                animationDuration: `${p.speed}s`,
+                animationDelay: `${p.delay}s`,
+              }}
+            >
+              {p.char}
+            </span>
+          ))}
+        </div>
+
         <div className="container hero-content">
-          <div className="hero-badge">v1.6 Release · Progressive Difficulty · Monster Phases · Coin Combos · Death Animations · 60 FPS Native APK</div>
+          <div className="hero-badge">v1.7 Release · Character Abilities · Running Trails · Dynamic Music · Monster Roar · 60 FPS Native APK</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -259,7 +461,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.6
+              Download APK v1.7
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -500,14 +702,60 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── CHARACTER COMPARISON ── */}
+      <RevealSection className="compare-section" id="compare">
+        <div className="container">
+          <p className="section-label">Head to Head</p>
+          <h2 className="section-title">Compare Heroes</h2>
+          <p className="roster-sub">
+            Pick any two runners and see how their Speed, Shield, and Agility stack up against each other.
+          </p>
+          <CharacterCompare characters={CHARACTERS} />
+        </div>
+      </RevealSection>
+
+      {/* ── HOW TO PLAY ── */}
+      <RevealSection className="howto-section" id="how-to-play">
+        <div className="container">
+          <p className="section-label">Controls</p>
+          <h2 className="section-title">How to Play</h2>
+          <p className="roster-sub">
+            Master five intuitive swipe gestures to navigate ancient ruins at full sprint.
+          </p>
+          <div className="howto-grid">
+            {CONTROLS.map((c, i) => (
+              <div key={i} className="howto-card">
+                <div className="howto-gesture">{c.gesture}</div>
+                <div className="howto-label">{c.label}</div>
+                <div className="howto-action">{c.action}</div>
+                <p className="howto-desc">{c.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* ── FAQ ── */}
+      <RevealSection className="faq-section" id="faq">
+        <div className="container">
+          <p className="section-label">Support</p>
+          <h2 className="section-title">Frequently Asked</h2>
+          <div className="faq-list">
+            {FAQ.map((item, i) => (
+              <FAQItem key={i} item={item} index={i} />
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
       {/* ── DOWNLOAD ── */}
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v1.6 · Progressive Difficulty · Monster Phases · 60 FPS</div>
+          <div className="download-badge">Native Android APK v1.7 · Character Abilities · Dynamic Music · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v1.6 directly to your Android device with progressive difficulty scaling, 3-phase monster chase, coin combo multipliers, death animations, and locked 60 FPS gameplay with all 8 heroes unlocked.
+            Download the native APK v1.7 directly to your Android device with 7 unique character abilities, running trail effects, biome skybox transitions, dynamic music crossfade, and locked 60 FPS gameplay with all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
@@ -515,7 +763,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.6 — Free (~114 MB)
+              Download APK v1.7 — Free (~114 MB)
             </Link>
             <a
               className="download-github"
@@ -565,8 +813,11 @@ export default function Home() {
           <ul className="footer-links">
             <li><a href="#hero">Home</a></li>
             <li><a href="#roster">Roster</a></li>
+            <li><a href="#compare">Compare</a></li>
+            <li><a href="#how-to-play">How to Play</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#screenshots">Screenshots</a></li>
+            <li><a href="#faq">FAQ</a></li>
             <li><a href="#download">Download</a></li>
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
