@@ -570,7 +570,6 @@ namespace Runner.Audio
         private AudioClip jungleMusicClip;
         private AudioClip templeMusicClip;
         private AudioClip volcanicMusicClip;
-        private float musicCrossfadeTimer = 0f;
         private const float CROSSFADE_DURATION = 2.0f;
 
         public void CrossfadeBGMForBiome(Runner.Effects.BiomeType biome)

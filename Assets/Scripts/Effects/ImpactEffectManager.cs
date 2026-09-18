@@ -687,11 +687,11 @@ namespace Runner.Effects
 
         public void PlayPowerUpBurst(Vector3 position, Color color)
         {
-            // Radial burst of colored particles on power-up activation
-            int count = 12;
+            if (sparkPool.Count == 0) return;
+            int count = Mathf.Min(12, sparkPool.Count);
             for (int i = 0; i < count; i++)
             {
-                int idx = (sparkPoolIndex + i) % sparkPool.Length;
+                int idx = i % sparkPool.Count;
                 if (sparkPool[idx] == null) continue;
 
                 GameObject obj = sparkPool[idx];
@@ -704,16 +704,14 @@ namespace Runner.Effects
 
                 float angle = (360f / count) * i;
                 Vector3 dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
-                float speed = Random.Range(3f, 6f);
+                float speed = UnityEngine.Random.Range(3f, 6f);
 
                 PhysicalDebris debris = obj.GetComponent<PhysicalDebris>();
                 if (debris != null)
                 {
-                    debris.Initialize(dir * speed + Vector3.up * 2f, Vector3.up * -9.8f, new Vector3(Random.Range(-200f, 200f), Random.Range(-200f, 200f), Random.Range(-200f, 200f)), 0.8f, 0.3f);
+                    debris.Initialize(dir * speed + Vector3.up * 2f, UnityEngine.Vector3.up * -9.8f, 0.8f, false, true);
                 }
             }
-
-            sparkPoolIndex = (sparkPoolIndex + count) % sparkPool.Length;
         }
         #endregion
 

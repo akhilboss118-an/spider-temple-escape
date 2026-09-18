@@ -87,10 +87,7 @@ namespace Runner.Core
         public float CharAgilityMultiplier => charAgilityMultiplier;
 
         // Character-specific ability state
-        private float doubleJumpCooldown = 0f;
-        private bool hasDoubleJumpedThisJump = false;
         private float shieldRegenTimer = 0f;
-        private float magnetPulseTimer = 0f;
         private float burstSpeedTimer = 0f;
         private float autoDodgeTimer = 0f;
         private float scoreSurgeTimer = 0f;
@@ -410,10 +407,7 @@ namespace Runner.Core
             restartCooldownTimer = 0f;
 
             // Reset character ability timers
-            doubleJumpCooldown = 0f;
-            hasDoubleJumpedThisJump = false;
             shieldRegenTimer = 0f;
-            magnetPulseTimer = 0f;
             burstSpeedTimer = 0f;
             autoDodgeTimer = 0f;
             scoreSurgeTimer = 0f;
@@ -711,12 +705,8 @@ namespace Runner.Core
         private System.Collections.IEnumerator ZenitsuThunderBurst()
         {
             float burstDuration = 3.0f;
-            float originalMultiplier = 1.35f; // Zenitsu speed rating
-            // Temporarily boost speed
-            float savedSpeed = CurrentSpeed;
             CurrentSpeed *= 1.4f;
             yield return new WaitForSeconds(burstDuration);
-            // Speed will naturally correct on next Update frame
         }
 
         /// <summary>
