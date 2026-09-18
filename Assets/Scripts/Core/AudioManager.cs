@@ -519,6 +519,101 @@ namespace Runner.Audio
             if (sfxSource == null || nearMissClip == null) return;
             sfxSource.PlayOneShot(nearMissClip, 0.7f);
         }
+
+        // Monster roar on proximity
+        private AudioClip monsterRoarClip;
+        private float lastRoarTime = 0f;
+        private const float ROAR_COOLDOWN = 4.0f;
+
+        public void PlayMonsterRoar(float proximity)
+        {
+            if (sfxSource == null || monsterRoarClip == null) return;
+            if (Time.time - lastRoarTime < ROAR_COOLDOWN) return;
+
+            float vol = Mathf.InverseLerp(6.0f, 1.5f, proximity) * 0.85f;
+            if (vol > 0.1f)
+            {
+                sfxSource.PlayOneShot(monsterRoarClip, vol);
+                lastRoarTime = Time.time;
+            }
+        }
+
+        // Wind rush at high speed
+        private AudioClip windRushClip;
+        private float windRushVolume = 0f;
+
+        public void UpdateWindRush(float speed)
+        {
+            if (loopSource == null || windRushClip == null) return;
+
+            float targetVol = Mathf.InverseLerp(12f, 22f, speed) * 0.35f;
+            windRushVolume = Mathf.Lerp(windRushVolume, targetVol, Time.deltaTime * 3f);
+
+            if (windRushVolume > 0.01f)
+            {
+                if (loopSource.clip != windRushClip)
+                {
+                    loopSource.clip = windRushClip;
+                    loopSource.loop = true;
+                }
+                loopSource.volume = windRushVolume;
+                if (!loopSource.isPlaying) loopSource.Play();
+            }
+            else
+            {
+                if (loopSource.isPlaying && loopSource.clip == windRushClip)
+                    loopSource.Stop();
+            }
+        }
+
+        // Biome music crossfade
+        private AudioClip jungleMusicClip;
+        private AudioClip templeMusicClip;
+        private AudioClip volcanicMusicClip;
+        private float musicCrossfadeTimer = 0f;
+        private const float CROSSFADE_DURATION = 2.0f;
+
+        public void CrossfadeBGMForBiome(Runner.Effects.BiomeType biome)
+        {
+            if (bgmSource == null) return;
+
+            AudioClip targetClip = biome switch
+            {
+                Runner.Effects.BiomeType.JungleCanopy => jungleMusicClip ?? proceduralBgmClip,
+                Runner.Effects.BiomeType.SunkenTemple => templeMusicClip ?? proceduralBgmClip,
+                Runner.Effects.BiomeType.VolcanicCaverns => volcanicMusicClip ?? proceduralBgmVolcanicClip,
+                _ => proceduralBgmClip
+            };
+
+            if (targetClip != null && bgmSource.clip != targetClip)
+            {
+                StartCoroutine(CrossfadeMusic(targetClip));
+            }
+        }
+
+        private System.Collections.IEnumerator CrossfadeMusic(AudioClip newClip)
+        {
+            float fadeTime = CROSSFADE_DURATION;
+            float startVol = bgmSource.volume;
+
+            // Fade out
+            for (float t = 0; t < fadeTime * 0.5f; t += Time.deltaTime)
+            {
+                bgmSource.volume = Mathf.Lerp(startVol, 0f, t / (fadeTime * 0.5f));
+                yield return null;
+            }
+
+            bgmSource.clip = newClip;
+            bgmSource.Play();
+
+            // Fade in
+            for (float t = 0; t < fadeTime * 0.5f; t += Time.deltaTime)
+            {
+                bgmSource.volume = Mathf.Lerp(0f, startVol, t / (fadeTime * 0.5f));
+                yield return null;
+            }
+            bgmSource.volume = startVol;
+        }
         #endregion
 
         #region Procedural Audio Synthesis
@@ -583,6 +678,17 @@ namespace Runner.Audio
 
             // 17. Intense music layer for dynamic intensity
             proceduralBgmIntenseClip = CreateIntenseMusicLayerClip("IntenseMusicLayer", sampleRate);
+
+            // 18. Monster roar (low guttural growl)
+            monsterRoarClip = CreateMonsterRoarClip("MonsterRoar", sampleRate);
+
+            // 19. Wind rush loop (filtered noise)
+            windRushClip = CreateWindRushClip("WindRush", sampleRate);
+
+            // 20. Biome music variations
+            jungleMusicClip = proceduralBgmClip;
+            templeMusicClip = CreateTempleMusicClip("TempleMusic", sampleRate);
+            volcanicMusicClip = proceduralBgmVolcanicClip;
         }
 
         private AudioClip CreateHarmonicToneClip(string name, float freq, float duration, int sampleRate)
@@ -1041,6 +1147,86 @@ namespace Runner.Audio
             {
                 float scale = 0.95f / maxVal;
                 for (int i = 0; i < totalSamples; i++) data[i] *= scale;
+            }
+
+            AudioClip clip = AudioClip.Create(name, totalSamples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        private AudioClip CreateMonsterRoarClip(string name, int sampleRate)
+        {
+            float duration = 1.2f;
+            int totalSamples = Mathf.RoundToInt(duration * sampleRate);
+            float[] data = new float[totalSamples];
+
+            for (int i = 0; i < totalSamples; i++)
+            {
+                float t = (float)i / sampleRate;
+                float envelope = Mathf.Sin(Mathf.PI * t / duration) * Mathf.Exp(-t * 1.5f);
+
+                // Low guttural growl with harmonics
+                float fundamental = Mathf.Sin(2.0f * Mathf.PI * 55f * t);
+                float growl1 = 0.6f * Mathf.Sin(2.0f * Mathf.PI * 82f * t + Mathf.Sin(2.0f * Mathf.PI * 6f * t) * 2.0f);
+                float growl2 = 0.3f * Mathf.Sin(2.0f * Mathf.PI * 110f * t);
+                float noise = (UnityEngine.Random.value * 2f - 1f) * 0.15f;
+
+                data[i] = (fundamental + growl1 + growl2 + noise) * envelope * 0.5f;
+            }
+
+            AudioClip clip = AudioClip.Create(name, totalSamples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        private AudioClip CreateWindRushClip(string name, int sampleRate)
+        {
+            float duration = 4.0f;
+            int totalSamples = Mathf.RoundToInt(duration * sampleRate);
+            float[] data = new float[totalSamples];
+
+            for (int i = 0; i < totalSamples; i++)
+            {
+                float t = (float)i / sampleRate;
+                // Filtered noise with slow modulation
+                float noise = UnityEngine.Random.value * 2f - 1f;
+                float mod = 0.5f + 0.5f * Mathf.Sin(2.0f * Mathf.PI * 0.3f * t);
+                float filter = Mathf.Lerp(0.2f, 0.8f, mod);
+                data[i] = noise * filter * 0.25f;
+            }
+
+            AudioClip clip = AudioClip.Create(name, totalSamples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        private AudioClip CreateTempleMusicClip(string name, int sampleRate)
+        {
+            float duration = 8.0f;
+            int totalSamples = Mathf.RoundToInt(duration * sampleRate);
+            float[] data = new float[totalSamples];
+
+            // Temple drone: A minor chord with stone percussion
+            float[] chordFreqs = { 220f, 261.63f, 329.63f, 440f };
+            for (int i = 0; i < totalSamples; i++)
+            {
+                float t = (float)i / sampleRate;
+                float env = 0.3f;
+
+                float sample = 0f;
+                foreach (float freq in chordFreqs)
+                {
+                    sample += Mathf.Sin(2.0f * Mathf.PI * freq * t) * 0.12f;
+                }
+
+                // Stone percussion hits
+                float beatPhase = (t % 1.6f) / 1.6f;
+                if (beatPhase < 0.05f)
+                {
+                    sample += Mathf.Sin(2.0f * Mathf.PI * 80f * t) * Mathf.Exp(-beatPhase * 60f) * 0.3f;
+                }
+
+                data[i] = sample * env;
             }
 
             AudioClip clip = AudioClip.Create(name, totalSamples, 1, sampleRate, false);

@@ -684,6 +684,37 @@ namespace Runner.Effects
             // Audio
             Runner.Audio.AudioManager.Instance?.PlaySpeedBoost();
         }
+
+        public void PlayPowerUpBurst(Vector3 position, Color color)
+        {
+            // Radial burst of colored particles on power-up activation
+            int count = 12;
+            for (int i = 0; i < count; i++)
+            {
+                int idx = (sparkPoolIndex + i) % sparkPool.Length;
+                if (sparkPool[idx] == null) continue;
+
+                GameObject obj = sparkPool[idx];
+                obj.transform.position = position + Vector3.up * 0.5f;
+                obj.SetActive(true);
+
+                Renderer r = obj.GetComponent<Renderer>();
+                if (r != null && r.sharedMaterial != null)
+                    r.sharedMaterial.color = color;
+
+                float angle = (360f / count) * i;
+                Vector3 dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+                float speed = Random.Range(3f, 6f);
+
+                PhysicalDebris debris = obj.GetComponent<PhysicalDebris>();
+                if (debris != null)
+                {
+                    debris.Initialize(dir * speed + Vector3.up * 2f, Vector3.up * -9.8f, new Vector3(Random.Range(-200f, 200f), Random.Range(-200f, 200f), Random.Range(-200f, 200f)), 0.8f, 0.3f);
+                }
+            }
+
+            sparkPoolIndex = (sparkPoolIndex + count) % sparkPool.Length;
+        }
         #endregion
 
         #region Synthetic Audio Generators

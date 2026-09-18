@@ -80,6 +80,10 @@ namespace Runner.Effects
         private ParticleSystem groundMistParticles;       // Low ground fog/mist
         private ParticleSystem emberParticles;            // Volcanic ember sparks
 
+        // Running Trail Effects
+        private ParticleSystem dustTrailParticles;
+        private ParticleSystem speedStreakTrail;
+
         // Biome-specific ambient color tints
         private Color currentAmbientTint = Color.white;
 
@@ -97,6 +101,8 @@ namespace Runner.Effects
             InitializeAmbientMotes();
             InitializeGroundMist();
             InitializeEmberParticles();
+            InitializeDustTrail();
+            InitializeSpeedStreakTrail();
         }
 
         private void Start()
@@ -220,6 +226,51 @@ namespace Runner.Effects
             {
                 Runner.UI.UIManager.Instance.ShowToast(toastIcon, toastTitle, 2.5f);
             }
+
+            // Skybox transitions per biome
+            ApplyBiomeSkybox(newBiome);
+        }
+
+        private void ApplyBiomeSkybox(BiomeType biome)
+        {
+            // Load procedural skybox materials
+            Material jungleSky = Resources.Load<Material>("Materials/Mat_TempleSkybox");
+            Material templeSky = CreateBiomeSkyboxMaterial(
+                new Color(0.85f, 0.72f, 0.45f),
+                new Color(0.65f, 0.55f, 0.35f),
+                0.6f
+            );
+            Material volcanicSky = CreateBiomeSkyboxMaterial(
+                new Color(0.45f, 0.15f, 0.10f),
+                new Color(0.25f, 0.08f, 0.05f),
+                0.8f
+            );
+
+            Material targetSky = biome switch
+            {
+                BiomeType.JungleCanopy => jungleSky,
+                BiomeType.SunkenTemple => templeSky,
+                BiomeType.VolcanicCaverns => volcanicSky,
+                _ => jungleSky
+            };
+
+            if (targetSky != null)
+            {
+                RenderSettings.skybox = targetSky;
+            }
+        }
+
+        private Material CreateBiomeSkyboxMaterial(Color topColor, Color bottomColor, float blend)
+        {
+            Shader skyShader = Shader.Find("RenderFX/Skybox/Gradient");
+            if (skyShader == null) skyShader = Shader.Find("Skybox/Gradient");
+            if (skyShader == null) return RenderSettings.skybox;
+
+            Material mat = new Material(skyShader);
+            mat.SetColor("_TopColor", topColor);
+            mat.SetColor("_BottomColor", bottomColor);
+            mat.SetFloat("_Exponent", blend);
+            return mat;
         }
 
         private void SetAtmosphericTargets(Color fogCol, float fogStart, float fogEnd, Color ambientSky, Color ambientGround, Color lightCol, float lightIntensity)
@@ -706,14 +757,118 @@ namespace Runner.Effects
             {
                 if (!ambientMotesParticles.isPlaying) ambientMotesParticles.Play();
                 if (!groundMistParticles.isPlaying) groundMistParticles.Play();
+                UpdateDustTrail(speed, playerT);
+                UpdateSpeedStreakTrail(speed, playerT);
             }
             else
             {
                 if (ambientMotesParticles.isPlaying) ambientMotesParticles.Stop();
                 if (groundMistParticles.isPlaying) groundMistParticles.Stop();
                 if (emberParticles != null && emberParticles.isPlaying) emberParticles.Stop();
+                if (dustTrailParticles != null && dustTrailParticles.isPlaying) dustTrailParticles.Stop();
+                if (speedStreakTrail != null && speedStreakTrail.isPlaying) speedStreakTrail.Stop();
             }
         }
+
+        #region Running Trail Effects
+        private void InitializeDustTrail()
+        {
+            GameObject trailObj = new GameObject("DustTrail");
+            trailObj.transform.SetParent(transform, false);
+            dustTrailParticles = trailObj.AddComponent<ParticleSystem>();
+            PrepareParticleSystemForSetup(dustTrailParticles);
+
+            var main = dustTrailParticles.main;
+            main.maxParticles = 25;
+            main.duration = 1f;
+            main.loop = true;
+            main.startLifetime = 0.8f;
+            main.startSpeed = 1.2f;
+            main.startSize = 0.35f;
+            main.startColor = new Color(0.85f, 0.78f, 0.65f, 0.45f);
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emission = dustTrailParticles.emission;
+            emission.rateOverTime = 15f;
+
+            var shape = dustTrailParticles.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(1.0f, 0.2f, 0.5f);
+
+            var renderer = trailObj.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.sharedMaterial = CreateParticleMaterial(new Color(0.85f, 0.78f, 0.65f, 0.5f), GetSoftCircleTexture(), isAdditive: false);
+
+            dustTrailParticles.Stop();
+        }
+
+        private void InitializeSpeedStreakTrail()
+        {
+            GameObject streakObj = new GameObject("SpeedStreakTrail");
+            streakObj.transform.SetParent(transform, false);
+            speedStreakTrail = streakObj.AddComponent<ParticleSystem>();
+            PrepareParticleSystemForSetup(speedStreakTrail);
+
+            var main = speedStreakTrail.main;
+            main.maxParticles = 15;
+            main.duration = 1f;
+            main.loop = true;
+            main.startLifetime = 0.4f;
+            main.startSpeed = 3.0f;
+            main.startSize = 0.12f;
+            main.startColor = new Color(1.0f, 0.95f, 0.85f, 0.6f);
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emission = speedStreakTrail.emission;
+            emission.rateOverTime = 0f;
+
+            var shape = speedStreakTrail.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(0.3f, 0.3f, 0.3f);
+
+            var renderer = streakObj.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = 0.1f;
+            renderer.lengthScale = 3.0f;
+            renderer.sharedMaterial = CreateParticleMaterial(new Color(1.0f, 0.95f, 0.85f, 0.5f), GetSpeedStreakTexture(), isAdditive: true);
+
+            speedStreakTrail.Stop();
+        }
+
+        private void UpdateDustTrail(float speed, Transform playerT)
+        {
+            if (dustTrailParticles == null) return;
+            dustTrailParticles.transform.position = playerT.position + Vector3.up * 0.1f - playerT.forward * 0.8f;
+
+            var emission = dustTrailParticles.emission;
+            float rate = Mathf.Lerp(5f, 30f, Mathf.InverseLerp(8f, 20f, speed));
+            emission.rateOverTime = rate;
+
+            var main = dustTrailParticles.main;
+            main.startSpeed = Mathf.Lerp(0.5f, 2.0f, Mathf.InverseLerp(8f, 20f, speed));
+
+            if (!dustTrailParticles.isPlaying) dustTrailParticles.Play();
+        }
+
+        private void UpdateSpeedStreakTrail(float speed, Transform playerT)
+        {
+            if (speedStreakTrail == null) return;
+            speedStreakTrail.transform.position = playerT.position + Vector3.up * 1.0f + playerT.forward * 2.0f;
+            speedStreakTrail.transform.rotation = Quaternion.LookRotation(-playerT.forward, Vector3.up);
+
+            var emission = speedStreakTrail.emission;
+            if (speed >= 14f)
+            {
+                float t = Mathf.InverseLerp(14f, 22f, speed);
+                emission.rateOverTime = Mathf.Lerp(10f, 40f, t);
+                if (!speedStreakTrail.isPlaying) speedStreakTrail.Play();
+            }
+            else
+            {
+                emission.rateOverTime = 0f;
+            }
+        }
+        #endregion
         #endregion
     }
 }

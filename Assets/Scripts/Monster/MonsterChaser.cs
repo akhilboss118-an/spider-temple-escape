@@ -291,6 +291,9 @@ namespace Runner.Monster
                     float vol = Mathf.InverseLerp(5.0f, 1.2f, currentFollowDistance);
                     Runner.Audio.AudioManager.Instance?.PlayBeastStomp(vol * 0.75f);
                 }
+
+                // Monster roar on close proximity
+                Runner.Audio.AudioManager.Instance?.PlayMonsterRoar(currentFollowDistance);
             }
 
             // 3. Procedural Gallop & Attack Animations

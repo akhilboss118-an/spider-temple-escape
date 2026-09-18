@@ -79,6 +79,23 @@ namespace Runner.Core
         public int CoinComboMultiplier => coinComboCount >= 20 ? 5 : coinComboCount >= 10 ? 3 : coinComboCount >= 5 ? 2 : 1;
         public event Action<int, int> OnCoinCombo; // (comboCount, multiplier)
 
+        // Character stat modifiers (applied from CharacterManager)
+        private float charSpeedMultiplier = 1.0f;
+        private float charAgilityMultiplier = 1.0f;
+        private float charShieldBonus = 0f;
+        public float CharSpeedMultiplier => charSpeedMultiplier;
+        public float CharAgilityMultiplier => charAgilityMultiplier;
+
+        // Character-specific ability state
+        private float doubleJumpCooldown = 0f;
+        private bool hasDoubleJumpedThisJump = false;
+        private float shieldRegenTimer = 0f;
+        private float magnetPulseTimer = 0f;
+        private float burstSpeedTimer = 0f;
+        private float autoDodgeTimer = 0f;
+        private float scoreSurgeTimer = 0f;
+        private int activeCharacterIndex = -1;
+
         // Restart Cooldown
         private float restartCooldownTimer = 0f;
         private const float RESTART_COOLDOWN = 1.5f;
@@ -331,6 +348,9 @@ namespace Runner.Core
             CurrentSpeed = targetSpeed;
             OnSpeedChanged?.Invoke(CurrentSpeed);
 
+            // Wind rush audio at high speed
+            Runner.Audio.AudioManager.Instance?.UpdateWindRush(CurrentSpeed);
+
             // 3. Stumble Decay Timer (5.0s)
             if (stumbleTimer > 0.0f)
             {
@@ -367,6 +387,9 @@ namespace Runner.Core
             {
                 restartCooldownTimer -= dt;
             }
+
+            // 7. Character Ability Ticks
+            TickCharacterAbilities(dt);
         }
 
         public void StartGame()
@@ -386,6 +409,36 @@ namespace Runner.Core
             coinComboTimer = 0f;
             restartCooldownTimer = 0f;
 
+            // Reset character ability timers
+            doubleJumpCooldown = 0f;
+            hasDoubleJumpedThisJump = false;
+            shieldRegenTimer = 0f;
+            magnetPulseTimer = 0f;
+            burstSpeedTimer = 0f;
+            autoDodgeTimer = 0f;
+            scoreSurgeTimer = 0f;
+
+            // Apply character stat ratings
+            charSpeedMultiplier = 1.0f;
+            charAgilityMultiplier = 1.0f;
+            charShieldBonus = 0f;
+            activeCharacterIndex = -1;
+
+            if (Runner.Characters.CharacterManager.Instance != null)
+            {
+                var activeChar = Runner.Characters.CharacterManager.Instance.GetActiveCharacter();
+                if (activeChar != null)
+                {
+                    activeCharacterIndex = Runner.Characters.CharacterManager.Instance.SelectedCharacterIndex;
+                    charSpeedMultiplier = activeChar.speedRating;
+                    charAgilityMultiplier = activeChar.agilityRating;
+                    charShieldBonus = (activeChar.shieldRating - 1.0f) * 0.5f; // 50% of shield rating as damage reduction
+
+                    // Character-specific abilities on game start
+                    InitializeCharacterAbility(activeCharacterIndex);
+                }
+            }
+
             SetState(GameState.Playing);
             OnLivesChanged?.Invoke(CurrentLives, MaxLives);
             if (Runner.Characters.CharacterManager.Instance != null && PlayerController.Instance != null)
@@ -397,6 +450,41 @@ namespace Runner.Core
             if (ShieldLevel >= 2 || SelectedSuitIndex == 2)
             {
                 PickupManager.Instance?.ActivateShield();
+            }
+        }
+
+        /// <summary>
+        /// Initialize character-specific unique abilities.
+        /// Index: 0=Spider-Man, 1=Naruto, 2=Nezuko, 3=Hinata, 4=Zoro, 5=Zenitsu, 6=Anya, 7=Sasuke
+        /// </summary>
+        private void InitializeCharacterAbility(int charIndex)
+        {
+            switch (charIndex)
+            {
+                case 1: // Naruto - Shadow Clone: magnet radius +50%
+                    if (PickupManager.Instance != null)
+                        PickupManager.Instance.MagnetRadiusBonus = 4.0f;
+                    break;
+                case 2: // Nezuko - Demon Regen: recover 1 life every 500m
+                    // Handled in Update via DistanceTraveled
+                    break;
+                case 3: // Hinata - Byakugan: coins worth 2x during first 30s
+                    scoreSurgeTimer = 30.0f;
+                    break;
+                case 4: // Zoro - Three-Sword Style: stumble recovery instant (no 2nd stumble penalty for 8s)
+                    shieldRegenTimer = 8.0f;
+                    break;
+                case 5: // Zenitsu - Thunder Clap: speed burst every 45s for 3s
+                    burstSpeedTimer = 45.0f;
+                    break;
+                case 6: // Anya - Waku Waku: mystery chest drop rate doubled
+                    // Handled in PickupManager via a flag
+                    if (PickupManager.Instance != null)
+                        PickupManager.Instance.AnyaChestBonus = true;
+                    break;
+                case 7: // Sasuke - Sharingan: auto-dodge one obstacle every 30s
+                    autoDodgeTimer = 30.0f;
+                    break;
             }
         }
 
@@ -570,6 +658,99 @@ namespace Runner.Core
                 sceneName = "Main";
             }
             UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
+        }
+
+        private void TickCharacterAbilities(float dt)
+        {
+            if (activeCharacterIndex < 0) return;
+
+            // Nezuko (2): Demon Regen - recover 1 life every 500m
+            if (activeCharacterIndex == 2)
+            {
+                float prevDist = DistanceTraveled - CurrentSpeed * dt;
+                int prevMilestones = Mathf.FloorToInt(prevDist / 500f);
+                int currMilestones = Mathf.FloorToInt(DistanceTraveled / 500f);
+                if (currMilestones > prevMilestones && CurrentLives < MaxLives)
+                {
+                    CurrentLives = Mathf.Min(CurrentLives + 1, MaxLives);
+                    OnLivesChanged?.Invoke(CurrentLives, MaxLives);
+                }
+            }
+
+            // Hinata (3): Byakugan score surge expires
+            if (activeCharacterIndex == 3 && scoreSurgeTimer > 0f)
+            {
+                scoreSurgeTimer -= dt;
+            }
+
+            // Zoro (4): Shield regen expires (instant stumble recovery)
+            if (activeCharacterIndex == 4 && shieldRegenTimer > 0f)
+            {
+                shieldRegenTimer -= dt;
+            }
+
+            // Zenitsu (5): Thunder burst cooldown
+            if (activeCharacterIndex == 5)
+            {
+                burstSpeedTimer -= dt;
+                if (burstSpeedTimer <= 0f)
+                {
+                    // Activate 3s burst
+                    burstSpeedTimer = 45.0f;
+                    StartCoroutine(ZenitsuThunderBurst());
+                }
+            }
+
+            // Sasuke (7): Sharingan auto-dodge cooldown
+            if (activeCharacterIndex == 7 && autoDodgeTimer > 0f)
+            {
+                autoDodgeTimer -= dt;
+            }
+        }
+
+        private System.Collections.IEnumerator ZenitsuThunderBurst()
+        {
+            float burstDuration = 3.0f;
+            float originalMultiplier = 1.35f; // Zenitsu speed rating
+            // Temporarily boost speed
+            float savedSpeed = CurrentSpeed;
+            CurrentSpeed *= 1.4f;
+            yield return new WaitForSeconds(burstDuration);
+            // Speed will naturally correct on next Update frame
+        }
+
+        /// <summary>
+        /// Check if character can auto-dodge (Sasuke Sharingan).
+        /// Called by PlayerController/Obstacle when about to take a hit.
+        /// </summary>
+        public bool TryCharacterAutoDodge()
+        {
+            if (activeCharacterIndex == 7 && autoDodgeTimer <= 0f)
+            {
+                autoDodgeTimer = 30.0f;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if stumble is negated (Zoro Three-Sword Style).
+        /// </summary>
+        public bool TryNegateStumble()
+        {
+            if (activeCharacterIndex == 4 && shieldRegenTimer > 0f)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if Hinata's Byakugan score surge is active (2x coin value).
+        /// </summary>
+        public bool IsScoreSurgeActive()
+        {
+            return activeCharacterIndex == 3 && scoreSurgeTimer > 0f;
         }
 
         public void ReturnToMenu()

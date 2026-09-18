@@ -99,6 +99,10 @@ namespace Runner.Pickups
         public float MultiplierFrenzyTimeRemaining => GetPowerUpTimeRemaining(PowerUpType.MultiplierFrenzy);
         public float MultiplierFrenzyTotalDuration => GetPowerUpTotalDuration(PowerUpType.MultiplierFrenzy);
 
+        // Character-specific bonus flags
+        public float MagnetRadiusBonus { get; set; } = 0f;
+        public bool AnyaChestBonus { get; set; } = false;
+
         // Player Shield, Frenzy, Magnet & Speedrun Auras
         private GameObject shieldAuraObj;
         private GameObject frenzyAuraObj;
