@@ -231,7 +231,7 @@ export default function Home() {
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
           <Link className="nav-cta" href="/download">
-            ↓ Download APK v1.5
+            ↓ Download APK v1.6
           </Link>
         </div>
       </nav>
@@ -242,7 +242,7 @@ export default function Home() {
         <div className="hero-overlay" />
 
         <div className="container hero-content">
-          <div className="hero-badge">v1.5 Release · PBR Graphics Upgrade · New 3D Obstacles · 8 Playable Heroes · 60 FPS Native APK</div>
+          <div className="hero-badge">v1.6 Release · Progressive Difficulty · Monster Phases · Coin Combos · Death Animations · 60 FPS Native APK</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -259,7 +259,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.5
+              Download APK v1.6
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -504,10 +504,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v1.5 · PBR Graphics · 60 FPS</div>
+          <div className="download-badge">Native Android APK v1.6 · Progressive Difficulty · Monster Phases · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v1.5 directly to your Android device with PBR graphics, new 3D spinning blade & laser beam obstacles, dynamic color grading, and locked 60 FPS gameplay with all 8 heroes unlocked.
+            Download the native APK v1.6 directly to your Android device with progressive difficulty scaling, 3-phase monster chase, coin combo multipliers, death animations, and locked 60 FPS gameplay with all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
@@ -515,7 +515,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.5 — Free (~114 MB)
+              Download APK v1.6 — Free (~114 MB)
             </Link>
             <a
               className="download-github"

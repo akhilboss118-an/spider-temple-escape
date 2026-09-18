@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const DIRECT_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.5.0/SpiderTempleEscape.apk';
-const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.5.0/SpiderTempleEscape.apk';
+const DIRECT_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.6.0/SpiderTempleEscape.apk';
+const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.6.0/SpiderTempleEscape.apk';
 const GITHUB_LATEST_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/latest/download/SpiderTempleEscape.apk';
 const RELEASES_PAGE = 'https://github.com/akhilboss118-an/spider-temple-escape/releases';
 
@@ -76,7 +76,7 @@ export default function DownloadPage() {
           letterSpacing: '0.8px',
           textTransform: 'uppercase'
         }}>
-          v1.5 Release · Android APK
+          v1.6 Release · Android APK
         </div>
         
         <h1 style={{
@@ -91,8 +91,8 @@ export default function DownloadPage() {
 
         <p style={{ color: '#8a8a9a', fontSize: '14px', marginBottom: '24px' }}>
           {countdown > 0 
-            ? `Your v1.5 APK download will begin automatically in ${countdown}s...` 
-            : 'Your Android APK v1.5 download has started!'}
+            ? `Your v1.6 APK download will begin automatically in ${countdown}s...` 
+            : 'Your Android APK v1.6 download has started!'}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
@@ -114,7 +114,7 @@ export default function DownloadPage() {
               boxShadow: '0 4px 20px rgba(212, 168, 83, 0.4)'
             }}
           >
-            📥 Download APK v1.5 (~114 MB)
+            📥 Download APK v1.6 (~114 MB)
           </button>
 
           <a
@@ -135,7 +135,7 @@ export default function DownloadPage() {
               gap: '8px'
             }}
           >
-            ⚡ Download from GitHub Releases (v1.5.0)
+            ⚡ Download from GitHub Releases (v1.6.0)
           </a>
         </div>
 
