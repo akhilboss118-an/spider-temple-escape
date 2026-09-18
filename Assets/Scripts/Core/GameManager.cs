@@ -541,8 +541,8 @@ namespace Runner.Core
                 float elapsed = 0f;
                 while (elapsed < shakeDuration)
                 {
-                    float x = Random.Range(-1f, 1f) * shakeMagnitude;
-                    float y = Random.Range(-1f, 1f) * shakeMagnitude;
+                    float x = UnityEngine.Random.Range(-1f, 1f) * shakeMagnitude;
+                    float y = UnityEngine.Random.Range(-1f, 1f) * shakeMagnitude;
                     cam.transform.localPosition = originalPos + new Vector3(x, y, 0);
                     elapsed += Time.unscaledDeltaTime;
                     yield return null;

@@ -215,14 +215,41 @@ namespace Runner.Track
 
             float cumulative = 0f;
             cumulative += straightChance;
-            if (roll < cumulative) candidate = ChunkType.Straight;
-            else { cumulative += coinChance; if (roll < cumulative) candidate = ChunkType.CoinRun; }
-            else { cumulative += heartChance; if (roll < cumulative) candidate = ChunkType.HeartRun; }
-            else { cumulative += laneBlockerChance; if (roll < cumulative) candidate = ChunkType.LaneBlocker; }
-            else { cumulative += lowObstacleChance; if (roll < cumulative) candidate = ChunkType.LowObstacle; }
-            else { cumulative += slideArchChance; if (roll < cumulative) candidate = ChunkType.SlideArch; }
-            else { cumulative += spinBladeChance; if (roll < cumulative) candidate = ChunkType.SpinningBlade; }
-            else candidate = ChunkType.LaserBeam;
+            if (roll < cumulative)
+            {
+                candidate = ChunkType.Straight;
+            }
+            else
+            {
+                cumulative += coinChance;
+                if (roll < cumulative) candidate = ChunkType.CoinRun;
+                else
+                {
+                    cumulative += heartChance;
+                    if (roll < cumulative) candidate = ChunkType.HeartRun;
+                    else
+                    {
+                        cumulative += laneBlockerChance;
+                        if (roll < cumulative) candidate = ChunkType.LaneBlocker;
+                        else
+                        {
+                            cumulative += lowObstacleChance;
+                            if (roll < cumulative) candidate = ChunkType.LowObstacle;
+                            else
+                            {
+                                cumulative += slideArchChance;
+                                if (roll < cumulative) candidate = ChunkType.SlideArch;
+                                else
+                                {
+                                    cumulative += spinBladeChance;
+                                    if (roll < cumulative) candidate = ChunkType.SpinningBlade;
+                                    else candidate = ChunkType.LaserBeam;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             // Spacing check: if spacing is too tight, fallback to safe straight/coin runway, NOT another hazard!
             bool isJumpType = (candidate == ChunkType.LowObstacle || candidate == ChunkType.SpinningBlade);

@@ -45,7 +45,6 @@ namespace Runner.Monster
 
         private int currentPhase = 1;
         private float lungeCooldown = 0f;
-        private float phaseTimer = 0f;
         private Color monsterBaseColor = new Color(0.3f, 0.45f, 0.3f);
         private Material monsterMaterial;
 
@@ -227,20 +226,13 @@ namespace Runner.Monster
             }
 
             // 1. Determine Target Chase Distance (closer in later phases)
-            float phaseNormalDist = currentPhase switch
-            {
-                1 => 4.0f,
-                2 => 3.2f,
-                3 => 2.5f,
-                _ => 4.0f
-            };
-            float phaseStumbleDist = currentPhase switch
-            {
-                1 => 1.8f,
-                2 => 1.2f,
-                3 => 0.6f,
-                _ => 1.8f
-            };
+            float phaseNormalDist;
+            float phaseStumbleDist;
+
+            if (currentPhase == 1) { phaseNormalDist = 4.0f; phaseStumbleDist = 1.8f; }
+            else if (currentPhase == 2) { phaseNormalDist = 3.2f; phaseStumbleDist = 1.2f; }
+            else if (currentPhase == 3) { phaseNormalDist = 2.5f; phaseStumbleDist = 0.6f; }
+            else { phaseNormalDist = 4.0f; phaseStumbleDist = 1.8f; }
 
             if (isCatching)
             {
