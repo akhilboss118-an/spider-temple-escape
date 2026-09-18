@@ -180,12 +180,12 @@ namespace Runner.Effects
                     toastIcon = "🌿";
                     toastTitle = "Entering Overgrown Jungle Canopy";
                     SetAtmosphericTargets(
-                        fogCol: new Color(0.72f, 0.86f, 0.98f),
-                        fogStart: 85.0f, fogEnd: 180.0f,
-                        ambientSky: new Color(0.82f, 0.92f, 1.0f),
-                        ambientGround: new Color(0.52f, 0.48f, 0.42f),
-                        lightCol: new Color(1.0f, 0.98f, 0.92f),
-                        lightIntensity: 1.55f
+                        fogCol: new Color(0.68f, 0.88f, 0.95f),
+                        fogStart: 80.0f, fogEnd: 175.0f,
+                        ambientSky: new Color(0.78f, 0.95f, 1.0f),
+                        ambientGround: new Color(0.48f, 0.52f, 0.38f),
+                        lightCol: new Color(1.0f, 0.96f, 0.88f),
+                        lightIntensity: 1.60f
                     );
                     break;
 
@@ -193,12 +193,12 @@ namespace Runner.Effects
                     toastIcon = "🏛️";
                     toastTitle = "Entering Sunken Temple (Ancient Rocky Path)";
                     SetAtmosphericTargets(
-                        fogCol: new Color(0.85f, 0.76f, 0.60f),
-                        fogStart: 70.0f, fogEnd: 170.0f,
-                        ambientSky: new Color(0.78f, 0.68f, 0.52f),
-                        ambientGround: new Color(0.42f, 0.32f, 0.22f),
-                        lightCol: new Color(1.0f, 0.84f, 0.52f),
-                        lightIntensity: 1.55f
+                        fogCol: new Color(0.88f, 0.78f, 0.58f),
+                        fogStart: 65.0f, fogEnd: 165.0f,
+                        ambientSky: new Color(0.82f, 0.72f, 0.50f),
+                        ambientGround: new Color(0.45f, 0.35f, 0.22f),
+                        lightCol: new Color(1.0f, 0.86f, 0.50f),
+                        lightIntensity: 1.60f
                     );
                     break;
 
@@ -206,12 +206,12 @@ namespace Runner.Effects
                     toastIcon = "🔥";
                     toastTitle = "Entering Volcanic Highway Caverns";
                     SetAtmosphericTargets(
-                        fogCol: new Color(0.65f, 0.25f, 0.18f),
-                        fogStart: 60.0f, fogEnd: 160.0f,
-                        ambientSky: new Color(0.68f, 0.28f, 0.22f),
-                        ambientGround: new Color(0.38f, 0.15f, 0.12f),
-                        lightCol: new Color(1.0f, 0.58f, 0.25f),
-                        lightIntensity: 1.60f
+                        fogCol: new Color(0.68f, 0.22f, 0.15f),
+                        fogStart: 55.0f, fogEnd: 155.0f,
+                        ambientSky: new Color(0.72f, 0.25f, 0.18f),
+                        ambientGround: new Color(0.42f, 0.12f, 0.08f),
+                        lightCol: new Color(1.0f, 0.55f, 0.22f),
+                        lightIntensity: 1.65f
                     );
                     break;
             }
@@ -275,32 +275,65 @@ namespace Runner.Effects
             jungleFloorMat = Resources.Load<Material>("Materials/Mat_Track");
             if (jungleFloorMat == null)
             {
-                jungleFloorMat = MaterialHelper.CreateSafeMaterial(new Color(0.28f, 0.32f, 0.25f));
+                Texture2D jungleFloorTex = Resources.Load<Texture2D>("Textures/Tex_Track");
+                jungleFloorMat = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.28f, 0.32f, 0.25f),
+                    albedo: jungleFloorTex,
+                    smoothness: 0.25f,
+                    emissionColor: new Color(0.02f, 0.04f, 0.01f) * 0.5f
+                );
                 jungleFloorMat.name = "Biome_Jungle_Floor";
             }
             jungleCurbMat = Resources.Load<Material>("Materials/Mat_Curb");
             if (jungleCurbMat == null)
             {
-                jungleCurbMat = MaterialHelper.CreateSafeMaterial(new Color(0.18f, 0.22f, 0.16f));
+                Texture2D jungleCurbTex = Resources.Load<Texture2D>("Textures/Tex_Curb");
+                jungleCurbMat = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.18f, 0.22f, 0.16f),
+                    albedo: jungleCurbTex,
+                    smoothness: 0.20f
+                );
                 jungleCurbMat.name = "Biome_Jungle_Curb";
             }
 
             // 2. Sunken Temple Materials (Gilded Weathered Sandstone)
-            templeFloorMat = MaterialHelper.CreateSafeMaterial(new Color(0.50f, 0.44f, 0.32f));
+            Texture2D templeFloorTex = Resources.Load<Texture2D>("Textures/Tex_TempleRunway");
+            templeFloorMat = MaterialHelper.CreatePBRMaterial(
+                new Color(0.50f, 0.44f, 0.32f),
+                albedo: templeFloorTex,
+                metallicValue: 0.08f,
+                smoothness: 0.35f,
+                emissionColor: new Color(0.15f, 0.10f, 0.03f) * 0.8f
+            );
             templeFloorMat.name = "Biome_Temple_Floor";
-            templeCurbMat = MaterialHelper.CreateSafeMaterial(new Color(0.32f, 0.28f, 0.20f));
+
+            Texture2D templeCurbTex = Resources.Load<Texture2D>("Textures/Tex_TempleCurb");
+            templeCurbMat = MaterialHelper.CreatePBRMaterial(
+                new Color(0.32f, 0.28f, 0.20f),
+                albedo: templeCurbTex,
+                metallicValue: 0.05f,
+                smoothness: 0.30f
+            );
             templeCurbMat.name = "Biome_Temple_Curb";
 
             // 3. Volcanic Caverns Materials (Dark Obsidian Basalt with Ember Sheen)
-            volcanicFloorMat = MaterialHelper.CreateSafeMaterial(new Color(0.12f, 0.12f, 0.15f));
+            Texture2D volcanicTex = Resources.Load<Texture2D>("Textures/Tex_Obstacle");
+            volcanicFloorMat = MaterialHelper.CreatePBRMaterial(
+                new Color(0.12f, 0.12f, 0.15f),
+                albedo: volcanicTex,
+                metallicValue: 0.45f,
+                smoothness: 0.65f,
+                emissionColor: new Color(0.40f, 0.08f, 0.02f)
+            );
             volcanicFloorMat.name = "Biome_Volcanic_Floor";
-            volcanicFloorMat.EnableKeyword("_EMISSION");
-            volcanicFloorMat.SetColor("_EmissionColor", new Color(0.40f, 0.08f, 0.02f)); // Glowing magma veins
 
-            volcanicCurbMat = MaterialHelper.CreateSafeMaterial(new Color(0.10f, 0.08f, 0.08f));
+            volcanicCurbMat = MaterialHelper.CreatePBRMaterial(
+                new Color(0.10f, 0.08f, 0.08f),
+                metallicValue: 0.35f,
+                smoothness: 0.55f,
+                emissionColor: new Color(0.25f, 0.04f, 0.01f)
+            );
             volcanicCurbMat.name = "Biome_Volcanic_Curb";
-            volcanicCurbMat.EnableKeyword("_EMISSION");
-            volcanicCurbMat.SetColor("_EmissionColor", new Color(0.25f, 0.04f, 0.01f));
         }
 
         public Material GetFloorMaterialForBiome(BiomeType biome)

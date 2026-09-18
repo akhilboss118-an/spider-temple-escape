@@ -617,6 +617,73 @@ namespace Runner.Effects
                 deb.Initialize(blastVel, Random.insideUnitSphere * 300f, 0.8f);
             }
         }
+
+        /// <summary>
+        /// Near-miss visual effect: Subtle screen flash and particle burst when narrowly avoiding an obstacle.
+        /// </summary>
+        public void PlayNearMissEffect(Vector3 position)
+        {
+            EnsureMaterials();
+
+            // Brief white flash particles
+            for (int i = 0; i < 4; i++)
+            {
+                GameObject flash = GetPooledSpark();
+                if (flash == null) continue;
+                flash.name = "NearMissFlash";
+                flash.transform.position = position + Random.insideUnitSphere * 0.5f;
+                float s = Random.Range(0.08f, 0.15f);
+                flash.transform.localScale = Vector3.one * s;
+                flash.SetActive(true);
+
+                Vector3 drift = (Vector3.up * 3f + Random.insideUnitSphere * 0.5f);
+                var deb = flash.GetComponent<PhysicalDebris>();
+                if (deb == null) deb = flash.AddComponent<PhysicalDebris>();
+                deb.SetRecyclable(true);
+                deb.Initialize(drift, Vector3.zero, 0.3f, expand: false, shrink: true);
+            }
+
+            // Audio
+            if (audioSource != null)
+            {
+                Runner.Audio.AudioManager.Instance?.PlayNearMiss();
+            }
+        }
+
+        /// <summary>
+        /// Speed boost activation effect: Forward-rushing particle streaks.
+        /// </summary>
+        public void PlaySpeedBoostEffect(Vector3 position)
+        {
+            EnsureMaterials();
+
+            for (int i = 0; i < 12; i++)
+            {
+                GameObject streak = GetPooledDebris();
+                if (streak == null) continue;
+                streak.name = "SpeedStreak";
+                streak.transform.position = position + Random.insideUnitSphere * 0.3f + Vector3.forward * 2f;
+                streak.SetActive(true);
+                float s = Random.Range(0.05f, 0.12f);
+                streak.transform.localScale = new Vector3(s * 0.3f, s * 0.3f, s * 3f);
+                streak.GetComponent<MeshRenderer>().sharedMaterial = shieldShardMat;
+
+                Vector3 streakVel = (Vector3.forward * 8f + Vector3.up * 0.5f) * Random.Range(1f, 2f);
+                var deb = streak.GetComponent<PhysicalDebris>();
+                if (deb == null) deb = streak.AddComponent<PhysicalDebris>();
+                deb.SetRecyclable(true);
+                deb.Initialize(streakVel, Vector3.zero, 0.4f);
+            }
+
+            // Camera effect
+            if (RunnerCameraController.Instance != null)
+            {
+                RunnerCameraController.Instance.TriggerPhysicalRecoil(0.15f, 0.1f);
+            }
+
+            // Audio
+            Runner.Audio.AudioManager.Instance?.PlaySpeedBoost();
+        }
         #endregion
 
         #region Synthetic Audio Generators

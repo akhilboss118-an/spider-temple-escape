@@ -11,7 +11,9 @@ namespace Runner.Obstacles
         LowLog,         // Must jump over
         SlideArch,      // Must slide under
         LaneBlocker,    // Must switch lane
-        DeadEndWall     // Missed turn at junction
+        DeadEndWall,    // Missed turn at junction
+        SpinningBlade,  // Rotating hazard - must time jump
+        LaserBeam       // Timed horizontal beam - must slide under
     }
 
     /// <summary>
@@ -96,6 +98,18 @@ namespace Runner.Obstacles
                 return;
             }
 
+            // SpinningBlade: Must jump over the rotating blade
+            if (obstacleType == ObstacleType.SpinningBlade && player.State == PlayerState.Jumping)
+            {
+                return;
+            }
+
+            // LaserBeam: Must slide under the horizontal laser
+            if (obstacleType == ObstacleType.LaserBeam && player.State == PlayerState.Sliding)
+            {
+                return;
+            }
+
             // 2. Shield Absorption: Consumes shield and saves player from rock obstacle stumbles
             // Dead-End Walls are completely fatal and cannot be absorbed by a shield!
             if (obstacleType != ObstacleType.DeadEndWall && PickupManager.Instance != null && PickupManager.Instance.HasShield)
@@ -125,6 +139,8 @@ namespace Runner.Obstacles
                 case ObstacleType.LowLog:
                 case ObstacleType.SlideArch:
                 case ObstacleType.LaneBlocker:
+                case ObstacleType.SpinningBlade:
+                case ObstacleType.LaserBeam:
                     // Natural stone dust & rock fragment impact
                     if (ImpactEffectManager.Instance != null)
                     {

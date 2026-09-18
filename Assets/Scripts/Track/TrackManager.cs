@@ -33,6 +33,10 @@ namespace Runner.Track
         [SerializeField] private TrackChunk tJunctionDoublePrefab;
         [SerializeField] private TrackChunk coinRunPrefab;
 
+        [Header("Advanced Obstacle Chunk Prefabs")]
+        [SerializeField] private TrackChunk spinningBladePrefab;
+        [SerializeField] private TrackChunk laserBeamPrefab;
+
         // Active track chunk queue
         private readonly Queue<TrackChunk> activeChunks = new Queue<TrackChunk>();
 
@@ -183,7 +187,8 @@ namespace Runner.Track
 
             // 2. Obstacle Cooldown Guarantee:
             // If the previous chunk contained an obstacle, the next chunk is GUARANTEED to be a clean safe run!
-            bool lastWasObstacle = (lastSpawnedType == ChunkType.LaneBlocker || lastSpawnedType == ChunkType.LowObstacle || lastSpawnedType == ChunkType.SlideArch);
+            bool lastWasObstacle = (lastSpawnedType == ChunkType.LaneBlocker || lastSpawnedType == ChunkType.LowObstacle || lastSpawnedType == ChunkType.SlideArch
+                                  || lastSpawnedType == ChunkType.SpinningBlade || lastSpawnedType == ChunkType.LaserBeam);
             if (lastWasObstacle)
             {
                 int safeRoll = Random.Range(0, 100);
@@ -192,23 +197,28 @@ namespace Runner.Track
                 else return ChunkType.HeartRun;
             }
 
-            // 3. Balanced Procedural Distribution: ~70% safe runs, ~30% minimized hazards
+            // 3. Balanced Procedural Distribution: ~60% safe runs, ~40% varied hazards
             int roll = Random.Range(0, 100);
             ChunkType candidate;
 
-            if (roll < 30) candidate = ChunkType.Straight;        // 30% clean straight
-            else if (roll < 55) candidate = ChunkType.CoinRun;    // 25% coin run
-            else if (roll < 70) candidate = ChunkType.HeartRun;   // 15% heart sprint
-            else if (roll < 80) candidate = ChunkType.LaneBlocker;// 10% single-lane dodge
-            else if (roll < 90) candidate = ChunkType.LowObstacle;// 10% jump hurdle
-            else candidate = ChunkType.SlideArch;                 // 10% slide trunk
+            if (roll < 25) candidate = ChunkType.Straight;          // 25% clean straight
+            else if (roll < 45) candidate = ChunkType.CoinRun;     // 20% coin run
+            else if (roll < 55) candidate = ChunkType.HeartRun;    // 10% heart sprint
+            else if (roll < 65) candidate = ChunkType.LaneBlocker; // 10% single-lane dodge
+            else if (roll < 75) candidate = ChunkType.LowObstacle; // 10% jump hurdle
+            else if (roll < 85) candidate = ChunkType.SlideArch;   // 10% slide trunk
+            else if (roll < 93) candidate = ChunkType.SpinningBlade;// 8% spinning blade
+            else candidate = ChunkType.LaserBeam;                  // 7% laser beam
 
             // Spacing check: if spacing is too tight, fallback to safe straight/coin runway, NOT another hazard!
-            if (candidate == ChunkType.LowObstacle && distanceSinceLastJump < minJumpSpacing)
+            bool isJumpType = (candidate == ChunkType.LowObstacle || candidate == ChunkType.SpinningBlade);
+            bool isSlideType = (candidate == ChunkType.SlideArch || candidate == ChunkType.LaserBeam);
+
+            if (isJumpType && distanceSinceLastJump < minJumpSpacing)
             {
                 return ChunkType.Straight;
             }
-            if (candidate == ChunkType.SlideArch && distanceSinceLastSlide < minJumpSpacing)
+            if (isSlideType && distanceSinceLastSlide < minJumpSpacing)
             {
                 return ChunkType.CoinRun;
             }
@@ -374,6 +384,8 @@ namespace Runner.Track
                 case ChunkType.TJunctionDouble: return tJunctionDoublePrefab;
                 case ChunkType.CoinRun: return coinRunPrefab;
                 case ChunkType.HeartRun: return null;
+                case ChunkType.SpinningBlade: return spinningBladePrefab;
+                case ChunkType.LaserBeam: return laserBeamPrefab;
                 default: return straightPrefab;
             }
         }
@@ -402,6 +414,8 @@ namespace Runner.Track
         private Material stoneGateMatCache;
         private Material torchMatCache;
         private Material torchFlameMatCache;
+        private Material spinningBladeMatCache;
+        private Material laserEmitterMatCache;
 
         private GameObject pathSidewalkPrefab;
         private GameObject mossyStonePrefab;
@@ -416,6 +430,12 @@ namespace Runner.Track
         private GameObject lowPolyRoadPrefab;
         private GameObject stoneGatePrefab;
         private GameObject torchBrazierPrefab;
+
+        // New obstacle models
+        private GameObject spinningBladeModelPrefab;
+        private GameObject laserEmitterModelPrefab;
+        private GameObject skullDecorationPrefab;
+        private GameObject templeWallFacadePrefab;
 
         private void Ensure3DModels()
         {
@@ -561,6 +581,67 @@ namespace Runner.Track
                     Debug.Log("[TrackManager] 3D Torch Brazier Model Loaded Successfully: " + torchBrazierPrefab.name);
                 }
             }
+
+            // Load new obstacle GLB models
+            if (spinningBladeModelPrefab == null)
+            {
+                spinningBladeModelPrefab = Resources.Load<GameObject>("Obstacles/spinning_blade_model");
+                #if UNITY_EDITOR
+                if (spinningBladeModelPrefab == null)
+                    spinningBladeModelPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Obstacles/spinning_blade_model.glb");
+                if (spinningBladeModelPrefab == null)
+                    spinningBladeModelPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Obstacles/spinning_blade_model.glb");
+                #endif
+                if (spinningBladeModelPrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Spinning Blade Model Loaded Successfully: " + spinningBladeModelPrefab.name);
+                }
+            }
+
+            if (laserEmitterModelPrefab == null)
+            {
+                laserEmitterModelPrefab = Resources.Load<GameObject>("Obstacles/laser_emitter");
+                #if UNITY_EDITOR
+                if (laserEmitterModelPrefab == null)
+                    laserEmitterModelPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Obstacles/laser_emitter.glb");
+                if (laserEmitterModelPrefab == null)
+                    laserEmitterModelPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Obstacles/laser_emitter.glb");
+                #endif
+                if (laserEmitterModelPrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Laser Emitter Model Loaded Successfully: " + laserEmitterModelPrefab.name);
+                }
+            }
+
+            if (skullDecorationPrefab == null)
+            {
+                skullDecorationPrefab = Resources.Load<GameObject>("Obstacles/skull_decoration");
+                #if UNITY_EDITOR
+                if (skullDecorationPrefab == null)
+                    skullDecorationPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Obstacles/skull_decoration.glb");
+                if (skullDecorationPrefab == null)
+                    skullDecorationPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Obstacles/skull_decoration.glb");
+                #endif
+                if (skullDecorationPrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Skull Decoration Model Loaded Successfully: " + skullDecorationPrefab.name);
+                }
+            }
+
+            if (templeWallFacadePrefab == null)
+            {
+                templeWallFacadePrefab = Resources.Load<GameObject>("Obstacles/temple_wall_facade");
+                #if UNITY_EDITOR
+                if (templeWallFacadePrefab == null)
+                    templeWallFacadePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Obstacles/temple_wall_facade.glb");
+                if (templeWallFacadePrefab == null)
+                    templeWallFacadePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Obstacles/temple_wall_facade.glb");
+                #endif
+                if (templeWallFacadePrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Temple Wall Facade Model Loaded Successfully: " + templeWallFacadePrefab.name);
+                }
+            }
         }
 
         private void EnsureMaterials()
@@ -579,7 +660,13 @@ namespace Runner.Track
                     if (trackTex == null)
                         trackTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Track.png");
                     #endif
-                    trackMatCache = MaterialHelper.CreateSafeMaterial(new Color(1.05f, 1.02f, 0.96f), trackTex);
+                    trackMatCache = MaterialHelper.CreatePBRMaterial(
+                        new Color(1.05f, 1.02f, 0.96f),
+                        albedo: trackTex,
+                        smoothness: 0.30f,
+                        metallicValue: 0.06f,
+                        emissionColor: new Color(0.10f, 0.07f, 0.02f) * 0.25f
+                    );
                 }
             }
 
@@ -617,18 +704,17 @@ namespace Runner.Track
                     if (diff == null)
                         diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/dead_tree_tex_0.png");
                     #endif
-                    deadTreeMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 0.78f, 0.70f), diff);
-
                     Texture2D norm = Resources.Load<Texture2D>("Obstacles/dead_tree_tex_2");
                     #if UNITY_EDITOR
                     if (norm == null)
                         norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Obstacles/dead_tree_tex_2.png");
                     #endif
-                    if (deadTreeMatCache != null && norm != null && deadTreeMatCache.HasProperty("_BumpMap"))
-                    {
-                        deadTreeMatCache.SetTexture("_BumpMap", norm);
-                        deadTreeMatCache.EnableKeyword("_NORMALMAP");
-                    }
+                    deadTreeMatCache = MaterialHelper.CreatePBRMaterial(
+                        new Color(0.85f, 0.78f, 0.70f),
+                        albedo: diff,
+                        normal: norm,
+                        smoothness: 0.20f
+                    );
                 }
             }
 
@@ -840,7 +926,12 @@ namespace Runner.Track
                     obsTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Obstacle.png");
                 #endif
 
-                obstacleMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.45f, 0.32f, 0.22f), obsTex);
+                obstacleMatCache = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.45f, 0.32f, 0.22f),
+                    albedo: obsTex,
+                    smoothness: 0.25f,
+                    metallicValue: 0.10f
+                );
                 if (obstacleMatCache != null && obsTex != null)
                 {
                     obstacleMatCache.mainTextureScale = new Vector2(2.0f, 2.0f);
@@ -861,7 +952,13 @@ namespace Runner.Track
                     if (coinTex == null)
                         coinTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Coin.png");
                     #endif
-                    coinMatCache = MaterialHelper.CreateSafeMaterial(new Color(1.0f, 0.82f, 0.15f), coinTex);
+                    coinMatCache = MaterialHelper.CreatePBRMaterial(
+                        new Color(1.0f, 0.82f, 0.15f),
+                        albedo: coinTex,
+                        metallicValue: 0.88f,
+                        smoothness: 0.82f,
+                        emissionColor: new Color(1.0f, 0.70f, 0.05f) * 0.80f
+                    );
                 }
             }
 
@@ -1047,6 +1144,32 @@ namespace Runner.Track
                     }
                 }
             }
+
+            if (spinningBladeMatCache == null)
+            {
+                spinningBladeMatCache = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.35f, 0.35f, 0.40f),
+                    metallicValue: 0.85f,
+                    smoothness: 0.75f,
+                    emissionColor: new Color(0.15f, 0.20f, 0.35f) * 1.2f
+                );
+            }
+
+            if (laserEmitterMatCache == null)
+            {
+                Texture2D obsTex = Resources.Load<Texture2D>("Textures/Tex_Obstacle");
+                #if UNITY_EDITOR
+                if (obsTex == null)
+                    obsTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Obstacle.png");
+                #endif
+                laserEmitterMatCache = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.25f, 0.22f, 0.20f),
+                    albedo: obsTex,
+                    metallicValue: 0.15f,
+                    smoothness: 0.35f,
+                    emissionColor: new Color(0.8f, 0.05f, 0.02f) * 2.0f
+                );
+            }
         }
 
         private void SpawnRandomPowerUp(Transform parent, Vector3 localPos)
@@ -1204,7 +1327,70 @@ namespace Runner.Track
         /// </summary>
         private void SpawnRoadsideTombstones(Transform parent)
         {
-            // No-op: eliminates roadside white cubes completely
+            Ensure3DModels();
+            EnsureMaterials();
+
+            float chunkLength = 20f;
+            float halfW = 3.5f;
+
+            // Spawn skull decorations along the left and right sides
+            if (skullDecorationPrefab != null)
+            {
+                int skullCount = Random.Range(2, 5);
+                for (int i = 0; i < skullCount; i++)
+                {
+                    float z = Random.Range(1f, chunkLength - 1f);
+                    int side = Random.Range(0, 2); // 0 = left, 1 = right
+                    float x = side == 0 ? -halfW - Random.Range(0.3f, 0.8f) : halfW + Random.Range(0.3f, 0.8f);
+
+                    GameObject skull = Instantiate(skullDecorationPrefab, parent);
+                    skull.name = "RoadsideSkullDecor";
+                    skull.transform.localPosition = new Vector3(x, 0f, z);
+                    skull.transform.localRotation = Quaternion.Euler(0f, Random.Range(-30f, 30f), 0f);
+                    float s = Random.Range(0.6f, 1.0f);
+                    skull.transform.localScale = new Vector3(s, s, s);
+
+                    foreach (var col in skull.GetComponentsInChildren<Collider>())
+                        Destroy(col);
+
+                    if (skullMatCache != null)
+                    {
+                        foreach (var r in skull.GetComponentsInChildren<Renderer>())
+                        {
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = skullMatCache;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+                }
+            }
+
+            // Spawn temple wall facade sections along the sides
+            if (templeWallFacadePrefab != null)
+            {
+                int wallCount = Random.Range(1, 3);
+                for (int i = 0; i < wallCount; i++)
+                {
+                    float z = Random.Range(2f, chunkLength - 2f);
+                    int side = Random.Range(0, 2);
+                    float x = side == 0 ? -halfW - 1.5f : halfW + 1.5f;
+
+                    GameObject wall = Instantiate(templeWallFacadePrefab, parent);
+                    wall.name = "TempleWallFacade";
+                    wall.transform.localPosition = new Vector3(x, 0f, z);
+                    wall.transform.localRotation = Quaternion.Euler(0f, side == 0 ? 90f : -90f, 0f);
+                    float s = Random.Range(0.8f, 1.2f);
+                    wall.transform.localScale = new Vector3(s, s, s);
+
+                    foreach (var col in wall.GetComponentsInChildren<Collider>())
+                        Destroy(col);
+
+                    foreach (var r in wall.GetComponentsInChildren<Renderer>())
+                    {
+                        if (curbMatCache != null) r.sharedMaterial = curbMatCache;
+                    }
+                }
+            }
         }
 
         private GameObject SpawnSkullJumpObstacle(Transform parent, Vector3 localPos, int laneMode = -1, int targetLane = -1)
@@ -1988,6 +2174,44 @@ namespace Runner.Track
                 // Roadside tombstones (pure decor, zero collision)
                 SpawnRoadsideTombstones(chunkObj.transform);
             }
+            else if (type == ChunkType.SpinningBlade)
+            {
+                // Rotating blade obstacle - must jump over it
+                float spawnZ = Random.Range(3.5f, 5.0f);
+                float[] laneCoords = { -2.0f, 0.0f, 2.0f };
+                int blockedLane = Random.Range(0, 3);
+
+                SpawnSpinningBladeObstacle(chunkObj.transform, new Vector3(laneCoords[blockedLane], 0, spawnZ));
+
+                float[] allLanes = { -2.0f, 0.0f, 2.0f };
+                for (int l = 0; l < 3; l++)
+                {
+                    if (l == blockedLane)
+                    {
+                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, spawnZ - 2.0f));
+                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 1.65f, spawnZ));
+                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, spawnZ + 2.0f));
+                    }
+                    else
+                    {
+                        SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, spawnZ));
+                    }
+                }
+            }
+            else if (type == ChunkType.LaserBeam)
+            {
+                // Timed horizontal laser beam - must slide under
+                float spawnZ = Random.Range(3.5f, 5.0f);
+                SpawnLaserBeamObstacle(chunkObj.transform, new Vector3(0, 0, spawnZ));
+
+                float[] allLanes = { -2.0f, 0.0f, 2.0f };
+                for (int l = 0; l < 3; l++)
+                {
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ - 1.5f));
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ));
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.35f, spawnZ + 1.5f));
+                }
+            }
             else if (type == ChunkType.Straight)
             {
                 float[] lanes = { -2.0f, 0.0f, 2.0f };
@@ -2299,6 +2523,190 @@ namespace Runner.Track
 #endif
             Destroy(obj);
         }
+
+        #region New Obstacle Spawners
+
+        /// <summary>
+        /// Spinning blade obstacle - rotating hazard that must be jumped over
+        /// Uses the spinning_blade_model.glb 3D model
+        /// </summary>
+        private GameObject SpawnSpinningBladeObstacle(Transform parent, Vector3 localPos)
+        {
+            EnsureMaterials();
+            Ensure3DModels();
+
+            GameObject bladeRoot = new GameObject("Obstacle_SpinningBlade");
+            bladeRoot.transform.SetParent(parent, false);
+            bladeRoot.transform.localPosition = localPos;
+
+            if (spinningBladeModelPrefab != null)
+            {
+                // Use the actual GLB model
+                GameObject bladeVisual = Instantiate(spinningBladeModelPrefab, bladeRoot.transform);
+                bladeVisual.name = "SpinningBlade_Visual";
+                bladeVisual.transform.localPosition = Vector3.zero;
+                bladeVisual.transform.localRotation = Quaternion.identity;
+                bladeVisual.transform.localScale = Vector3.one * 1.5f;
+
+                foreach (var col in bladeVisual.GetComponentsInChildren<Collider>())
+                    Destroy(col);
+
+                // Apply dedicated spinning blade material
+                if (spinningBladeMatCache != null)
+                {
+                    foreach (var r in bladeVisual.GetComponentsInChildren<Renderer>())
+                    {
+                        Material[] mats = new Material[r.sharedMaterials.Length];
+                        for (int m = 0; m < mats.Length; m++) mats[m] = spinningBladeMatCache;
+                        r.sharedMaterials = mats;
+                    }
+                }
+            }
+            else
+            {
+                // Fallback: spinning blade from primitives
+                GameObject blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                blade.name = "BladeMesh";
+                blade.transform.SetParent(bladeRoot.transform, false);
+                blade.transform.localPosition = new Vector3(0, 0.8f, 0);
+                blade.transform.localScale = new Vector3(2.0f, 0.1f, 0.3f);
+                Destroy(blade.GetComponent<Collider>());
+
+                Material bladeMat = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.7f, 0.7f, 0.75f),
+                    metallicValue: 0.80f,
+                    smoothness: 0.85f,
+                    emissionColor: new Color(0.5f, 0.5f, 0.6f) * 1.5f
+                );
+                if (bladeMat != null) blade.GetComponent<MeshRenderer>().sharedMaterial = bladeMat;
+
+                // Central pillar
+                GameObject pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                pillar.name = "BladePillar";
+                pillar.transform.SetParent(bladeRoot.transform, false);
+                pillar.transform.localPosition = new Vector3(0, 0.45f, 0);
+                pillar.transform.localScale = new Vector3(0.15f, 0.45f, 0.15f);
+                Destroy(pillar.GetComponent<Collider>());
+                if (obstacleMatCache != null) pillar.GetComponent<MeshRenderer>().sharedMaterial = obstacleMatCache;
+            }
+
+            // BoxCollider for collision
+            BoxCollider bc = bladeRoot.AddComponent<BoxCollider>();
+            bc.center = new Vector3(0, 0.8f, 0);
+            bc.size = new Vector3(2.2f, 0.6f, 0.8f);
+
+            var obs = bladeRoot.AddComponent<Obstacle>();
+            obs.SetObstacleType(ObstacleType.SpinningBlade);
+            SafeSetTag(bladeRoot, "Obstacle");
+
+            // Add spinning animation component
+            var spinner = bladeRoot.AddComponent<SpinningBladeAnimator>();
+
+            return bladeRoot;
+        }
+
+        /// <summary>
+        /// Laser beam obstacle - timed horizontal beam that must be slid under
+        /// Uses the laser_emitter.glb 3D model
+        /// </summary>
+        private GameObject SpawnLaserBeamObstacle(Transform parent, Vector3 localPos)
+        {
+            EnsureMaterials();
+            Ensure3DModels();
+
+            GameObject laserRoot = new GameObject("Obstacle_LaserBeam");
+            laserRoot.transform.SetParent(parent, false);
+            laserRoot.transform.localPosition = localPos;
+
+            if (laserEmitterModelPrefab != null)
+            {
+                // Use the actual GLB model for left emitter
+                GameObject emitterL = Instantiate(laserEmitterModelPrefab, laserRoot.transform);
+                emitterL.name = "LaserEmitterLeft";
+                emitterL.transform.localPosition = new Vector3(-3.5f, 0, 0);
+                emitterL.transform.localScale = Vector3.one * 0.8f;
+                foreach (var col in emitterL.GetComponentsInChildren<Collider>())
+                    Destroy(col);
+
+                // Right emitter
+                GameObject emitterR = Instantiate(laserEmitterModelPrefab, laserRoot.transform);
+                emitterR.name = "LaserEmitterRight";
+                emitterR.transform.localPosition = new Vector3(3.5f, 0, 0);
+                emitterR.transform.localScale = Vector3.one * 0.8f;
+                emitterR.transform.localRotation = Quaternion.Euler(0, 180f, 0);
+                foreach (var col in emitterR.GetComponentsInChildren<Collider>())
+                    Destroy(col);
+
+                // Apply dedicated laser emitter material
+                if (laserEmitterMatCache != null)
+                {
+                    foreach (var emitter in new[] { emitterL, emitterR })
+                    {
+                        foreach (var r in emitter.GetComponentsInChildren<Renderer>())
+                        {
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = laserEmitterMatCache;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Fallback: cube emitters
+                GameObject emitterL = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                emitterL.name = "LaserEmitterLeft";
+                emitterL.transform.SetParent(laserRoot.transform, false);
+                emitterL.transform.localPosition = new Vector3(-3.5f, 1.0f, 0);
+                emitterL.transform.localScale = new Vector3(0.3f, 0.6f, 0.3f);
+                Destroy(emitterL.GetComponent<Collider>());
+
+                Material emitterMat = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.2f, 0.2f, 0.25f),
+                    metallicValue: 0.15f,
+                    smoothness: 0.35f,
+                    emissionColor: new Color(0.8f, 0.05f, 0.02f) * 2.0f
+                );
+                if (emitterMat != null) emitterL.GetComponent<MeshRenderer>().sharedMaterial = emitterMat;
+
+                GameObject emitterR = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                emitterR.name = "LaserEmitterRight";
+                emitterR.transform.SetParent(laserRoot.transform, false);
+                emitterR.transform.localPosition = new Vector3(3.5f, 1.0f, 0);
+                emitterR.transform.localScale = new Vector3(0.3f, 0.6f, 0.3f);
+                Destroy(emitterR.GetComponent<Collider>());
+                if (emitterMat != null) emitterR.GetComponent<MeshRenderer>().sharedMaterial = emitterMat;
+            }
+
+            // Laser beam visual (always use primitive for the beam itself)
+            GameObject beam = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            beam.name = "LaserBeam";
+            beam.transform.SetParent(laserRoot.transform, false);
+            beam.transform.localPosition = new Vector3(0, 1.0f, 0);
+            beam.transform.localScale = new Vector3(7.0f, 0.08f, 0.08f);
+            Destroy(beam.GetComponent<Collider>());
+
+            Material laserMat = MaterialHelper.CreatePBRMaterial(
+                new Color(1.0f, 0.1f, 0.1f),
+                metallicValue: 0.2f,
+                smoothness: 0.9f,
+                emissionColor: new Color(1.0f, 0.05f, 0.05f) * 4.0f
+            );
+            if (laserMat != null) beam.GetComponent<MeshRenderer>().sharedMaterial = laserMat;
+
+            // BoxCollider for collision
+            BoxCollider bc = laserRoot.AddComponent<BoxCollider>();
+            bc.center = new Vector3(0, 1.0f, 0);
+            bc.size = new Vector3(7.2f, 0.4f, 0.6f);
+
+            var obs = laserRoot.AddComponent<Obstacle>();
+            obs.SetObstacleType(ObstacleType.LaserBeam);
+            SafeSetTag(laserRoot, "Obstacle");
+
+            return laserRoot;
+        }
+
+        #endregion
 
         private void ApplyRoadVisual(TrackChunk chunk, float chunkDistance)
         {

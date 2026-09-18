@@ -15,7 +15,9 @@ namespace Runner.Track
         TJunctionRight,
         TJunctionDouble,
         CoinRun,
-        HeartRun
+        HeartRun,
+        SpinningBlade,
+        LaserBeam
     }
 
     /// <summary>
@@ -48,8 +50,9 @@ namespace Runner.Track
         public Transform LeftExitPoint => leftExitPoint;
         public Transform RightExitPoint => rightExitPoint;
 
-        public bool HasJumpObstacle => chunkType == ChunkType.LowObstacle || chunkType == ChunkType.Gap;
-        public bool HasSlideObstacle => chunkType == ChunkType.SlideArch;
+        public bool HasJumpObstacle => chunkType == ChunkType.LowObstacle || chunkType == ChunkType.Gap 
+                                     || chunkType == ChunkType.SpinningBlade;
+        public bool HasSlideObstacle => chunkType == ChunkType.SlideArch || chunkType == ChunkType.LaserBeam;
         public bool IsJunction => chunkType == ChunkType.TJunctionLeft ||
                                   chunkType == ChunkType.TJunctionRight ||
                                   chunkType == ChunkType.TJunctionDouble;
