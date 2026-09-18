@@ -1,0 +1,9 @@
+# MTL for pathway
+newmtl meteo_path
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 1.0
+illum 2
+map_Kd pathway_tex_0.png
+map_Bump pathway_norm_0.png

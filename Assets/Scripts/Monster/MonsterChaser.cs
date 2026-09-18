@@ -48,6 +48,9 @@ namespace Runner.Monster
         private Color monsterBaseColor = new Color(0.3f, 0.45f, 0.3f);
         private Material monsterMaterial;
 
+        private GameObject magmaGolemVisual;
+        private Material magmaGolemMaterial;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -95,6 +98,151 @@ namespace Runner.Monster
             }
 
             monsterMaterial = zombieMat;
+        }
+
+        private void EnsureMagmaGolemMaterial(GameObject golemVisual)
+        {
+            if (magmaGolemMaterial == null)
+            {
+                Texture2D baseCol = Resources.Load<Texture2D>("Monster/VolcanoGolem/textures/Magmamonster_basecolor");
+                Texture2D norm = Resources.Load<Texture2D>("Monster/VolcanoGolem/textures/Magmamonster_normal");
+                Texture2D metal = Resources.Load<Texture2D>("Monster/VolcanoGolem/textures/Magmamonster_metallic");
+                Texture2D rough = Resources.Load<Texture2D>("Monster/VolcanoGolem/textures/Magmamonster_roughness");
+
+#if UNITY_EDITOR
+                if (baseCol == null)
+                    baseCol = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Monster/VolcanoGolem/textures/Magmamonster_basecolor.jpeg");
+                if (norm == null)
+                    norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Monster/VolcanoGolem/textures/Magmamonster_normal.jpeg");
+                if (metal == null)
+                    metal = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Monster/VolcanoGolem/textures/Magmamonster_metallic.jpeg");
+                if (rough == null)
+                    rough = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Monster/VolcanoGolem/textures/Magmamonster_roughness.jpeg");
+#endif
+
+                magmaGolemMaterial = Runner.Core.MaterialHelper.CreatePBRMaterial(
+                    new Color(0.90f, 0.70f, 0.50f),
+                    albedo: baseCol,
+                    normal: norm,
+                    metallic: metal,
+                    roughness: rough,
+                    metallicValue: 0.35f,
+                    smoothness: 0.65f,
+                    emissionColor: new Color(1.0f, 0.35f, 0.05f) * 1.6f
+                );
+                if (magmaGolemMaterial != null)
+                {
+                    magmaGolemMaterial.name = "Mat_MagmaGolem";
+                }
+            }
+
+            if (golemVisual != null && magmaGolemMaterial != null)
+            {
+                foreach (var r in golemVisual.GetComponentsInChildren<Renderer>())
+                {
+                    r.sharedMaterial = magmaGolemMaterial;
+                }
+            }
+        }
+
+        public void ApplyBiomeMonster(Runner.Effects.BiomeType biome)
+        {
+            if (biome == Runner.Effects.BiomeType.VolcanicCaverns)
+            {
+                if (magmaGolemVisual == null)
+                {
+                    GameObject golemPrefab = Resources.Load<GameObject>("Monster/VolcanoGolem/source/Magma+monster");
+#if UNITY_EDITOR
+                    if (golemPrefab == null)
+                        golemPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Monster/VolcanoGolem/source/Magma+monster.fbx");
+#endif
+                    if (golemPrefab != null)
+                    {
+                        magmaGolemVisual = Instantiate(golemPrefab, transform);
+                        magmaGolemVisual.name = "MagmaGolem_Model";
+                        magmaGolemVisual.transform.localPosition = Vector3.zero;
+                        magmaGolemVisual.transform.localRotation = Quaternion.identity;
+
+                        foreach (var c in magmaGolemVisual.GetComponentsInChildren<Collider>())
+                            Destroy(c);
+
+                        Renderer[] rList = magmaGolemVisual.GetComponentsInChildren<Renderer>();
+                        if (rList.Length > 0)
+                        {
+                            Bounds b = rList[0].bounds;
+                            for (int i = 1; i < rList.Length; i++) b.Encapsulate(rList[i].bounds);
+                            if (b.size.y > 0.1f)
+                            {
+                                float targetH = 2.4f;
+                                float s = targetH / b.size.y;
+                                magmaGolemVisual.transform.localScale = Vector3.one * s;
+                            }
+                        }
+
+                        EnsureMagmaGolemMaterial(magmaGolemVisual);
+                    }
+                }
+
+                if (magmaGolemVisual != null) magmaGolemVisual.SetActive(true);
+                if (monsterBody != null) monsterBody.gameObject.SetActive(false);
+
+                if (monsterEyeGlow != null)
+                {
+                    monsterEyeGlow.color = new Color(1.0f, 0.40f, 0.05f);
+                    monsterEyeGlow.intensity = 2.2f;
+                    monsterEyeGlow.range = 4.5f;
+                }
+
+                if (fireTrailParticles != null && !fireTrailParticles.isPlaying)
+                {
+                    fireTrailParticles.Play();
+                }
+            }
+            else if (biome == Runner.Effects.BiomeType.FrostbiteCitadel)
+            {
+                if (magmaGolemVisual != null) magmaGolemVisual.SetActive(false);
+                if (monsterBody != null) monsterBody.gameObject.SetActive(true);
+
+                if (monsterEyeGlow != null)
+                {
+                    monsterEyeGlow.color = new Color(0.25f, 0.85f, 1.0f);
+                    monsterEyeGlow.intensity = 1.8f;
+                    monsterEyeGlow.range = 3.5f;
+                }
+
+                if (fireTrailParticles != null && fireTrailParticles.isPlaying)
+                {
+                    fireTrailParticles.Stop();
+                }
+
+                if (monsterMaterial != null)
+                {
+                    monsterMaterial.color = new Color(0.70f, 0.88f, 1.0f);
+                }
+            }
+            else
+            {
+                // Jungle Canopy / Sunken Temple (Classic Beast)
+                if (magmaGolemVisual != null) magmaGolemVisual.SetActive(false);
+                if (monsterBody != null) monsterBody.gameObject.SetActive(true);
+
+                if (monsterEyeGlow != null)
+                {
+                    monsterEyeGlow.color = new Color(0.2f, 0.8f, 0.2f);
+                    monsterEyeGlow.intensity = 1.0f;
+                    monsterEyeGlow.range = 3.0f;
+                }
+
+                if (fireTrailParticles != null && fireTrailParticles.isPlaying)
+                {
+                    fireTrailParticles.Stop();
+                }
+
+                if (monsterMaterial != null)
+                {
+                    monsterMaterial.color = Color.white;
+                }
+            }
         }
 
         private void EnsureAudio()
@@ -196,6 +344,11 @@ namespace Runner.Monster
                 });
                 colors.color = grad;
                 fireTrailParticles.Stop();
+            }
+
+            if (Runner.Effects.BiomeManager.Instance != null)
+            {
+                ApplyBiomeMonster(Runner.Effects.BiomeManager.Instance.CurrentBiome);
             }
         }
 

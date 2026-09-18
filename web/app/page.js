@@ -115,6 +115,92 @@ const CHARACTERS = [
 ];
 
 // ──────────────────────────────────────────────
+//  Maps & Biomes Data
+// ──────────────────────────────────────────────
+const MAPS = [
+  {
+    id: 'volcano',
+    name: 'Volcanic Inferno',
+    badge: '🔥 Custom 3D Pathway & Magma Golem',
+    icon: '🌋',
+    tagline: 'Molten Brimstone & Magma Titan Pursuit',
+    color: '#ff5722',
+    bg: 'linear-gradient(135deg, rgba(255,87,34,0.18) 0%, rgba(183,28,28,0.28) 100%)',
+    border: 'rgba(255,87,34,0.45)',
+    glow: 'rgba(255,87,34,0.3)',
+    desc: 'Sprint across scorched obsidian rock pathways above bubbling magma lakes. The ground trembles beneath the crushing footsteps of the colossal Magma Stone Golem!',
+    features: [
+      'Authentic 3D Pathway (meteo-rock modular track chunks with PBR textures)',
+      'Pursued by the colossal Magma Stone Golem with glowing lava veins',
+      'Dynamic heat shimmer, floating fire embers, and volcanic smoke fog',
+      'High-stakes turns and leaping over molten hazards'
+    ],
+    monster: 'Magma Stone Golem (Titan Class)',
+    monsterDesc: 'A towering monstrosity of volcanic brimstone and molten magma. Charges with blazing trails and earthquake stomps.'
+  },
+  {
+    id: 'frostbite',
+    name: 'Frostbite Citadel',
+    badge: '❄️ Crystalline Ice & Blizzard Storms',
+    icon: '🏔️',
+    tagline: 'Glacial Slabs & Freezing Alpine Winds',
+    color: '#00e5ff',
+    bg: 'linear-gradient(135deg, rgba(0,229,255,0.14) 0%, rgba(21,101,192,0.28) 100%)',
+    border: 'rgba(0,229,255,0.45)',
+    glow: 'rgba(0,229,255,0.3)',
+    desc: 'Brave freezing alpine winds and slick glacial tracks across the ruined sky citadel. Dynamic blizzard particles swirl as frosty obstacles test your reflexes.',
+    features: [
+      'Crystalline glacial ice running surface with high-specular sheen',
+      'Snow-dusted stone curbs, frozen pillars, and frosty ruinstones',
+      'Live dynamic snowfall and blizzard storm particle system',
+      'Chilling alpine atmosphere with cyan-eyed frost beast stalker'
+    ],
+    monster: 'Glacial Beast Stalker',
+    monsterDesc: 'The ancient temple beast infused with permafrost energy, stalking through the blinding snow with glowing cyan predator eyes.'
+  },
+  {
+    id: 'jungle',
+    name: 'Jungle Canopy',
+    badge: '🌿 Classic Ancient Rainforest',
+    icon: '🌴',
+    tagline: 'Mossy Ruins & Dense Tropical Wilderness',
+    color: '#4caf50',
+    bg: 'linear-gradient(135deg, rgba(76,175,80,0.14) 0%, rgba(27,94,32,0.28) 100%)',
+    border: 'rgba(76,175,80,0.45)',
+    glow: 'rgba(76,175,80,0.3)',
+    desc: 'The original sacred temple expedition through emerald canopies, mossy flagstones, and overgrown ancient causeways.',
+    features: [
+      'Classic temple stone pathway with lush mossy flagstones',
+      'Undergrowth turf, giant monstera ferns, and canopy branches',
+      'Fallen timber jump hurdles and ancient slide archways',
+      'The original ravenous Temple Relic Beast guardian'
+    ],
+    monster: 'Ancient Relic Beast',
+    monsterDesc: 'The original guardian of the golden idol, relentless and savage across the ancient temple ruins.'
+  },
+  {
+    id: 'endless',
+    name: 'Endless Voyage',
+    badge: '♾️ Dynamic Cross-Biome Marathon',
+    icon: '✨',
+    tagline: 'Seamless Transitions Across All Realms',
+    color: '#e040fb',
+    bg: 'linear-gradient(135deg, rgba(224,64,251,0.14) 0%, rgba(106,27,154,0.28) 100%)',
+    border: 'rgba(224,64,251,0.45)',
+    glow: 'rgba(224,64,251,0.3)',
+    desc: 'The ultimate endurance test! Sprint through ancient stone gates every 1,000m to seamlessly transition between Jungle, Frostbite, and Volcanic realms.',
+    features: [
+      'Dynamic biome gates triggering real-time skybox and track swaps',
+      'Continuously ramping speed and hazard complexity',
+      'Global leaderboard marathon scoring',
+      'Adapting pursuing beast morphing to match each biome'
+    ],
+    monster: 'Adaptive Shifting Guardian',
+    monsterDesc: 'A terrifying shape-shifting predator that evolves its appearance and fury as you cross each mystical portal gate.'
+  }
+];
+
+// ──────────────────────────────────────────────
 //  Features Data
 // ──────────────────────────────────────────────
 const FEATURES = [
@@ -139,9 +225,9 @@ const FEATURES = [
     desc: 'A terrifying jungle monster pursues closely behind. One stumble brings it to your neck; two stumbles trigger its strike!',
   },
   {
-    icon: '🌋',
-    name: '3 Dynamic Biomes & PBR Visuals',
-    desc: 'Sprint from lush Jungle Canopy into ancient Sunken Temple Ruins and fiery Volcanic Caverns with PBR materials, dynamic color grading, and atmospheric fog.',
+    icon: '🗺️',
+    name: 'Multi-Map Selection & Custom Biomes',
+    desc: 'Pick your expedition: 🔥 Volcanic Inferno with custom 3D pathway & Magma Golem titan, ❄️ Frostbite Citadel with crystalline ice & blizzard snowfall, 🌿 Jungle Canopy, or ♾️ Endless Voyage cross-realm marathon!',
   },
   {
     icon: '🎮',
@@ -392,9 +478,11 @@ function Counter({ target, suffix = '' }) {
 // ──────────────────────────────────────────────
 export default function Home() {
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState(0);
+  const [selectedMapIndex, setSelectedMapIndex] = useState(0);
   const [faqOpenIndex, setFaqOpenIndex] = useState(null);
 
   const activeHero = CHARACTERS[selectedCharacterIndex] || CHARACTERS[0];
+  const activeMap = MAPS[selectedMapIndex] || MAPS[0];
 
   return (
     <>
@@ -407,6 +495,7 @@ export default function Home() {
           </a>
           <ul className="nav-links">
             <li><a href="#roster">Roster</a></li>
+            <li><a href="#maps">Maps</a></li>
             <li><a href="#compare">Compare</a></li>
             <li><a href="#how-to-play">How to Play</a></li>
             <li><a href="#features">Features</a></li>
@@ -416,7 +505,7 @@ export default function Home() {
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
           <Link className="nav-cta" href="/download">
-            ↓ Download APK v1.7
+            ↓ Download APK v1.8
           </Link>
         </div>
       </nav>
@@ -445,7 +534,7 @@ export default function Home() {
         </div>
 
         <div className="container hero-content">
-          <div className="hero-badge">v1.7 Release · Character Abilities · Running Trails · Dynamic Music · Monster Roar · 60 FPS Native APK</div>
+          <div className="hero-badge">v1.8 Release · Multi-Map Expansion · Magma Golem · Blizzard Snowfall · 60 FPS Native APK</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -453,8 +542,8 @@ export default function Home() {
           </h1>
 
           <p className="hero-subtitle">
-            Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke in ancient ruins! Leap over logs, slide beneath branches,
-            switch lanes, master individual speed & agility stats, and outrun the relentless beast guardian on Android with locked 60 FPS native physics.
+            Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke across diverse realms! Sprint across custom 3D volcanic pathways, brave icy blizzard citadels,
+            master individual hero stats, and outrun the relentless beast guardians on Android with locked 60 FPS native physics.
           </p>
 
           <div className="hero-actions">
@@ -462,7 +551,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.7
+              Download APK v1.8
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -654,6 +743,96 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── MULTI-MAP EXPEDITIONS SHOWCASE ── */}
+      <section className="maps-section" id="maps">
+        <div className="container">
+          <div className="maps-header">
+            <p className="section-label">Expedition Realms</p>
+            <h2 className="section-title">Explore Distinct Temple Maps</h2>
+            <p className="roster-sub">
+              Choose your terrain before each expedition! Sprint through customized 3D pathways, dynamic weather phenomena, and unique pursuing monsters crafted for high-octane evasion.
+            </p>
+          </div>
+
+          {/* Map Tabs Grid */}
+          <div className="maps-grid">
+            {MAPS.map((map, index) => {
+              const isSelected = selectedMapIndex === index;
+              return (
+                <button
+                  key={map.id}
+                  className={`map-card-tab ${isSelected ? 'active' : ''}`}
+                  onClick={() => setSelectedMapIndex(index)}
+                  type="button"
+                  style={{
+                    '--map-bg': map.bg,
+                    '--map-border': map.border,
+                    '--map-glow': map.glow,
+                  }}
+                >
+                  <span className="map-tab-icon">{map.icon}</span>
+                  <div className="map-tab-name">{map.name}</div>
+                  <div className="map-tab-tagline">{map.tagline}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Map Showcase Panel */}
+          <div
+            className="map-showcase-panel"
+            style={{
+              '--map-border': activeMap.border,
+              '--map-glow': activeMap.glow,
+              '--map-color': activeMap.color,
+            }}
+          >
+            <div>
+              <div className="map-showcase-title-row">
+                <span
+                  className="map-showcase-badge"
+                  style={{
+                    '--map-badge-bg': `${activeMap.color}25`,
+                    '--map-badge-border': `${activeMap.color}60`,
+                    '--map-color': activeMap.color,
+                  }}
+                >
+                  {activeMap.badge}
+                </span>
+              </div>
+              <h3 className="map-showcase-name">
+                {activeMap.icon} {activeMap.name}
+              </h3>
+              <p className="map-showcase-desc">{activeMap.desc}</p>
+
+              <ul className="map-feature-list">
+                {activeMap.features.map((feat, i) => (
+                  <li key={i} className="map-feature-item">
+                    <span className="map-feature-check">✦</span>
+                    <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <div className="map-monster-box">
+                <div className="map-monster-label">Pursuing Apex Monster</div>
+                <div className="map-monster-name">
+                  <span>👹</span> {activeMap.monster}
+                </div>
+                <p className="map-monster-desc">{activeMap.monsterDesc}</p>
+                <div style={{ marginTop: '8px' }}>
+                  <Link href="/download" className="spotlight-cta" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
+                    🎮 Play on {activeMap.name}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── FEATURES ── */}
       <section className="features" id="features">
         <div className="container">
@@ -759,10 +938,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v1.7 · Character Abilities · Dynamic Music · 60 FPS</div>
+          <div className="download-badge">Native Android APK v1.8 · Multi-Map Selection · Magma Golem · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v1.7 directly to your Android device with 7 unique character abilities, running trail effects, biome skybox transitions, dynamic music crossfade, and locked 60 FPS gameplay with all 8 heroes unlocked.
+            Download the native APK v1.8 directly to your Android device with new Volcanic Inferno and Frostbite Citadel maps, custom 3D track models, pursuing Magma Stone Golem, blizzard particle snowfall, and locked 60 FPS gameplay with all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
@@ -770,7 +949,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.7 — Free (~114 MB)
+              Download APK v1.8 — Free (~114 MB)
             </Link>
             <a
               className="download-github"

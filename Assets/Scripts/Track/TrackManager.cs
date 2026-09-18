@@ -468,6 +468,8 @@ namespace Runner.Track
         private GameObject treeBranchSlidePrefab;
         private GameObject lowPolyRoadPrefab;
         private GameObject stoneGatePrefab;
+        private GameObject volcanoPathwayPrefab;
+        private Material volcanoPathwayMatCache;
         private GameObject torchBrazierPrefab;
 
         // New obstacle models
@@ -496,6 +498,20 @@ namespace Runner.Track
                 if (lowPolyRoadPrefab != null)
                 {
                     Debug.Log("[TrackManager] 3D Low-Poly Road Model Loaded Successfully: " + lowPolyRoadPrefab.name);
+                }
+            }
+            if (volcanoPathwayPrefab == null)
+            {
+                volcanoPathwayPrefab = Resources.Load<GameObject>("Path/pathway");
+                #if UNITY_EDITOR
+                if (volcanoPathwayPrefab == null)
+                    volcanoPathwayPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/pathway.obj");
+                if (volcanoPathwayPrefab == null)
+                    volcanoPathwayPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/pathway.glb");
+                #endif
+                if (volcanoPathwayPrefab != null)
+                {
+                    Debug.Log("[TrackManager] 3D Volcano Pathway Model Loaded Successfully: " + volcanoPathwayPrefab.name);
                 }
             }
             if (stoneGatePrefab == null)
@@ -1055,6 +1071,36 @@ namespace Runner.Track
                     diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/low_poly_road_tex_0.png");
                 #endif
                 lowPolyRoadMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
+            }
+
+            if (volcanoPathwayMatCache == null)
+            {
+                Texture2D pathTex = Resources.Load<Texture2D>("Path/pathway_tex_0");
+                #if UNITY_EDITOR
+                if (pathTex == null)
+                    pathTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/pathway_tex_0.png");
+                #endif
+
+                Texture2D pathNorm = Resources.Load<Texture2D>("Path/pathway_norm_0");
+                #if UNITY_EDITOR
+                if (pathNorm == null)
+                    pathNorm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/pathway_norm_0.png");
+                #endif
+
+                volcanoPathwayMatCache = MaterialHelper.CreatePBRMaterial(
+                    new Color(0.85f, 0.82f, 0.80f),
+                    albedo: pathTex,
+                    metallicValue: 0.25f,
+                    smoothness: 0.55f,
+                    emissionColor: new Color(0.40f, 0.12f, 0.02f)
+                );
+                volcanoPathwayMatCache.name = "Mat_VolcanoPathway";
+
+                if (volcanoPathwayMatCache != null && pathNorm != null && volcanoPathwayMatCache.HasProperty("_BumpMap"))
+                {
+                    volcanoPathwayMatCache.SetTexture("_BumpMap", pathNorm);
+                    volcanoPathwayMatCache.EnableKeyword("_NORMALMAP");
+                }
             }
 
             if (stoneGateMatCache == null)
@@ -2720,38 +2766,102 @@ namespace Runner.Track
             {
                 Transform r2 = chunk != null ? chunk.transform.Find("Road3D_Tier2") : null;
                 if (r2 != null) r2.gameObject.SetActive(false);
+                Transform rv = chunk != null ? chunk.transform.Find("Road3D_Volcano") : null;
+                if (rv != null) rv.gameObject.SetActive(false);
                 return;
             }
 
             Ensure3DModels();
             EnsureMaterials();
 
+            var curBiome = Runner.Effects.BiomeManager.Instance != null
+                ? Runner.Effects.BiomeManager.Instance.CurrentBiome
+                : Runner.Effects.BiomeType.JungleCanopy;
+
             Transform t2 = chunk.transform.Find("Road3D_Tier2");
+            Transform tv = chunk.transform.Find("Road3D_Volcano");
 
-            // Use low-poly highway for ALL distances (rocky path removed due to glitches)
-            if (t2 == null && lowPolyRoadPrefab != null)
+            // 1. Volcanic Inferno Map: Use custom pathway.glb
+            if (curBiome == Runner.Effects.BiomeType.VolcanicCaverns && volcanoPathwayPrefab != null)
             {
-                GameObject rObj = Instantiate(lowPolyRoadPrefab, chunk.transform);
-                rObj.name = "Road3D_Tier2";
-                rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
-                rObj.transform.localRotation = Quaternion.identity;
-                rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
-
-                foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
-
-                if (lowPolyRoadMatCache != null)
+                if (tv == null)
                 {
-                    foreach (var r in rObj.GetComponentsInChildren<Renderer>())
+                    GameObject vObj = Instantiate(volcanoPathwayPrefab, chunk.transform);
+                    vObj.name = "Road3D_Volcano";
+                    vObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
+                    vObj.transform.localRotation = Quaternion.identity;
+
+                    foreach (var col in vObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
+
+                    // Normalise scale to 4.2m width and 10.0m chunk length
+                    Renderer[] rList = vObj.GetComponentsInChildren<Renderer>();
+                    if (rList.Length > 0)
                     {
-                        Material[] mats = new Material[r.sharedMaterials.Length];
-                        for (int m = 0; m < mats.Length; m++) mats[m] = lowPolyRoadMatCache;
-                        r.sharedMaterials = mats;
+                        Bounds b = rList[0].bounds;
+                        for (int i = 1; i < rList.Length; i++) b.Encapsulate(rList[i].bounds);
+
+                        float curX = Mathf.Max(0.1f, b.size.x);
+                        float curZ = Mathf.Max(0.1f, b.size.z);
+                        float sx = 4.2f / curX;
+                        float sz = 10.0f / curZ;
+                        float sy = Mathf.Clamp(Mathf.Min(sx, sz), 0.4f, 2.0f);
+                        vObj.transform.localScale = new Vector3(sx, sy, sz);
+                    }
+
+                    if (volcanoPathwayMatCache != null)
+                    {
+                        foreach (var r in vObj.GetComponentsInChildren<Renderer>())
+                        {
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = volcanoPathwayMatCache;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+                    tv = vObj.transform;
+                }
+
+                if (tv != null) tv.gameObject.SetActive(true);
+                if (t2 != null) t2.gameObject.SetActive(false);
+            }
+            else
+            {
+                // Non-volcanic biomes: Hide volcano road, show low-poly road
+                if (tv != null) tv.gameObject.SetActive(false);
+
+                if (t2 == null && lowPolyRoadPrefab != null)
+                {
+                    GameObject rObj = Instantiate(lowPolyRoadPrefab, chunk.transform);
+                    rObj.name = "Road3D_Tier2";
+                    rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
+                    rObj.transform.localRotation = Quaternion.identity;
+                    rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
+
+                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
+                    t2 = rObj.transform;
+                }
+
+                if (t2 != null)
+                {
+                    t2.gameObject.SetActive(true);
+
+                    // Apply biome-appropriate material (e.g., crystalline ice in Frostbite Citadel)
+                    Material activeFloorMat = Runner.Effects.BiomeManager.Instance != null
+                        ? Runner.Effects.BiomeManager.Instance.GetFloorMaterialForBiome(curBiome)
+                        : lowPolyRoadMatCache;
+
+                    if (activeFloorMat == null) activeFloorMat = lowPolyRoadMatCache;
+
+                    if (activeFloorMat != null)
+                    {
+                        foreach (var r in t2.GetComponentsInChildren<Renderer>())
+                        {
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = activeFloorMat;
+                            r.sharedMaterials = mats;
+                        }
                     }
                 }
-                t2 = rObj.transform;
             }
-
-            if (t2 != null) t2.gameObject.SetActive(true);
         }
 
         private void CheckAndSpawnStoneGate(TrackChunk chunk, float chunkDistance)
