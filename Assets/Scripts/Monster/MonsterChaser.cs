@@ -5,13 +5,11 @@ using Runner.Player;
 namespace Runner.Monster
 {
     /// <summary>
-    /// Controls the pursuing monster.
-    /// Dynamically interpolates chase distance:
-    /// - Normal distance: 6.0m behind player
-    /// - 1st Stumble: rushes in to 3.8m, stays aggressive during 5.0s stumble timer
-    /// - Clean recovery: retreats smoothly back to 6.0m
-    /// - 2nd Stumble: closes to 0.0m for catch/kill attack sequence
-    /// Includes procedural placeholder animations (aggressive gallop, arm flailing, catch lunge).
+    /// Controls the pursuing monster with progressive phases:
+    /// Phase 1 (0-1000m): Normal beast, steady chase
+    /// Phase 2 (1000-3000m): Enraged, faster lunges, occasional lunges even without stumble
+    /// Phase 3 (3000m+): Demonic, glowing eyes, fire trail, very aggressive
+    /// Dynamically interpolates chase distance and visual evolution.
     /// </summary>
     public class MonsterChaser : MonoBehaviour
     {
@@ -35,11 +33,21 @@ namespace Runner.Monster
         [SerializeField] private AudioSource audioSource;
         [SerializeField] private AudioClip screamClip;
 
+        [Header("Phase Evolution")]
+        [SerializeField] private Light monsterEyeGlow;
+        [SerializeField] private ParticleSystem fireTrailParticles;
+
         private float currentFollowDistance = 4.0f;
         private float targetFollowDistance = 4.0f;
         private float gallopTimer = 0.0f;
         private float stompTimer = 0.0f;
         private bool isCatching = false;
+
+        private int currentPhase = 1;
+        private float lungeCooldown = 0f;
+        private float phaseTimer = 0f;
+        private Color monsterBaseColor = new Color(0.3f, 0.45f, 0.3f);
+        private Material monsterMaterial;
 
         private void Awake()
         {
@@ -74,7 +82,7 @@ namespace Runner.Monster
 #endif
             if (zombieMat == null && zombieTex != null)
             {
-                zombieMat = MaterialHelper.CreateSafeMaterial(Color.white, zombieTex);
+                zombieMat = Runner.Core.MaterialHelper.CreateSafeMaterial(Color.white, zombieTex);
             }
 
             foreach (var r in GetComponentsInChildren<Renderer>())
@@ -86,6 +94,8 @@ namespace Runner.Monster
                     r.sharedMaterial = zombieMat;
                 }
             }
+
+            monsterMaterial = zombieMat;
         }
 
         private void EnsureAudio()
@@ -133,12 +143,60 @@ namespace Runner.Monster
         private void Start()
         {
             EnsureZombieMaterial();
+            monsterBaseColor = new Color(0.3f, 0.45f, 0.3f);
 
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.OnStumbled += HandlePlayerStumbled;
                 GameManager.Instance.OnStumbleRecovered += HandleStumbleRecovered;
                 GameManager.Instance.OnGameOver += HandleGameOver;
+            }
+
+            if (monsterEyeGlow == null)
+            {
+                GameObject eyeObj = new GameObject("MonsterEyeGlow");
+                eyeObj.transform.SetParent(transform, false);
+                eyeObj.transform.localPosition = new Vector3(0, 1.8f, 0.3f);
+                monsterEyeGlow = eyeObj.AddComponent<Light>();
+                monsterEyeGlow.type = LightType.Point;
+                monsterEyeGlow.color = new Color(0.2f, 0.8f, 0.2f);
+                monsterEyeGlow.range = 3.0f;
+                monsterEyeGlow.intensity = 0f;
+                monsterEyeGlow.shadows = LightShadows.None;
+            }
+
+            if (fireTrailParticles == null)
+            {
+                GameObject trailObj = new GameObject("FireTrail");
+                trailObj.transform.SetParent(transform, false);
+                trailObj.transform.localPosition = new Vector3(0, 0.5f, -1.5f);
+                fireTrailParticles = trailObj.AddComponent<ParticleSystem>();
+                var main = fireTrailParticles.main;
+                main.loop = true;
+                main.startLifetime = 0.6f;
+                main.startSpeed = 2.0f;
+                main.startSize = 0.4f;
+                main.startColor = new Color(1.0f, 0.4f, 0.05f);
+                main.maxParticles = 30;
+                main.simulationSpace = ParticleSystemSimulationSpace.World;
+                var emission = fireTrailParticles.emission;
+                emission.rateOverTime = 25f;
+                var shape = fireTrailParticles.shape;
+                shape.shapeType = ParticleSystemShapeType.Cone;
+                shape.angle = 15f;
+                shape.radius = 0.2f;
+                var colors = fireTrailParticles.colorOverLifetime;
+                colors.enabled = true;
+                Gradient grad = new Gradient();
+                grad.SetKeys(new GradientColorKey[] {
+                    new GradientColorKey(new Color(1.0f, 0.6f, 0.1f), 0f),
+                    new GradientColorKey(new Color(1.0f, 0.2f, 0.0f), 1f)
+                }, new GradientAlphaKey[] {
+                    new GradientAlphaKey(0.8f, 0f),
+                    new GradientAlphaKey(0f, 1f)
+                });
+                colors.color = grad;
+                fireTrailParticles.Stop();
             }
         }
 
@@ -158,20 +216,56 @@ namespace Runner.Monster
                 return;
 
             float dt = Time.deltaTime;
+            float dist = GameManager.Instance != null ? GameManager.Instance.DistanceTraveled : 0f;
 
-            // 1. Determine Target Chase Distance
+            // Phase determination
+            int newPhase = dist < 1000f ? 1 : dist < 3000f ? 2 : 3;
+            if (newPhase != currentPhase)
+            {
+                currentPhase = newPhase;
+                OnPhaseChanged(currentPhase);
+            }
+
+            // 1. Determine Target Chase Distance (closer in later phases)
+            float phaseNormalDist = currentPhase switch
+            {
+                1 => 4.0f,
+                2 => 3.2f,
+                3 => 2.5f,
+                _ => 4.0f
+            };
+            float phaseStumbleDist = currentPhase switch
+            {
+                1 => 1.8f,
+                2 => 1.2f,
+                3 => 0.6f,
+                _ => 1.8f
+            };
+
             if (isCatching)
             {
                 targetFollowDistance = 0.0f;
             }
             else if (GameManager.Instance != null && GameManager.Instance.IsStumbling)
             {
-                targetFollowDistance = stumbleDistance;
+                targetFollowDistance = phaseStumbleDist;
             }
             else
             {
-                targetFollowDistance = normalDistance;
+                targetFollowDistance = phaseNormalDist;
             }
+
+            // Phase 2+: occasional random lunge
+            if (currentPhase >= 2 && !isCatching && lungeCooldown <= 0f)
+            {
+                float lungeChance = currentPhase == 2 ? 0.003f : 0.008f;
+                if (Random.value < lungeChance)
+                {
+                    targetFollowDistance = phaseStumbleDist * 0.7f;
+                    lungeCooldown = currentPhase == 2 ? 4f : 2f;
+                }
+            }
+            lungeCooldown -= dt;
 
             // Smoothly interpolate current distance
             currentFollowDistance = Mathf.Lerp(currentFollowDistance, targetFollowDistance, dt * chaseInterpolationSpeed);
@@ -182,7 +276,7 @@ namespace Runner.Monster
             Quaternion playerRot = PlayerController.Instance.transform.rotation;
 
             Vector3 targetPosition = playerPos - (playerForward * currentFollowDistance);
-            targetPosition.y = playerPos.y; // Match ground level
+            targetPosition.y = playerPos.y;
 
             transform.position = Vector3.Lerp(transform.position, targetPosition, dt * 12.0f);
             transform.rotation = Quaternion.Slerp(transform.rotation, playerRot, dt * 15.0f);
@@ -209,6 +303,36 @@ namespace Runner.Monster
 
             // 3. Procedural Gallop & Attack Animations
             UpdateProceduralAnimations(dt);
+        }
+
+        private void OnPhaseChanged(int phase)
+        {
+            if (phase >= 2 && monsterMaterial != null)
+            {
+                Color phaseColor = phase == 2
+                    ? new Color(0.45f, 0.3f, 0.25f)   // Enraged red-brown
+                    : new Color(0.35f, 0.15f, 0.15f);  // Demonic dark red
+                monsterMaterial.color = phaseColor;
+            }
+
+            if (phase >= 2 && monsterEyeGlow != null)
+            {
+                monsterEyeGlow.intensity = phase == 2 ? 1.5f : 3.0f;
+                monsterEyeGlow.range = phase == 2 ? 4.0f : 6.0f;
+                monsterEyeGlow.color = phase == 2
+                    ? new Color(0.9f, 0.3f, 0.1f)
+                    : new Color(1.0f, 0.1f, 0.0f);
+            }
+
+            if (phase == 3 && fireTrailParticles != null && !fireTrailParticles.isPlaying)
+            {
+                fireTrailParticles.Play();
+            }
+
+            if (phase >= 2)
+            {
+                chaseInterpolationSpeed = phase == 2 ? 5.5f : 7.0f;
+            }
         }
 
         private void UpdateProceduralAnimations(float dt)

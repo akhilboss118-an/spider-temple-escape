@@ -24,8 +24,8 @@ namespace Runner.EditorTools
 
             PlayerSettings.productName = APP_NAME;
             PlayerSettings.companyName = "SpiderHero";
-            PlayerSettings.bundleVersion = "1.5.0";
-            PlayerSettings.Android.bundleVersionCode = 6;
+            PlayerSettings.bundleVersion = "1.6.0";
+            PlayerSettings.Android.bundleVersionCode = 7;
 
             // Application ID / Package Name
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, PACKAGE_NAME);

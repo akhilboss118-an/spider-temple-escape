@@ -197,18 +197,32 @@ namespace Runner.Track
                 else return ChunkType.HeartRun;
             }
 
-            // 3. Balanced Procedural Distribution: ~60% safe runs, ~40% varied hazards
+            // 3. Progressive Distribution: gets harder as distance increases
             int roll = Random.Range(0, 100);
             ChunkType candidate;
 
-            if (roll < 25) candidate = ChunkType.Straight;          // 25% clean straight
-            else if (roll < 45) candidate = ChunkType.CoinRun;     // 20% coin run
-            else if (roll < 55) candidate = ChunkType.HeartRun;    // 10% heart sprint
-            else if (roll < 65) candidate = ChunkType.LaneBlocker; // 10% single-lane dodge
-            else if (roll < 75) candidate = ChunkType.LowObstacle; // 10% jump hurdle
-            else if (roll < 85) candidate = ChunkType.SlideArch;   // 10% slide trunk
-            else if (roll < 93) candidate = ChunkType.SpinningBlade;// 8% spinning blade
-            else candidate = ChunkType.LaserBeam;                  // 7% laser beam
+            float dist = GameManager.Instance != null ? GameManager.Instance.DistanceTraveled : 0f;
+            float hazardBias = Mathf.Clamp01(dist / 5000f); // 0% at start → 100% at 5km
+
+            float straightChance = Mathf.Lerp(25f, 10f, hazardBias);
+            float coinChance = Mathf.Lerp(20f, 12f, hazardBias);
+            float heartChance = Mathf.Lerp(10f, 5f, hazardBias);
+            float laneBlockerChance = Mathf.Lerp(10f, 15f, hazardBias);
+            float lowObstacleChance = Mathf.Lerp(10f, 18f, hazardBias);
+            float slideArchChance = Mathf.Lerp(10f, 15f, hazardBias);
+            float spinBladeChance = Mathf.Lerp(8f, 20f, hazardBias);
+            float laserChance = Mathf.Lerp(7f, 15f, hazardBias);
+
+            float cumulative = 0f;
+            cumulative += straightChance;
+            if (roll < cumulative) candidate = ChunkType.Straight;
+            else { cumulative += coinChance; if (roll < cumulative) candidate = ChunkType.CoinRun; }
+            else { cumulative += heartChance; if (roll < cumulative) candidate = ChunkType.HeartRun; }
+            else { cumulative += laneBlockerChance; if (roll < cumulative) candidate = ChunkType.LaneBlocker; }
+            else { cumulative += lowObstacleChance; if (roll < cumulative) candidate = ChunkType.LowObstacle; }
+            else { cumulative += slideArchChance; if (roll < cumulative) candidate = ChunkType.SlideArch; }
+            else { cumulative += spinBladeChance; if (roll < cumulative) candidate = ChunkType.SpinningBlade; }
+            else candidate = ChunkType.LaserBeam;
 
             // Spacing check: if spacing is too tight, fallback to safe straight/coin runway, NOT another hazard!
             bool isJumpType = (candidate == ChunkType.LowObstacle || candidate == ChunkType.SpinningBlade);

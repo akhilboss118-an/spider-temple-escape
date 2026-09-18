@@ -39,6 +39,9 @@ namespace Runner.Core
         [Tooltip("Time in seconds to ramp from baseSpeed to maxSpeed (default 180s / 3 mins)")]
         [SerializeField] private float speedRampDuration = 180.0f;
 
+        [Tooltip("After max speed reached, additional speed gain per minute")]
+        [SerializeField] private float endlessSpeedGainPerMinute = 0.5f;
+
         [Header("Stumble Rules")]
         [Tooltip("Stumble recovery window in seconds (default 5.0s)")]
         [SerializeField] private float stumbleDecayDuration = 5.0f;
@@ -67,6 +70,18 @@ namespace Runner.Core
         private float stumbleTimer = 0.0f;
         private float stumbleSlowdownTimer = 0.0f;
         private int stumbleCount = 0;
+
+        // Coin Combo System
+        private int coinComboCount = 0;
+        private float coinComboTimer = 0f;
+        private const float COMBO_TIMEOUT = 2.0f;
+        public int CoinComboCount => coinComboCount;
+        public int CoinComboMultiplier => coinComboCount >= 20 ? 5 : coinComboCount >= 10 ? 3 : coinComboCount >= 5 ? 2 : 1;
+        public event Action<int, int> OnCoinCombo; // (comboCount, multiplier)
+
+        // Restart Cooldown
+        private float restartCooldownTimer = 0f;
+        private const float RESTART_COOLDOWN = 1.5f;
 
         // Events
         public event Action<GameState> OnGameStateChanged;
@@ -289,9 +304,16 @@ namespace Runner.Core
             float dt = Time.deltaTime;
             runTimer += dt;
 
-            // 1. Calculate Target Speed ramp: 8 m/s -> 20 m/s over 180s
+            // 1. Calculate Target Speed ramp: 8 m/s -> 20 m/s over 180s, then endless gain
             float rampRatio = Mathf.Clamp01(runTimer / speedRampDuration);
             float targetSpeed = Mathf.Lerp(baseSpeed, maxSpeed, rampRatio);
+
+            // Endless scaling after max speed
+            if (runTimer > speedRampDuration)
+            {
+                float extraMinutes = (runTimer - speedRampDuration) / 60f;
+                targetSpeed += extraMinutes * endlessSpeedGainPerMinute;
+            }
 
             // Speedrun Powerup (3x speed boost)
             if (PickupManager.Instance != null && PickupManager.Instance.IsSpeedrunActive)
@@ -323,10 +345,28 @@ namespace Runner.Core
 
             // 4. Update Distance & Score
             DistanceTraveled += CurrentSpeed * dt;
-            float activeMultiplier = Multiplier * (PickupManager.Instance != null && PickupManager.Instance.IsMultiplierFrenzyActive ? 3f : 1f);
+            float comboMult = CoinComboMultiplier;
+            float activeMultiplier = Multiplier * comboMult * (PickupManager.Instance != null && PickupManager.Instance.IsMultiplierFrenzyActive ? 3f : 1f);
             scoreProgress += CurrentSpeed * dt * 10f * activeMultiplier;
             Score = Mathf.FloorToInt(scoreProgress) + (CoinsCollected * 50);
             OnScoreChanged?.Invoke(Score);
+
+            // 5. Coin Combo Decay
+            if (coinComboCount > 0)
+            {
+                coinComboTimer -= dt;
+                if (coinComboTimer <= 0f)
+                {
+                    coinComboCount = 0;
+                    OnCoinCombo?.Invoke(0, 1);
+                }
+            }
+
+            // 6. Restart Cooldown
+            if (restartCooldownTimer > 0f)
+            {
+                restartCooldownTimer -= dt;
+            }
         }
 
         public void StartGame()
@@ -341,7 +381,10 @@ namespace Runner.Core
             stumbleSlowdownTimer = 0.0f;
             stumbleCount = 0;
             CurrentSpeed = baseSpeed;
-            Multiplier = (SelectedSuitIndex == 3) ? 2 : 1; // Suit 3: 2099 gives 2x Score Multiplier!
+            Multiplier = (SelectedSuitIndex == 3) ? 2 : 1;
+            coinComboCount = 0;
+            coinComboTimer = 0f;
+            restartCooldownTimer = 0f;
 
             SetState(GameState.Playing);
             OnLivesChanged?.Invoke(CurrentLives, MaxLives);
@@ -422,14 +465,17 @@ namespace Runner.Core
 
             stumbleCount++;
 
+            // Reset combo on stumble
+            coinComboCount = 0;
+            coinComboTimer = 0f;
+            OnCoinCombo?.Invoke(0, 1);
+
             if (stumbleCount >= 2)
             {
-                // Second stumble within decay window -> caught by monster!
                 TriggerGameOver(DeathType.CaughtByMonster);
                 return;
             }
 
-            // First stumble: set 5s decay timer and 1.5s slowdown
             stumbleTimer = stumbleDecayDuration;
             stumbleSlowdownTimer = stumbleSlowdownDuration;
             OnStumbled?.Invoke(stumbleCount, stumbleTimer);
@@ -444,6 +490,12 @@ namespace Runner.Core
             TotalBankedCoins += amount;
             PlayerPrefs.SetInt(TOTAL_COINS_KEY, TotalBankedCoins);
             PlayerPrefs.Save();
+
+            // Combo tracking
+            coinComboCount += amount;
+            coinComboTimer = COMBO_TIMEOUT;
+            OnCoinCombo?.Invoke(coinComboCount, CoinComboMultiplier);
+
             MissionManager.Instance?.ReportCoinsCollected(amount);
             OnCoinsChanged?.Invoke(CoinsCollected);
         }
@@ -471,11 +523,44 @@ namespace Runner.Core
                 PlayerPrefs.Save();
             }
 
+            // Death animation: slow-mo freeze frame
+            StartCoroutine(DeathSequence());
+
             OnGameOver?.Invoke(deathType, Score);
+        }
+
+        private System.Collections.IEnumerator DeathSequence()
+        {
+            // Camera shake
+            Camera cam = Camera.main;
+            if (cam != null)
+            {
+                Vector3 originalPos = cam.transform.localPosition;
+                float shakeDuration = 0.4f;
+                float shakeMagnitude = 0.15f;
+                float elapsed = 0f;
+                while (elapsed < shakeDuration)
+                {
+                    float x = Random.Range(-1f, 1f) * shakeMagnitude;
+                    float y = Random.Range(-1f, 1f) * shakeMagnitude;
+                    cam.transform.localPosition = originalPos + new Vector3(x, y, 0);
+                    elapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+                cam.transform.localPosition = originalPos;
+            }
+
+            // Slow-mo death freeze
+            Time.timeScale = 0.15f;
+            yield return new WaitForSecondsRealtime(0.3f);
+            Time.timeScale = 0f;
         }
 
         public void RestartGame()
         {
+            if (restartCooldownTimer > 0f) return;
+            restartCooldownTimer = RESTART_COOLDOWN;
+
             autoStartOnLoad = true;
             Time.timeScale = 1.0f;
             PlayerPrefs.Save();
