@@ -409,7 +409,6 @@ namespace Runner.Track
         private Material monsteraMatCache;
         private Material canopyBarkMatCache;
         private Material canopyLeavesMatCache;
-        private Material rockyPathMatCache;
         private Material lowPolyRoadMatCache;
         private Material stoneGateMatCache;
         private Material torchMatCache;
@@ -426,7 +425,6 @@ namespace Runner.Track
         private GameObject pineTreePrefab;
         private GameObject treeBranchJumpPrefab;
         private GameObject treeBranchSlidePrefab;
-        private GameObject rockyPathPrefab;
         private GameObject lowPolyRoadPrefab;
         private GameObject stoneGatePrefab;
         private GameObject torchBrazierPrefab;
@@ -446,18 +444,6 @@ namespace Runner.Track
                 if (pathSidewalkPrefab == null)
                     pathSidewalkPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/path_sidewalk.obj");
                 #endif
-            }
-            if (rockyPathPrefab == null)
-            {
-                rockyPathPrefab = Resources.Load<GameObject>("Path/rocky_path");
-                #if UNITY_EDITOR
-                if (rockyPathPrefab == null)
-                    rockyPathPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/rocky_path.obj");
-                #endif
-                if (rockyPathPrefab != null)
-                {
-                    Debug.Log("[TrackManager] 3D Rocky Path Model Loaded Successfully: " + rockyPathPrefab.name);
-                }
             }
             if (lowPolyRoadPrefab == null)
             {
@@ -1017,27 +1003,6 @@ namespace Runner.Track
                             ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Jungle/pine-tree/textures/Leavs_basecolor_.tga.png");
                     #endif
                     canopyLeavesMatCache = MaterialHelper.CreateSafeMaterial(new Color(0.85f, 1.10f, 0.85f), diff);
-                }
-            }
-
-            if (rockyPathMatCache == null)
-            {
-                Texture2D diff = Resources.Load<Texture2D>("Path/rocky_path_tex_0");
-                #if UNITY_EDITOR
-                if (diff == null)
-                    diff = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/rocky_path_tex_0.jpg");
-                #endif
-                rockyPathMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
-
-                Texture2D norm = Resources.Load<Texture2D>("Path/rocky_path_tex_3");
-                #if UNITY_EDITOR
-                if (norm == null)
-                    norm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/rocky_path_tex_3.jpg");
-                #endif
-                if (rockyPathMatCache != null && norm != null && rockyPathMatCache.HasProperty("_BumpMap"))
-                {
-                    rockyPathMatCache.SetTexture("_BumpMap", norm);
-                    rockyPathMatCache.EnableKeyword("_NORMALMAP");
                 }
             }
 
@@ -2712,9 +2677,7 @@ namespace Runner.Track
         {
             if (chunk == null || chunk.Type == ChunkType.Gap)
             {
-                Transform r1 = chunk != null ? chunk.transform.Find("Road3D_Tier1") : null;
                 Transform r2 = chunk != null ? chunk.transform.Find("Road3D_Tier2") : null;
-                if (r1 != null) r1.gameObject.SetActive(false);
                 if (r2 != null) r2.gameObject.SetActive(false);
                 return;
             }
@@ -2722,73 +2685,32 @@ namespace Runner.Track
             Ensure3DModels();
             EnsureMaterials();
 
-            Transform t1 = chunk.transform.Find("Road3D_Tier1");
             Transform t2 = chunk.transform.Find("Road3D_Tier2");
 
-            if (chunkDistance < 1000f)
+            // Use low-poly highway for ALL distances (rocky path removed due to glitches)
+            if (t2 == null && lowPolyRoadPrefab != null)
             {
-                // Tier 0: Default road surface
-                if (t1 != null) t1.gameObject.SetActive(false);
-                if (t2 != null) t2.gameObject.SetActive(false);
-            }
-            else if (chunkDistance < 2000f)
-            {
-                // Tier 1: 3D Rocky Path (1000m - 2000m)
-                if (t2 != null) t2.gameObject.SetActive(false);
+                GameObject rObj = Instantiate(lowPolyRoadPrefab, chunk.transform);
+                rObj.name = "Road3D_Tier2";
+                rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
+                rObj.transform.localRotation = Quaternion.identity;
+                rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
 
-                if (t1 == null && rockyPathPrefab != null)
+                foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
+
+                if (lowPolyRoadMatCache != null)
                 {
-                    GameObject rObj = Instantiate(rockyPathPrefab, chunk.transform);
-                    rObj.name = "Road3D_Tier1";
-                    rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
-                    rObj.transform.localRotation = Quaternion.identity;
-                    rObj.transform.localScale = new Vector3(3.816f, 1.0f, 7.024f);
-
-                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
-
-                    if (rockyPathMatCache != null)
+                    foreach (var r in rObj.GetComponentsInChildren<Renderer>())
                     {
-                        foreach (var r in rObj.GetComponentsInChildren<Renderer>())
-                        {
-                            Material[] mats = new Material[r.sharedMaterials.Length];
-                            for (int m = 0; m < mats.Length; m++) mats[m] = rockyPathMatCache;
-                            r.sharedMaterials = mats;
-                        }
+                        Material[] mats = new Material[r.sharedMaterials.Length];
+                        for (int m = 0; m < mats.Length; m++) mats[m] = lowPolyRoadMatCache;
+                        r.sharedMaterials = mats;
                     }
-                    t1 = rObj.transform;
                 }
-
-                if (t1 != null) t1.gameObject.SetActive(true);
+                t2 = rObj.transform;
             }
-            else
-            {
-                // Tier 2: 3D Low-Poly Volcanic Road (2000m+)
-                if (t1 != null) t1.gameObject.SetActive(false);
 
-                if (t2 == null && lowPolyRoadPrefab != null)
-                {
-                    GameObject rObj = Instantiate(lowPolyRoadPrefab, chunk.transform);
-                    rObj.name = "Road3D_Tier2";
-                    rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
-                    rObj.transform.localRotation = Quaternion.identity;
-                    rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
-
-                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
-
-                    if (lowPolyRoadMatCache != null)
-                    {
-                        foreach (var r in rObj.GetComponentsInChildren<Renderer>())
-                        {
-                            Material[] mats = new Material[r.sharedMaterials.Length];
-                            for (int m = 0; m < mats.Length; m++) mats[m] = lowPolyRoadMatCache;
-                            r.sharedMaterials = mats;
-                        }
-                    }
-                    t2 = rObj.transform;
-                }
-
-                if (t2 != null) t2.gameObject.SetActive(true);
-            }
+            if (t2 != null) t2.gameObject.SetActive(true);
         }
 
         private void CheckAndSpawnStoneGate(TrackChunk chunk, float chunkDistance)
