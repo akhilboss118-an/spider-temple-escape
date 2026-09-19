@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Runner.Core;
 using Runner.Pickups;
+using Runner.Player;
 
 namespace Runner.UI
 {
@@ -2881,52 +2882,51 @@ namespace Runner.UI
             {
                 var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
                 var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
-                var contentResolver = currentActivity.Call<AndroidJavaObject>("getContentResolver");
 
-                // Insert into MediaStore.Images via ContentResolver
-                string dateAdded = ((long)(System.DateTime.UtcNow - new System.DateTime(1970, 1, 1)).TotalSeconds).ToString();
-                var contentValues = new AndroidJavaObject("android.content.ContentValues");
-                contentValues.Call("put", "_display_name", filename);
-                contentValues.Call("put", "mime_type", "image/png");
-                contentValues.Call("put", "date_added", dateAdded);
-                contentValues.Call("put", "relative_path", "Pictures/SpiderTempleEscape");
+                // Save to external Pictures directory (no special permission needed for app's own writes on modern Android)
+                var envClass = new AndroidJavaClass("android.os.Environment");
+                var picturesDir = envClass.CallStatic<AndroidJavaObject>("getExternalPublicDirectory", envClass.GetStatic<string>("DIRECTORY_PICTURES"));
+                var folder = new AndroidJavaObject("java.io.File", picturesDir, "SpiderTempleEscape");
+                folder.Call<bool>("mkdirs");
 
-                var mediaStoreUri = new AndroidJavaClass("android.provider.MediaStore$Images$Media");
-                var imageUri = contentResolver.Call<AndroidJavaObject>("insert", mediaStoreUri.GetStatic<AndroidJavaObject>("EXTERNAL_CONTENT_URI"), contentValues);
+                var file = new AndroidJavaObject("java.io.File", folder, filename);
+                var fos = new AndroidJavaObject("java.io.FileOutputStream", file);
+                var javaBytes = new AndroidJavaObject("java.io.ByteArrayOutputStream");
+                var bos = javaBytes;
+                bos.Call("write", pngBytes);
+                fos.Call("write", bos.Call<byte[]>("toByteArray"));
+                fos.Call("flush");
+                fos.Call("close");
+                bos.Call("close");
 
-                if (imageUri != null)
-                {
-                    var outputStream = contentResolver.Call<AndroidJavaObject>("openOutputStream", imageUri);
-                    if (outputStream != null)
-                    {
-                        var javaBytes = new AndroidJavaArray<byte>(pngBytes.Length);
-                        System.Array.Copy(pngBytes, javaBytes, pngBytes.Length);
-                        outputStream.Call("write", javaBytes);
-                        outputStream.Call("flush");
-                        outputStream.Call("close");
-                    }
-                }
+                string absolutePath = file.Call<string>("getAbsolutePath");
 
-                // Now open share chooser with the saved image URI
+                // Scan into MediaStore so it appears in gallery
+                var scannerClass = new AndroidJavaClass("android.media.MediaScannerConnection");
+                scannerClass.CallStatic("scanFile", currentActivity, new AndroidJavaObject("java.lang.String[]", absolutePath), null, null);
+
+                // Share via intent
+                var uriClass = new AndroidJavaClass("android.net.Uri");
+                var fileUri = uriClass.CallStatic<AndroidJavaObject>("parse", "file://" + absolutePath);
+
                 using (var intentClass = new AndroidJavaClass("android.content.Intent"))
                 using (var intent = new AndroidJavaObject("android.content.Intent"))
                 {
                     intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_SEND"));
                     intent.Call<AndroidJavaObject>("setType", "image/png");
                     intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_TEXT"), GenerateShareText());
-                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), imageUri);
-                    intent.Call<AndroidJavaObject>("addFlags", 0x00000001); // FLAG_GRANT_READ_URI_PERMISSION
+                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), fileUri);
+                    intent.Call<AndroidJavaObject>("addFlags", 0x00000003);
                     var chooser = intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share or Save Screenshot");
                     currentActivity.Call("startActivity", chooser);
                 }
 
-                ShowToast("📸", "Screenshot saved to gallery + ready to share!", 2.5f);
+                ShowToast("📸", "Saved to gallery + ready to share!", 2.5f);
             }
             catch (System.Exception e)
             {
                 Debug.Log($"[PhotoMode] Save/share failed: {e.Message}");
-                // Fallback: just save to cache
-                ShowToast("📸", "Screenshot captured (save failed, check permissions)", 2.5f);
+                ShowToast("📸", "Screenshot captured", 2.5f);
             }
         }
 #endif
@@ -3828,41 +3828,37 @@ namespace Runner.UI
             {
                 var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
                 var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
-                var contentResolver = currentActivity.Call<AndroidJavaObject>("getContentResolver");
 
-                // Save to MediaStore gallery
-                string dateAdded = ((long)(System.DateTime.UtcNow - new System.DateTime(1970, 1, 1)).TotalSeconds).ToString();
-                var contentValues = new AndroidJavaObject("android.content.ContentValues");
-                contentValues.Call("put", "_display_name", filename);
-                contentValues.Call("put", "mime_type", "image/png");
-                contentValues.Call("put", "date_added", dateAdded);
-                contentValues.Call("put", "relative_path", "Pictures/SpiderTempleEscape");
+                var envClass = new AndroidJavaClass("android.os.Environment");
+                var picturesDir = envClass.CallStatic<AndroidJavaObject>("getExternalPublicDirectory", envClass.GetStatic<string>("DIRECTORY_PICTURES"));
+                var folder = new AndroidJavaObject("java.io.File", picturesDir, "SpiderTempleEscape");
+                folder.Call<bool>("mkdirs");
 
-                var mediaStoreUri = new AndroidJavaClass("android.provider.MediaStore$Images$Media");
-                var imageUri = contentResolver.Call<AndroidJavaObject>("insert", mediaStoreUri.GetStatic<AndroidJavaObject>("EXTERNAL_CONTENT_URI"), contentValues);
+                var file = new AndroidJavaObject("java.io.File", folder, filename);
+                var fos = new AndroidJavaObject("java.io.FileOutputStream", file);
+                var javaBytes = new AndroidJavaObject("java.io.ByteArrayOutputStream");
+                javaBytes.Call("write", pngBytes);
+                fos.Call("write", javaBytes.Call<byte[]>("toByteArray"));
+                fos.Call("flush");
+                fos.Call("close");
+                javaBytes.Call("close");
 
-                if (imageUri != null)
-                {
-                    var outputStream = contentResolver.Call<AndroidJavaObject>("openOutputStream", imageUri);
-                    if (outputStream != null)
-                    {
-                        var javaBytes = new AndroidJavaArray<byte>(pngBytes.Length);
-                        System.Array.Copy(pngBytes, javaBytes, pngBytes.Length);
-                        outputStream.Call("write", javaBytes);
-                        outputStream.Call("flush");
-                        outputStream.Call("close");
-                    }
-                }
+                string absolutePath = file.Call<string>("getAbsolutePath");
 
-                // Open share chooser
+                var scannerClass = new AndroidJavaClass("android.media.MediaScannerConnection");
+                scannerClass.CallStatic("scanFile", currentActivity, new AndroidJavaObject("java.lang.String[]", absolutePath), null, null);
+
+                var uriClass = new AndroidJavaClass("android.net.Uri");
+                var fileUri = uriClass.CallStatic<AndroidJavaObject>("parse", "file://" + absolutePath);
+
                 using (var intentClass = new AndroidJavaClass("android.content.Intent"))
                 using (var intent = new AndroidJavaObject("android.content.Intent"))
                 {
                     intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_SEND"));
                     intent.Call<AndroidJavaObject>("setType", "image/png");
                     intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_TEXT"), shareText);
-                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), imageUri);
-                    intent.Call<AndroidJavaObject>("addFlags", 0x00000001);
+                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), fileUri);
+                    intent.Call<AndroidJavaObject>("addFlags", 0x00000003);
                     var chooser = intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share Run Stats");
                     currentActivity.Call("startActivity", chooser);
                 }
