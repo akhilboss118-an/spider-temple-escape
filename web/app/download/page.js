@@ -47,8 +47,9 @@ export default function DownloadPage() {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '40px 20px',
-      textAlign: 'center'
+      padding: '24px 16px',
+      textAlign: 'center',
+      boxSizing: 'border-box'
     }}>
       <div style={{
         maxWidth: '560px',
@@ -56,31 +57,35 @@ export default function DownloadPage() {
         backgroundColor: 'rgba(255, 255, 255, 0.04)',
         border: '1px solid rgba(212, 168, 83, 0.35)',
         borderRadius: '20px',
-        padding: '36px 28px',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.8)'
+        padding: 'clamp(24px, 5vw, 36px) clamp(16px, 4vw, 28px)',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.8)',
+        boxSizing: 'border-box'
       }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-          <img src="/app_logo.png" alt="Spider Temple Escape Logo" style={{ width: '88px', height: '88px', borderRadius: '20px', boxShadow: '0 8px 30px rgba(212, 168, 83, 0.4)' }} />
+          <img src="/app_logo.png" alt="Spider Temple Escape Logo" style={{ width: '80px', height: '80px', borderRadius: '18px', boxShadow: '0 8px 30px rgba(212, 168, 83, 0.4)' }} />
         </div>
 
         <div style={{
           display: 'inline-block',
-          padding: '4px 12px',
+          padding: '6px 14px',
           backgroundColor: 'rgba(212, 168, 83, 0.15)',
           border: '1px solid rgba(212, 168, 83, 0.35)',
           borderRadius: '999px',
-          fontSize: '12px',
+          fontSize: '11px',
           fontWeight: '700',
           color: '#d4a853',
-          marginBottom: '12px',
-          letterSpacing: '0.8px',
-          textTransform: 'uppercase'
+          marginBottom: '14px',
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          maxWidth: '100%',
+          lineHeight: '1.4',
+          boxSizing: 'border-box'
         }}>
-           v3.0 Release · Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share
+          v3.0 Release · Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share
         </div>
         
         <h1 style={{
-          fontSize: '26px',
+          fontSize: 'clamp(20px, 5vw, 26px)',
           fontWeight: '800',
           color: '#d4a853',
           marginBottom: '8px',
@@ -103,7 +108,7 @@ export default function DownloadPage() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              padding: '14px 24px',
+              padding: '14px 20px',
               backgroundColor: '#d4a853',
               color: '#0a0a0f',
               fontSize: '15px',
@@ -111,20 +116,22 @@ export default function DownloadPage() {
               border: 'none',
               borderRadius: '12px',
               cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(212, 168, 83, 0.4)'
+              boxShadow: '0 4px 20px rgba(212, 168, 83, 0.4)',
+              width: '100%',
+              boxSizing: 'border-box'
             }}
           >
-            📥             Download APK v3.0 (~132 MB)
+            📥 Download APK v3.0 (~132 MB)
           </button>
 
           <a
             href={GITHUB_APK}
             download
             style={{
-              padding: '12px 20px',
+              padding: '12px 18px',
               backgroundColor: 'rgba(255, 255, 255, 0.08)',
               color: '#f2ede8',
-              fontSize: '14px',
+              fontSize: '13.5px',
               fontWeight: '600',
               textDecoration: 'none',
               borderRadius: '12px',
@@ -132,10 +139,12 @@ export default function DownloadPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              width: '100%',
+              boxSizing: 'border-box'
             }}
           >
-            ⚡             Download from GitHub Releases (v3.0.0)
+            ⚡ Download from GitHub Releases (v3.0.0)
           </a>
         </div>
 
@@ -143,7 +152,7 @@ export default function DownloadPage() {
         <div style={{
           backgroundColor: 'rgba(0, 0, 0, 0.35)',
           borderRadius: '14px',
-          padding: '18px 20px',
+          padding: '16px 18px',
           textAlign: 'left',
           fontSize: '13px',
           lineHeight: '1.7',
@@ -161,7 +170,7 @@ export default function DownloadPage() {
           </ol>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '13px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '13px', flexWrap: 'wrap' }}>
           <Link href="/" style={{ color: '#d4a853', textDecoration: 'none', fontWeight: '600' }}>
             ← Return to Home
           </Link>

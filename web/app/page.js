@@ -421,35 +421,50 @@ export default function Home() {
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState(0);
   const [selectedMapIndex, setSelectedMapIndex] = useState(0);
   const [faqOpenIndex, setFaqOpenIndex] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const activeHero = CHARACTERS[selectedCharacterIndex] || CHARACTERS[0];
   const activeMap = MAPS[selectedMapIndex] || MAPS[0];
 
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   return (
     <>
       {/* ── NAV ── */}
-      <nav className="nav">
+      <nav className={`nav ${mobileMenuOpen ? 'nav-open' : ''}`}>
         <div className="container nav-inner">
           <a href="#" className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Image src="/app_logo.png" alt="Spider Temple Escape Logo" width={36} height={36} style={{ borderRadius: '8px', objectFit: 'cover', boxShadow: '0 2px 10px rgba(212,168,83,0.3)' }} />
             <span>Spider<span>Temple</span></span>
           </a>
-          <ul className="nav-links">
-            <li><a href="#roster">Roster</a></li>
-            <li><a href="#maps">Maps</a></li>
-            <li><a href="#compare">Compare</a></li>
-            <li><a href="#how-to-play">How to Play</a></li>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#screenshots">Screenshots</a></li>
-            <li><a href="#faq">FAQ</a></li>
-            <li><a href="#download">Download</a></li>
-            <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
+          <ul className={`nav-links ${mobileMenuOpen ? 'nav-links-open' : ''}`}>
+            <li><a href="#roster" onClick={closeMobileMenu}>Roster</a></li>
+            <li><a href="#maps" onClick={closeMobileMenu}>Maps</a></li>
+            <li><a href="#compare" onClick={closeMobileMenu}>Compare</a></li>
+            <li><a href="#how-to-play" onClick={closeMobileMenu}>How to Play</a></li>
+            <li><a href="#features" onClick={closeMobileMenu}>Features</a></li>
+            <li><a href="#screenshots" onClick={closeMobileMenu}>Screenshots</a></li>
+            <li><a href="#faq" onClick={closeMobileMenu}>FAQ</a></li>
+            <li><a href="#download" onClick={closeMobileMenu}>Download</a></li>
+            <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={closeMobileMenu}>GitHub</a></li>
           </ul>
-          <Link className="nav-cta" href="/download">
+          <Link className="nav-cta nav-cta-desktop" href="/download">
               ↓ Download APK v3.0
           </Link>
+          <button
+            className={`nav-hamburger ${mobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            type="button"
+            aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+          </button>
         </div>
       </nav>
+      {mobileMenuOpen && <div className="nav-overlay" onClick={closeMobileMenu} />}
 
       {/* ── HERO ── */}
       <section className="hero" id="hero">
@@ -534,32 +549,20 @@ export default function Home() {
       {/* ── 8-CHARACTER ROSTER SHOWCASE ── */}
       <RevealSection id="v3-announcement" className="roster">
         <div className="container">
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(212,168,83,0.12) 0%, rgba(212,168,83,0.04) 100%)',
-            border: '1px solid rgba(212,168,83,0.3)',
-            borderRadius: '16px',
-            padding: '32px',
-            marginBottom: '48px',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '13px', fontWeight: '800', color: '#d4a853', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+          <div className="v3-announcement-card">
+            <div className="v3-announcement-badge">
               What's New in v3.0
             </div>
-            <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#f2ede8', marginBottom: '16px' }}>
+            <h2 className="v3-announcement-title">
               Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share
             </h2>
-            <p style={{ color: '#8a8a9a', fontSize: '15px', lineHeight: '1.7', maxWidth: '640px', margin: '0 auto 20px' }}>
-              <b style={{ color: '#2aff8a' }}>📸 Photo Mode</b> — Pause gameplay, orbit around your character, pinch to zoom, capture cinematic screenshots.<br/>
-              <b style={{ color: '#d4a853' }}>📤 Screenshot Sharing</b> — Screenshots save directly to your gallery (Pictures/SpiderTempleEscape). Share to WhatsApp, Telegram, Instagram, or any app via native share chooser.<br/>
-              <b style={{ color: '#ff5555' }}>🎵 Gender-Specific Audio</b> — Female characters (Nezuko, Hinata, Anya) get unique higher-pitched jump, slide, and lane-change sounds.<br/>
-              <b style={{ color: '#7eb8ff' }}>🔧 Performance Fixes</b> — Fixed menu black boxes, frame drops, smooth 60 FPS on all devices.
+            <p className="v3-announcement-text">
+              <b className="c-green">📸 Photo Mode</b> — Pause gameplay, orbit around your character, pinch to zoom, capture cinematic screenshots.<br/>
+              <b className="c-gold">📤 Screenshot Sharing</b> — Screenshots save directly to your gallery (Pictures/SpiderTempleEscape). Share to WhatsApp, Telegram, Instagram, or any app via native share chooser.<br/>
+              <b className="c-red">🎵 Gender-Specific Audio</b> — Female characters (Nezuko, Hinata, Anya) get unique higher-pitched jump, slide, and lane-change sounds.<br/>
+              <b className="c-blue">🔧 Performance Fixes</b> — Fixed menu black boxes, frame drops, smooth 60 FPS on all devices.
             </p>
-            <Link href="/download" style={{
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
-              padding: '12px 28px', backgroundColor: '#d4a853', color: '#0a0a0f',
-              fontSize: '14px', fontWeight: '700', borderRadius: '12px', textDecoration: 'none',
-              boxShadow: '0 4px 20px rgba(212, 168, 83, 0.35)'
-            }}>
+            <Link href="/download" className="v3-announcement-btn">
               Download v3.0 Now
             </Link>
           </div>
@@ -585,8 +588,8 @@ export default function Home() {
                 <span className="dot yellow" />
                 <span className="dot green" />
               </div>
-              <span>🕹️ 90s ARCADE CHARACTER ROSTER · SPIDER-MAN & 7 ANIME HEROES</span>
-              <span>TEMPLE EDITION</span>
+              <span className="roster-banner-tag-main">🕹️ 90s ARCADE CHARACTER ROSTER · SPIDER-MAN & 7 ANIME HEROES</span>
+              <span className="roster-banner-edition">TEMPLE EDITION</span>
             </div>
             <div className="roster-banner-img-wrap">
               <Image
@@ -993,6 +996,19 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* ── MOBILE FLOATING ACTION BAR ── */}
+      <div className="mobile-download-bar">
+        <div className="mobile-download-inner">
+          <div className="mobile-download-text">
+            <span className="mobile-download-title">Spider Temple Escape</span>
+            <span className="mobile-download-sub">v3.0 APK · Free · 60 FPS</span>
+          </div>
+          <Link href="/download" className="mobile-download-btn">
+            ⚡ Download APK
+          </Link>
+        </div>
+      </div>
     </>
   );
 }
