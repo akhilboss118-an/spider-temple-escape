@@ -10,6 +10,7 @@ namespace Runner.Obstacles
     /// </summary>
     public class BossFightManager : MonoBehaviour
     {
+        private static BossFightManager _instance;
         public static BossFightManager Instance
         {
             get

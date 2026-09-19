@@ -3282,51 +3282,47 @@ namespace Runner.UI
             string charName = "Spider-Man";
             if (Characters.CharacterManager.Instance != null)
             {
-                var chars = Characters.CharacterManager.Instance.GetAllCharacters();
-                int idx = Characters.CharacterManager.Instance.SelectedCharacterIndex;
-                if (chars != null && idx >= 0 && idx < chars.Length)
+                var slot = Characters.CharacterManager.Instance.GetCharacter(Characters.CharacterManager.Instance.SelectedCharacterIndex);
+                if (slot != null && !string.IsNullOrEmpty(slot.characterName))
                 {
-                    charName = chars[idx].name;
+                    charName = slot.characterName;
                 }
             }
 
-            string shareText = $"🕷️ SPIDER TEMPLE ESCAPE\n\n" +
-                               $"🏃 Distance: {distance:N0}m\n" +
-                               $"⭐ Score: {score:N0}\n" +
-                               $"💖 Hearts: {coins:N0}\n" +
-                               $"🦸 Hero: {charName}\n" +
-                               (isNewBest ? "🏆 NEW BEST RECORD!\n" : $"👑 Best: {bestDist:N0}m\n") +
-                               $"\nCan you beat my run? 🏆";
+            string shareText = $"SPIDER TEMPLE ESCAPE\n\n" +
+                               $"Distance: {distance:N0}m\n" +
+                               $"Score: {score:N0}\n" +
+                               $"Hearts: {coins:N0}\n" +
+                               $"Hero: {charName}\n" +
+                               (isNewBest ? "NEW BEST RECORD!\n" : $"Best: {bestDist:N0}m\n") +
+                               $"\nCan you beat my run?";
 
-            // Try native Android share
-            bool shared = false;
+            // Always copy to clipboard as reliable fallback
+            GUIUtility.systemCopyBuffer = shareText;
+
 #if UNITY_ANDROID
+            // Try native Android share via UnityPlayer
             try
             {
-                using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                using (var clazz = new UnityEngine.AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                 {
-                    var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
-                    using (var intent = new AndroidJavaObject("android.content.Intent"))
+                    using (var activity = clazz.GetStatic<UnityEngine.AndroidJavaObject>("currentActivity"))
+                    using (var intent = new UnityEngine.AndroidJavaObject("android.content.Intent"))
                     {
-                        intent.Call<AndroidJavaObject>("setAction", "android.intent.action.SEND");
-                        intent.Call<AndroidJavaObject>("setType", "text/plain");
-                        intent.Call<AndroidJavaObject>("putExtra", "android.intent.extra.TEXT", shareText);
-                        intent.Call<AndroidJavaObject>("putExtra", "android.intent.extra.SUBJECT", "My Spider Temple Escape Run");
-                        var chooser = intent.CallStatic<AndroidJavaObject>("android.content.Intent", "createChooser", intent, "Share Run Stats");
+                        intent.Call<UnityEngine.AndroidJavaObject>("setAction", "android.intent.action.SEND");
+                        intent.Call<UnityEngine.AndroidJavaObject>("setType", "text/plain");
+                        intent.Call<UnityEngine.AndroidJavaObject>("putExtra", "android.intent.extra.TEXT", shareText);
+                        intent.Call<UnityEngine.AndroidJavaObject>("putExtra", "android.intent.extra.SUBJECT", "My Spider Temple Escape Run");
+                        var chooser = intent.CallStatic<UnityEngine.AndroidJavaObject>("createChooser", intent, "Share Run Stats");
                         activity.Call("startActivity", chooser);
-                        shared = true;
                     }
                 }
+                return; // Share succeeded
             }
-            catch (System.Exception) { shared = false; }
+            catch (System.Exception) { }
 #endif
 
-            // Fallback: copy to clipboard
-            if (!shared)
-            {
-                GUIUtility.systemCopyBuffer = shareText;
-                ShowToast("📤", "Run stats copied to clipboard!", 2.5f);
-            }
+            ShowToast("📤", "Run stats copied to clipboard!", 2.5f);
         }
         #endregion
     }
