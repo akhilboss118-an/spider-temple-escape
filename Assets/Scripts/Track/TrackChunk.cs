@@ -17,7 +17,8 @@ namespace Runner.Track
         CoinRun,
         HeartRun,
         SpinningBlade,
-        LaserBeam
+        LaserBeam,
+        CollapsingFloor
     }
 
     /// <summary>
@@ -56,6 +57,7 @@ namespace Runner.Track
         public bool IsJunction => chunkType == ChunkType.TJunctionLeft ||
                                   chunkType == ChunkType.TJunctionRight ||
                                   chunkType == ChunkType.TJunctionDouble;
+        public bool IsCollapsingFloor => chunkType == ChunkType.CollapsingFloor;
 
         /// <summary>
         /// Resets all dynamic child obstacles and pickups when re-spawned from the object pool.

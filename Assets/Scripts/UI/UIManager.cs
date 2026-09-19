@@ -2755,8 +2755,25 @@ namespace Runner.UI
                 }, "RETURNING TO BASE CAMP", "SAVING EXPEDITION DATA");
             }
 
+            // 3. SHARE RUN STATS (Golden accent button)
+            float shareY = menuY + menuH + (8f * uiScale);
+            float shareH = 42f * uiScale;
+            Rect shareRect = new Rect(btnX, shareY, btnW, shareH);
+            DrawGlassCard(shareRect, new Color(0.18f, 0.14f, 0.04f, 0.92f), new Color(1.0f, 0.82f, 0.30f, 0.45f), 1.2f);
+
+            GUI.color = new Color(1.0f, 0.88f, 0.35f);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(13.5f * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(shareRect, "📤   SHARE RUN STATS");
+
+            if ((IsCardClicked(603, shareRect) || GUI.Button(shareRect, GUIContent.none, GUIStyle.none)) && gameOverDuration > 0.20f)
+            {
+                ShareRunStats();
+            }
+
             // Subtle keyboard navigation hint
-            float hintY = menuY + menuH + (8f * uiScale);
+            float hintY = shareY + shareH + (8f * uiScale);
             GUI.color = new Color(0.70f, 0.75f, 0.80f, 0.65f);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(9f * uiScale);
@@ -2794,8 +2811,10 @@ namespace Runner.UI
         private static string GetZoneNameForDistance(float distance)
         {
             if (distance < 1000f) return "JUNGLE TRAIL";
-            if (distance < 2000f) return "ROCKY RUINS";
-            return "VOLCANIC HIGHWAY";
+            if (distance < 2000f) return "DEEP CANOPY";
+            if (distance < 3500f) return "ANCIENT RUINS";
+            if (distance < 5000f) return "TEMPLE DEPTHS";
+            return "BOSS TERRITORY";
         }
 
         private void CheckDistanceMilestones()
@@ -3246,6 +3265,68 @@ namespace Runner.UI
         public void TriggerDamageVignette()
         {
             vignetteTimer = 1.0f;
+        }
+
+        /// <summary>
+        /// Shares the run stats via native Android share intent or copies to clipboard.
+        /// Generates a formatted text summary with distance, score, coins, and character.
+        /// </summary>
+        private void ShareRunStats()
+        {
+            float distance = GameManager.Instance != null ? GameManager.Instance.DistanceTraveled : 0f;
+            int score = lastFinalScore;
+            int coins = GameManager.Instance != null ? GameManager.Instance.CoinsCollected : 0;
+            float bestDist = GameManager.Instance != null ? GameManager.Instance.BestDistance : 0f;
+            bool isNewBest = distance >= bestDist && distance > 0;
+
+            string charName = "Spider-Man";
+            if (Characters.CharacterManager.Instance != null)
+            {
+                var chars = Characters.CharacterManager.Instance.GetAllCharacters();
+                int idx = Characters.CharacterManager.Instance.SelectedCharacterIndex;
+                if (chars != null && idx >= 0 && idx < chars.Length)
+                {
+                    charName = chars[idx].name;
+                }
+            }
+
+            string shareText = $"🕷️ SPIDER TEMPLE ESCAPE\n\n" +
+                               $"🏃 Distance: {distance:N0}m\n" +
+                               $"⭐ Score: {score:N0}\n" +
+                               $"💖 Hearts: {coins:N0}\n" +
+                               $"🦸 Hero: {charName}\n" +
+                               (isNewBest ? "🏆 NEW BEST RECORD!\n" : $"👑 Best: {bestDist:N0}m\n") +
+                               $"\nCan you beat my run? 🏆";
+
+            // Try native Android share
+            bool shared = false;
+#if UNITY_ANDROID
+            try
+            {
+                using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                {
+                    var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                    using (var intent = new AndroidJavaObject("android.content.Intent"))
+                    {
+                        intent.Call<AndroidJavaObject>("setAction", "android.intent.action.SEND");
+                        intent.Call<AndroidJavaObject>("setType", "text/plain");
+                        intent.Call<AndroidJavaObject>("putExtra", "android.intent.extra.TEXT", shareText);
+                        intent.Call<AndroidJavaObject>("putExtra", "android.intent.extra.SUBJECT", "My Spider Temple Escape Run");
+                        var chooser = intent.CallStatic<AndroidJavaObject>("android.content.Intent", "createChooser", intent, "Share Run Stats");
+                        activity.Call("startActivity", chooser);
+                        shared = true;
+                    }
+                }
+            }
+            catch (System.Exception) { shared = false; }
+#endif
+
+            // Fallback: copy to clipboard
+            if (!shared)
+            {
+                GUIUtility.systemCopyBuffer = shareText;
+                ShowToast("📤", "Run stats copied to clipboard!", 2.5f);
+            }
         }
         #endregion
     }

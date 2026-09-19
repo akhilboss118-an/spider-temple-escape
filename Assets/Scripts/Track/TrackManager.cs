@@ -188,7 +188,8 @@ namespace Runner.Track
             // 2. Obstacle Cooldown Guarantee:
             // If the previous chunk contained an obstacle, the next chunk is GUARANTEED to be a clean safe run!
             bool lastWasObstacle = (lastSpawnedType == ChunkType.LaneBlocker || lastSpawnedType == ChunkType.LowObstacle || lastSpawnedType == ChunkType.SlideArch
-                                  || lastSpawnedType == ChunkType.SpinningBlade || lastSpawnedType == ChunkType.LaserBeam);
+                                  || lastSpawnedType == ChunkType.SpinningBlade || lastSpawnedType == ChunkType.LaserBeam
+                                  || lastSpawnedType == ChunkType.CollapsingFloor);
             if (lastWasObstacle)
             {
                 int safeRoll = Random.Range(0, 100);
@@ -212,6 +213,7 @@ namespace Runner.Track
             float slideArchChance = Mathf.Lerp(10f, 15f, hazardBias);
             float spinBladeChance = Mathf.Lerp(8f, 20f, hazardBias);
             float laserChance = Mathf.Lerp(7f, 15f, hazardBias);
+            float collapsingChance = Mathf.Lerp(0f, 10f, hazardBias);
 
             float cumulative = 0f;
             cumulative += straightChance;
@@ -241,9 +243,14 @@ namespace Runner.Track
                                 if (roll < cumulative) candidate = ChunkType.SlideArch;
                                 else
                                 {
-                                    cumulative += spinBladeChance;
-                                    if (roll < cumulative) candidate = ChunkType.SpinningBlade;
-                                    else candidate = ChunkType.LaserBeam;
+                cumulative += spinBladeChance;
+                if (roll < cumulative) candidate = ChunkType.SpinningBlade;
+                else
+                {
+                    cumulative += laserChance;
+                    if (roll < cumulative) candidate = ChunkType.LaserBeam;
+                    else candidate = ChunkType.CollapsingFloor;
+                }
                                 }
                             }
                         }
@@ -2406,6 +2413,68 @@ namespace Runner.Track
                 {
                     // Ancient carved temple stone barrier on non-turning right side
                     BuildAncientTempleWallFacade(chunkObj.transform, new Vector3(3.85f, 1.5f, 5.0f), new Vector3(0.7f, 3.0f, 10.3f), false, false, false);
+                }
+            }
+            else if (type == ChunkType.CollapsingFloor)
+            {
+                // Collapsing Floor: Cracked stone tiles that crumble behind the player
+                float[] allLanes = { -2.0f, 0.0f, 2.0f };
+                float[] zPositions = { 2.0f, 4.5f, 7.0f };
+
+                for (int r = 0; r < zPositions.Length; r++)
+                {
+                    for (int l = 0; l < allLanes.Length; l++)
+                    {
+                        GameObject tile = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        tile.name = $"CollapseTile_{r}_{l}";
+                        tile.transform.SetParent(chunkObj.transform, false);
+                        tile.transform.localPosition = new Vector3(allLanes[l], 0.0f, zPositions[r]);
+                        tile.transform.localScale = new Vector3(1.8f, 0.25f, 2.2f);
+
+                        Renderer rend = tile.GetComponent<Renderer>();
+                        if (rend != null)
+                        {
+                            Material mat = new Material(Shader.Find("Standard"));
+                            // Cracked, weathered stone look with subtle orange/brown tint
+                            mat.color = new Color(0.52f, 0.40f, 0.30f);
+                            rend.material = mat;
+                        }
+
+                        // Add Collider (so player walks on it)
+                        // The CollapsingFloor component will disable it when collapsing
+                    }
+                }
+
+                // Add the CollapsingFloor behavior component
+                chunkObj.AddComponent<CollapsingFloor>();
+
+                // Warning cracks visual on the road surface
+                for (int c = 0; c < 5; c++)
+                {
+                    GameObject crack = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    crack.name = $"Crack_{c}";
+                    crack.transform.SetParent(chunkObj.transform, false);
+                    float cx = Random.Range(-2.5f, 2.5f);
+                    float cz = Random.Range(1.5f, 8.5f);
+                    crack.transform.localPosition = new Vector3(cx, 0.12f, cz);
+                    crack.transform.localScale = new Vector3(Random.Range(0.3f, 1.2f), 0.02f, Random.Range(0.1f, 0.3f));
+                    crack.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 180f), 0f);
+                    SafeDestroy(crack.GetComponent<Collider>());
+                    Renderer crackRend = crack.GetComponent<Renderer>();
+                    if (crackRend != null)
+                    {
+                        Material crackMat = new Material(Shader.Find("Standard"));
+                        crackMat.color = new Color(0.25f, 0.18f, 0.12f);
+                        crackRend.material = crackMat;
+                    }
+                }
+
+                // Coin trails guiding player to run quickly through the collapsing section
+                for (int l = 0; l < 3; l++)
+                {
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, 3.0f));
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, 5.5f));
+                    SpawnCoinHeart(chunkObj.transform, new Vector3(allLanes[l], 0.85f, 8.0f));
                 }
             }
 
