@@ -3297,32 +3297,9 @@ namespace Runner.UI
                                (isNewBest ? "NEW BEST RECORD!\n" : $"Best: {bestDist:N0}m\n") +
                                $"\nCan you beat my run?";
 
-            // Always copy to clipboard as reliable fallback
+            // Always copy to clipboard — reliable on all platforms
             GUIUtility.systemCopyBuffer = shareText;
-
-#if UNITY_ANDROID
-            // Try native Android share via UnityPlayer
-            try
-            {
-                using (var clazz = new UnityEngine.AndroidJavaClass("com.unity3d.player.UnityPlayer"))
-                {
-                    using (var activity = clazz.GetStatic<UnityEngine.AndroidJavaObject>("currentActivity"))
-                    using (var intent = new UnityEngine.AndroidJavaObject("android.content.Intent"))
-                    {
-                        intent.Call<UnityEngine.AndroidJavaObject>("setAction", "android.intent.action.SEND");
-                        intent.Call<UnityEngine.AndroidJavaObject>("setType", "text/plain");
-                        intent.Call<UnityEngine.AndroidJavaObject>("putExtra", "android.intent.extra.TEXT", shareText);
-                        intent.Call<UnityEngine.AndroidJavaObject>("putExtra", "android.intent.extra.SUBJECT", "My Spider Temple Escape Run");
-                        var chooser = intent.CallStatic<UnityEngine.AndroidJavaObject>("createChooser", intent, "Share Run Stats");
-                        activity.Call("startActivity", chooser);
-                    }
-                }
-                return; // Share succeeded
-            }
-            catch (System.Exception) { }
-#endif
-
-            ShowToast("📤", "Run stats copied to clipboard!", 2.5f);
+            ShowToast("📤", "Run stats copied to clipboard! Paste to share.", 2.5f);
         }
         #endregion
     }
