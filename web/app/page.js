@@ -532,7 +532,7 @@ export default function Home() {
       </section>
 
       {/* ── 8-CHARACTER ROSTER SHOWCASE ── */}
-      <RevealSection id="v2-announcement" className="roster">
+      <RevealSection id="v3-announcement" className="roster">
         <div className="container">
           <div style={{
             background: 'linear-gradient(135deg, rgba(212,168,83,0.12) 0%, rgba(212,168,83,0.04) 100%)',
@@ -543,15 +543,16 @@ export default function Home() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '13px', fontWeight: '800', color: '#d4a853', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
-              What's New in v2.0
+              What's New in v3.0
             </div>
             <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#f2ede8', marginBottom: '16px' }}>
-              Share Runs · Boss Battles · Collapsing Floors
+              Photo Mode · Screenshot Share · Gender Audio · Parallax
             </h2>
             <p style={{ color: '#8a8a9a', fontSize: '15px', lineHeight: '1.7', maxWidth: '640px', margin: '0 auto 20px' }}>
-              <b style={{ color: '#2aff8a' }}>📤 Share Run Stats</b> — One-tap share your distance, score, and hero to social media. Copy formatted stats and paste anywhere.<br/>
-              <b style={{ color: '#d4a853' }}>👹 Boss Fights Every 5000m</b> — Face increasingly powerful boss entities that scale in size and speed as you run further.<br/>
-              <b style={{ color: '#ff5555' }}>💀 Collapsing Floors</b> — Ancient stone tiles crumble behind you! Shake, crack, and fall if you linger too long.
+              <b style={{ color: '#2aff8a' }}>📸 Photo Mode</b> — Pause and enter free camera. Drag to orbit, scroll to zoom, capture stunning screenshots.<br/>
+              <b style={{ color: '#d4a853' }}>📤 Screenshot Sharing</b> — Share a screenshot with your run stats via native Android share intent.<br/>
+              <b style={{ color: '#ff5555' }}>🎵 Gender-Specific Audio</b> — Female characters get unique higher-pitched jump, slide, and lane-change sounds.<br/>
+              <b style={{ color: '#7eb8ff' }}>🌆 Parallax Background</b> — 3-layer jungle silhouettes scroll at different speeds for depth illusion.
             </p>
             <Link href="/download" style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -559,7 +560,7 @@ export default function Home() {
               fontSize: '14px', fontWeight: '700', borderRadius: '12px', textDecoration: 'none',
               boxShadow: '0 4px 20px rgba(212, 168, 83, 0.35)'
             }}>
-              Download v2.0 Now
+              Download v3.0 Now
             </Link>
           </div>
         </div>
