@@ -146,34 +146,34 @@ const MAPS = [
 // ──────────────────────────────────────────────
 const FEATURES = [
   {
-    icon: '⚡',
-    name: '8 Playable Temple Heroes',
-    desc: 'Sprint as Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, or Sasuke — each fine-tuned with custom Speed, Shield, and Agility multipliers!',
+    icon: '📤',
+    name: 'Share Run Stats',
+    desc: 'One-tap share your distance, score, and character to social media! Generates a formatted stats card for Instagram, Twitter, and more.',
+  },
+  {
+    icon: '👹',
+    name: 'Boss Fights Every 5000m',
+    desc: 'Face increasingly powerful boss entities every 5000 meters! Dodge through obstacle gauntlets as bosses scale in size and speed.',
+  },
+  {
+    icon: '💀',
+    name: 'Collapsing Floors',
+    desc: 'Ancient stone tiles crumble behind you as you run! Shake, crack, and fall into the abyss if you linger too long.',
   },
   {
     icon: '🌅',
     name: 'Dynamic Day/Night Cycle',
-    desc: 'Watch the jungle transform from golden dawn to blazing noon, warm sunset, and moonlit night as you run further — dynamic lighting and fog shift in real-time!',
+    desc: 'Watch the jungle transform from golden dawn to blazing noon, warm sunset, and moonlit night as you run further!',
   },
   {
     icon: '🔄',
     name: 'Smooth Lane Switching',
-    desc: 'Fluid lane transitions with visual lean/tilt animation. Your character tilts naturally when switching lanes for an immersive arcade feel!',
+    desc: 'Fluid lane transitions with visual lean/tilt animation. Your character tilts naturally when switching lanes!',
   },
   {
     icon: '🎵',
     name: 'Proximity Music Fade',
-    desc: 'Background music fades as the zombie guardian closes in, building tension. The closer it gets, the quieter the music — letting the monster sounds dominate!',
-  },
-  {
-    icon: '🧟',
-    name: 'Relentless Zombie Pursuer',
-    desc: 'An ancient temple zombie stalks you through the jungle. One stumble brings it to your neck; two stumbles trigger its devastating strike!',
-  },
-  {
-    icon: '🎮',
-    name: 'Ultra-Smooth 60 FPS Engine',
-    desc: 'Compiled natively with Unity 6 & IL2CPP for lag-free 60 FPS rendering, tactile touch swipes, and vibration haptic feedback on Android.',
+    desc: 'Background music fades as the zombie guardian closes in, building tension with immersive audio dynamics.',
   },
 ];
 
@@ -446,7 +446,7 @@ export default function Home() {
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
           <Link className="nav-cta" href="/download">
-              ↓ Download APK v1.9
+              ↓ Download APK v2.0
           </Link>
         </div>
       </nav>
@@ -475,7 +475,7 @@ export default function Home() {
         </div>
 
         <div className="container hero-content">
-          <div className="hero-badge">v1.9 Release · Day/Night Cycle · Smooth Lane Switch · Music Fade · 60 FPS Native APK</div>
+          <div className="hero-badge">v2.0 Release · Share Stats · Boss Fights · Collapsing Floors · 60 FPS Native APK</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -493,7 +493,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-               Download APK v1.9
+               Download APK v2.0
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -880,10 +880,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v1.9 · Day/Night Cycle · Smooth Lane Switch · 60 FPS</div>
+          <div className="download-badge">Native Android APK v2.0 · Day/Night Cycle · Smooth Lane Switch · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v1.9 directly to your Android device with dynamic day/night cycle, smooth lane-switching with lean animation, zombie proximity music fade, and locked 60 FPS gameplay with all 8 heroes unlocked.
+            Download the native APK v2.0 directly to your Android device with dynamic day/night cycle, smooth lane-switching with lean animation, zombie proximity music fade, and locked 60 FPS gameplay with all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
@@ -891,7 +891,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-               Download APK v1.9 — Free (~132 MB)
+               Download APK v2.0 — Free (~140 MB)
             </Link>
             <a
               className="download-github"
