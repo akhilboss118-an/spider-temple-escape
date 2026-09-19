@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.ImageConversion;
 using Runner.Core;
 using Runner.Pickups;
 
