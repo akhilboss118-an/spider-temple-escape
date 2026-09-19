@@ -76,7 +76,7 @@ export default function DownloadPage() {
           letterSpacing: '0.8px',
           textTransform: 'uppercase'
         }}>
-          v2.0 Release · Day/Night Cycle & Smooth Lane Switch
+          v2.0 Release · Share Stats · Boss Fights · Collapsing Floors · Day/Night Cycle
         </div>
         
         <h1 style={{

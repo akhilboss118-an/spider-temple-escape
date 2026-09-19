@@ -484,8 +484,8 @@ export default function Home() {
 
           <p className="hero-subtitle">
             Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke through a living jungle that transitions from dawn to night!
-            Smooth lane switching with lean animation, dynamic day/night cycles, and immersive music fade when the zombie guardian closes in.
-            All on Android with locked 60 FPS native physics.
+            NEW in v2.0: Share your run stats to social media, face boss fights every 5000m, and survive collapsing floor traps.
+            Smooth lane switching with lean animation, dynamic day/night cycles, and immersive music fade. All on Android at 60 FPS.
           </p>
 
           <div className="hero-actions">
@@ -530,6 +530,40 @@ export default function Home() {
           <span>Scroll</span>
         </div>
       </section>
+
+      {/* ── 8-CHARACTER ROSTER SHOWCASE ── */}
+      <RevealSection id="v2-announcement" className="roster">
+        <div className="container">
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(212,168,83,0.12) 0%, rgba(212,168,83,0.04) 100%)',
+            border: '1px solid rgba(212,168,83,0.3)',
+            borderRadius: '16px',
+            padding: '32px',
+            marginBottom: '48px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: '800', color: '#d4a853', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              What's New in v2.0
+            </div>
+            <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#f2ede8', marginBottom: '16px' }}>
+              Share Runs · Boss Battles · Collapsing Floors
+            </h2>
+            <p style={{ color: '#8a8a9a', fontSize: '15px', lineHeight: '1.7', maxWidth: '640px', margin: '0 auto 20px' }}>
+              <b style={{ color: '#2aff8a' }}>📤 Share Run Stats</b> — One-tap share your distance, score, and hero to social media. Copy formatted stats and paste anywhere.<br/>
+              <b style={{ color: '#d4a853' }}>👹 Boss Fights Every 5000m</b> — Face increasingly powerful boss entities that scale in size and speed as you run further.<br/>
+              <b style={{ color: '#ff5555' }}>💀 Collapsing Floors</b> — Ancient stone tiles crumble behind you! Shake, crack, and fall if you linger too long.
+            </p>
+            <Link href="/download" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '12px 28px', backgroundColor: '#d4a853', color: '#0a0a0f',
+              fontSize: '14px', fontWeight: '700', borderRadius: '12px', textDecoration: 'none',
+              boxShadow: '0 4px 20px rgba(212, 168, 83, 0.35)'
+            }}>
+              Download v2.0 Now
+            </Link>
+          </div>
+        </div>
+      </RevealSection>
 
       {/* ── 8-CHARACTER ROSTER SHOWCASE ── */}
       <section className="roster-section" id="roster">
@@ -880,10 +914,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v2.0 · Day/Night Cycle · Smooth Lane Switch · 60 FPS</div>
+          <div className="download-badge">Native Android APK v2.0 · Share Stats · Boss Fights · Collapsing Floors · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v2.0 directly to your Android device with dynamic day/night cycle, smooth lane-switching with lean animation, zombie proximity music fade, and locked 60 FPS gameplay with all 8 heroes unlocked.
+            Download the native APK v2.0 directly to your Android device. New: share your run stats to social media, face boss fights every 5000m, survive collapsing floor traps, plus day/night cycle, smooth lane-switching, zombie proximity music fade, and all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
