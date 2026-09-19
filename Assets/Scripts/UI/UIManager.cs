@@ -130,10 +130,11 @@ namespace Runner.UI
 
         // Photo Mode
         private PhotoModeState photoModeState = PhotoModeState.Off;
-        private Vector3 photoModeCameraPos;
-        private Quaternion photoModeCameraRot;
         private float photoModeSensitivity = 3.0f;
         private float photoModeZoom = 1.0f;
+        private float photoModeOrbitAngle = 0f;
+        private float photoModeOrbitHeight = 0f;
+        private Vector3 photoModeOrbitTarget;
 
         private void Awake()
         {
@@ -2701,11 +2702,19 @@ namespace Runner.UI
         {
             if (Runner.CameraControl.RunnerCameraController.Instance == null) return;
             photoModeState = PhotoModeState.Active;
-            photoModeCameraPos = Runner.CameraControl.RunnerCameraController.Instance.transform.position;
-            photoModeCameraRot = Runner.CameraControl.RunnerCameraController.Instance.transform.rotation;
-            photoModeZoom = 1.0f;
+
+            // Lock orbit target to current player position
+            var player = FindFirstObjectByType<Runner.Player.PlayerController>();
+            photoModeOrbitTarget = player != null ? player.transform.position : Runner.CameraControl.RunnerCameraController.Instance.transform.position;
+
+            // Calculate initial orbit angle from camera to target
+            Vector3 dir = Runner.CameraControl.RunnerCameraController.Instance.transform.position - photoModeOrbitTarget;
+            photoModeOrbitAngle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+            photoModeOrbitHeight = dir.y;
+            photoModeZoom = Mathf.Max(dir.magnitude, 3.0f);
+
             Time.timeScale = 0f;
-            ShowToast("📸", "Photo Mode - Drag to move, pinch to zoom", 2.0f);
+            ShowToast("📸", "Photo Mode — Drag to orbit, pinch to zoom", 2.0f);
         }
 
         public void ExitPhotoMode()
@@ -2725,52 +2734,59 @@ namespace Runner.UI
             Camera cam = Runner.CameraControl.RunnerCameraController.Instance.GetComponent<Camera>();
             if (cam == null) return;
 
-            // Mouse / touch drag to orbit
+            // Keep target updated with player position if available
+            var player = FindFirstObjectByType<Runner.Player.PlayerController>();
+            if (player != null)
+                photoModeOrbitTarget = player.transform.position;
+
+            // Drag to orbit around target
             if (Input.GetMouseButton(0))
             {
                 float h = Input.GetAxis("Mouse X") * photoModeSensitivity;
                 float v = Input.GetAxis("Mouse Y") * photoModeSensitivity;
-                photoModeCameraRot = Quaternion.Euler(photoModeCameraRot.eulerAngles.x - v, photoModeCameraRot.eulerAngles.y + h, 0);
+                photoModeOrbitAngle += h;
+                photoModeOrbitHeight += v * 0.5f;
+                photoModeOrbitHeight = Mathf.Clamp(photoModeOrbitHeight, -2f, 8f);
             }
 
-            // Scroll / pinch to zoom
+            // Touch single-finger orbit
+            if (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
+            {
+                Touch t = Input.GetTouch(0);
+                float h = (t.deltaPosition.x / Screen.width) * photoModeSensitivity * 40f;
+                float v = (t.deltaPosition.y / Screen.height) * photoModeSensitivity * 20f;
+                photoModeOrbitAngle += h;
+                photoModeOrbitHeight += v;
+                photoModeOrbitHeight = Mathf.Clamp(photoModeOrbitHeight, -2f, 8f);
+            }
+
+            // Scroll / pinch to zoom distance
             float scroll = Input.GetAxis("Mouse ScrollWheel");
             if (Mathf.Abs(scroll) > 0.01f)
-            {
-                photoModeZoom = Mathf.Clamp(photoModeZoom - scroll * 2f, 0.3f, 3.0f);
-            }
+                photoModeZoom = Mathf.Clamp(photoModeZoom - scroll * 5f, 3.0f, 15f);
 
-            // Touch pinch zoom
             if (Input.touchCount == 2)
             {
                 Touch t0 = Input.GetTouch(0);
                 Touch t1 = Input.GetTouch(1);
                 float prevDist = ((t0.position - t0.deltaPosition) - (t1.position - t1.deltaPosition)).magnitude;
                 float currDist = (t0.position - t1.position).magnitude;
-                float diff = prevDist - currDist;
-                photoModeZoom = Mathf.Clamp(photoModeZoom + diff * 0.005f, 0.3f, 3.0f);
+                float diff = (currDist - prevDist) * 0.02f;
+                photoModeZoom = Mathf.Clamp(photoModeZoom - diff, 3.0f, 15f);
             }
 
-            // WASD / arrow keys to move
-            float moveSpeed = 5.0f * Time.unscaledDeltaTime;
-            Vector3 move = Vector3.zero;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) move += photoModeCameraRot * Vector3.forward;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) move -= photoModeCameraRot * Vector3.forward;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) move -= photoModeCameraRot * Vector3.right;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) move += photoModeCameraRot * Vector3.right;
-            if (Input.GetKey(KeyCode.Q)) move += Vector3.up * moveSpeed;
-            if (Input.GetKey(KeyCode.E)) move -= Vector3.up * moveSpeed;
-            photoModeCameraPos += move * moveSpeed;
+            // Calculate orbit position around target
+            float rad = photoModeOrbitAngle * Mathf.Deg2Rad;
+            Vector3 offset = new Vector3(Mathf.Sin(rad) * photoModeZoom, photoModeOrbitHeight, Mathf.Cos(rad) * photoModeZoom);
+            Vector3 camPos = photoModeOrbitTarget + offset;
 
-            cam.transform.position = photoModeCameraPos;
-            cam.transform.rotation = photoModeCameraRot;
-            cam.fieldOfView = Mathf.Lerp(60f, 20f, (photoModeZoom - 0.3f) / 2.7f);
+            cam.transform.position = camPos;
+            cam.transform.LookAt(photoModeOrbitTarget);
+            cam.fieldOfView = Mathf.Lerp(60f, 25f, (photoModeZoom - 3f) / 12f);
 
-            // Escape / back to exit photo mode
+            // Escape / back to exit
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
-            {
                 ExitPhotoMode();
-            }
         }
 
         private void RenderPhotoModeUI()
@@ -2832,7 +2848,7 @@ namespace Runner.UI
             GUI.skin.label.fontSize = Mathf.RoundToInt(8 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Normal;
             GUI.Label(new Rect(0, btnY - (16f * uiScale), Screen.width, 14f * uiScale),
-                "Drag to orbit • Scroll/Pinch to zoom • WASD to move • ESC to exit");
+                "Drag to orbit • Pinch/scroll to zoom • ESC to exit");
         }
 
         private System.Collections.IEnumerator CaptureScreenshotCoroutine()
@@ -2846,55 +2862,72 @@ namespace Runner.UI
             Destroy(tex);
 
             string filename = $"SpiderTemple_{System.DateTime.Now:yyyyMMdd_HHmmss}.png";
-            string path = System.IO.Path.Combine(Application.temporaryCachePath, filename);
-            System.IO.File.WriteAllBytes(path, bytes);
+            string cachePath = System.IO.Path.Combine(Application.temporaryCachePath, filename);
+            System.IO.File.WriteAllBytes(cachePath, bytes);
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-            ShareScreenshotAndroid(path, filename);
-#elif UNITY_IOS && !UNITY_EDITOR
-            ShareScreenshotIOS(path, filename);
+            // Save to gallery via MediaStore + show share chooser
+            SaveAndShareScreenshotAndroid(cachePath, filename, bytes);
 #else
-            GUIUtility.systemCopyBuffer = path;
+            GUIUtility.systemCopyBuffer = cachePath;
             ShowToast("📸", $"Screenshot saved: {filename}", 2.5f);
 #endif
         }
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-        private void ShareScreenshotAndroid(string path, string filename)
+        private void SaveAndShareScreenshotAndroid(string cachePath, string filename, byte[] pngBytes)
         {
             try
             {
+                var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                var contentResolver = currentActivity.Call<AndroidJavaObject>("getContentResolver");
+
+                // Insert into MediaStore.Images via ContentResolver
+                string dateAdded = ((long)(System.DateTime.UtcNow - new System.DateTime(1970, 1, 1)).TotalSeconds).ToString();
+                var contentValues = new AndroidJavaObject("android.content.ContentValues");
+                contentValues.Call("put", "_display_name", filename);
+                contentValues.Call("put", "mime_type", "image/png");
+                contentValues.Call("put", "date_added", dateAdded);
+                contentValues.Call("put", "relative_path", "Pictures/SpiderTempleEscape");
+
+                var mediaStoreUri = new AndroidJavaClass("android.provider.MediaStore$Images$Media");
+                var imageUri = contentResolver.Call<AndroidJavaObject>("insert", mediaStoreUri.GetStatic<AndroidJavaObject>("EXTERNAL_CONTENT_URI"), contentValues);
+
+                if (imageUri != null)
+                {
+                    var outputStream = contentResolver.Call<AndroidJavaObject>("openOutputStream", imageUri);
+                    if (outputStream != null)
+                    {
+                        var javaBytes = new AndroidJavaArray<byte>(pngBytes.Length);
+                        System.Array.Copy(pngBytes, javaBytes, pngBytes.Length);
+                        outputStream.Call("write", javaBytes);
+                        outputStream.Call("flush");
+                        outputStream.Call("close");
+                    }
+                }
+
+                // Now open share chooser with the saved image URI
                 using (var intentClass = new AndroidJavaClass("android.content.Intent"))
                 using (var intent = new AndroidJavaObject("android.content.Intent"))
-                using (var fileClass = new AndroidJavaClass("android.net.Uri"))
                 {
                     intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_SEND"));
                     intent.Call<AndroidJavaObject>("setType", "image/png");
-                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_TEXT"),
-                        GenerateShareText());
-                    using (var fileUri = fileClass.CallStatic<AndroidJavaObject>("parse", "file://" + path))
-                    {
-                        intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), fileUri);
-                    }
+                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_TEXT"), GenerateShareText());
+                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), imageUri);
                     intent.Call<AndroidJavaObject>("addFlags", 0x00000001); // FLAG_GRANT_READ_URI_PERMISSION
-                    var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
-                    var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
-                    currentActivity.Call("startActivity", intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share Screenshot"));
+                    var chooser = intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share or Save Screenshot");
+                    currentActivity.Call("startActivity", chooser);
                 }
-                ShowToast("📸", "Screenshot shared!", 2.0f);
+
+                ShowToast("📸", "Screenshot saved to gallery + ready to share!", 2.5f);
             }
             catch (System.Exception e)
             {
-                Debug.Log($"[PhotoMode] Share failed: {e.Message}");
-                ShowToast("📸", "Screenshot saved to device", 2.0f);
+                Debug.Log($"[PhotoMode] Save/share failed: {e.Message}");
+                // Fallback: just save to cache
+                ShowToast("📸", "Screenshot captured (save failed, check permissions)", 2.5f);
             }
-        }
-#endif
-
-#if UNITY_IOS && !UNITY_EDITOR
-        private void ShareScreenshotIOS(string path, string filename)
-        {
-            ShowToast("📸", "Screenshot saved to Photos", 2.0f);
         }
 #endif
 
@@ -3680,73 +3713,20 @@ namespace Runner.UI
         #endregion
 
         #region Parallax Jungle Background Layers
-        /// <summary>
-        /// Draws layered jungle silhouettes that scroll at different speeds to create depth.
-        /// Far layers move slowly, near layers move faster — parallax effect.
-        /// </summary>
         private void DrawParallaxJungleLayers()
         {
             if (whiteTexture == null) return;
 
             float w = Screen.width;
             float h = Screen.height;
-            float t = Time.unscaledTime;
 
-            // Layer 1: Far mountains (very slow, dark teal)
-            float farOffset = (t * 3f) % (w * 0.5f);
-            GUI.color = new Color(0.04f, 0.08f, 0.07f, 0.65f);
-            for (float x = -farOffset; x < w + 100f; x += w * 0.5f)
-            {
-                // Triangular mountain silhouettes
-                DrawMountainSilhouette(x, h * 0.25f, w * 0.35f, h * 0.40f);
-            }
-
-            // Layer 2: Mid jungle canopy (medium speed, dark green)
-            float midOffset = (t * 8f) % (w * 0.4f);
-            GUI.color = new Color(0.03f, 0.06f, 0.04f, 0.70f);
-            for (float x = -midOffset; x < w + 80f; x += w * 0.4f)
-            {
-                DrawCanopySilhouette(x, h * 0.35f, w * 0.30f, h * 0.25f);
-            }
-
-            // Layer 3: Near foliage (fast, very dark green)
-            float nearOffset = (t * 18f) % (w * 0.3f);
-            GUI.color = new Color(0.02f, 0.04f, 0.03f, 0.75f);
-            for (float x = -nearOffset; x < w + 60f; x += w * 0.3f)
-            {
-                DrawFoliageSilhouette(x, h * 0.50f, w * 0.22f, h * 0.18f);
-            }
-        }
-
-        private void DrawMountainSilhouette(float x, float y, float width, float peakHeight)
-        {
-            // Draw a triangle mountain shape using three overlapping rectangles
-            float halfW = width * 0.5f;
-            GUI.DrawTexture(new Rect(x, y, width, 3f), whiteTexture); // peak line
-            GUI.DrawTexture(new Rect(x + halfW * 0.3f, y + peakHeight * 0.3f, width * 0.7f, 2f), whiteTexture);
-            GUI.DrawTexture(new Rect(x + halfW * 0.1f, y + peakHeight * 0.6f, width * 0.9f, 2f), whiteTexture);
-            GUI.DrawTexture(new Rect(x, y + peakHeight, width, 4f), whiteTexture); // base
-        }
-
-        private void DrawCanopySilhouette(float x, float y, float width, float height)
-        {
-            // Draw jagged tree canopy shapes
-            float segW = width * 0.25f;
-            for (int i = 0; i < 4; i++)
-            {
-                float sx = x + i * segW;
-                float segH = height * (0.6f + (i % 2) * 0.4f);
-                GUI.DrawTexture(new Rect(sx, y - segH * 0.3f, segW * 0.8f, segH), whiteTexture);
-            }
-        }
-
-        private void DrawFoliageSilhouette(float x, float y, float width, float height)
-        {
-            // Draw dense undergrowth / bush shapes
-            float segW = width * 0.35f;
-            GUI.DrawTexture(new Rect(x, y, segW, height * 0.7f), whiteTexture);
-            GUI.DrawTexture(new Rect(x + segW * 0.6f, y - height * 0.2f, segW * 0.9f, height), whiteTexture);
-            GUI.DrawTexture(new Rect(x + segW * 1.4f, y + height * 0.1f, segW * 0.7f, height * 0.6f), whiteTexture);
+            // Simple 3-band gradient — no allocation, 3 draw calls total
+            GUI.color = new Color(0.03f, 0.06f, 0.05f, 0.50f);
+            GUI.DrawTexture(new Rect(0, 0, w, h * 0.35f), whiteTexture);
+            GUI.color = new Color(0.02f, 0.04f, 0.03f, 0.35f);
+            GUI.DrawTexture(new Rect(0, h * 0.35f, w, h * 0.30f), whiteTexture);
+            GUI.color = new Color(0.04f, 0.08f, 0.05f, 0.25f);
+            GUI.DrawTexture(new Rect(0, h * 0.65f, w, h * 0.35f), whiteTexture);
         }
         #endregion
 
@@ -3818,7 +3798,6 @@ namespace Runner.UI
         {
             yield return new WaitForEndOfFrame();
 
-            // Capture death screen as screenshot
             Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
             tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
             tex.Apply();
@@ -3832,9 +3811,10 @@ namespace Runner.UI
             string shareText = GenerateShareText();
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-            ShareWithScreenshotAndroid(screenshotPath, shareText);
+            ShareWithScreenshotAndroid(screenshotPath, filename, screenshotBytes, shareText);
 #elif UNITY_IOS && !UNITY_EDITOR
-            ShareWithScreenshotIOS(screenshotPath, shareText);
+            GUIUtility.systemCopyBuffer = shareText;
+            ShowToast("📤", "Run stats copied to clipboard!", 2.5f);
 #else
             GUIUtility.systemCopyBuffer = shareText;
             ShowToast("📤", "Run stats copied to clipboard! Paste to share.", 2.5f);
@@ -3842,42 +3822,59 @@ namespace Runner.UI
         }
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-        private void ShareWithScreenshotAndroid(string screenshotPath, string shareText)
+        private void ShareWithScreenshotAndroid(string screenshotPath, string filename, byte[] pngBytes, string shareText)
         {
             try
             {
+                var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                var contentResolver = currentActivity.Call<AndroidJavaObject>("getContentResolver");
+
+                // Save to MediaStore gallery
+                string dateAdded = ((long)(System.DateTime.UtcNow - new System.DateTime(1970, 1, 1)).TotalSeconds).ToString();
+                var contentValues = new AndroidJavaObject("android.content.ContentValues");
+                contentValues.Call("put", "_display_name", filename);
+                contentValues.Call("put", "mime_type", "image/png");
+                contentValues.Call("put", "date_added", dateAdded);
+                contentValues.Call("put", "relative_path", "Pictures/SpiderTempleEscape");
+
+                var mediaStoreUri = new AndroidJavaClass("android.provider.MediaStore$Images$Media");
+                var imageUri = contentResolver.Call<AndroidJavaObject>("insert", mediaStoreUri.GetStatic<AndroidJavaObject>("EXTERNAL_CONTENT_URI"), contentValues);
+
+                if (imageUri != null)
+                {
+                    var outputStream = contentResolver.Call<AndroidJavaObject>("openOutputStream", imageUri);
+                    if (outputStream != null)
+                    {
+                        var javaBytes = new AndroidJavaArray<byte>(pngBytes.Length);
+                        System.Array.Copy(pngBytes, javaBytes, pngBytes.Length);
+                        outputStream.Call("write", javaBytes);
+                        outputStream.Call("flush");
+                        outputStream.Call("close");
+                    }
+                }
+
+                // Open share chooser
                 using (var intentClass = new AndroidJavaClass("android.content.Intent"))
                 using (var intent = new AndroidJavaObject("android.content.Intent"))
-                using (var fileClass = new AndroidJavaClass("android.net.Uri"))
                 {
                     intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_SEND"));
-                    intent.Call<AndroidJavaObject>("setType", "image/*");
+                    intent.Call<AndroidJavaObject>("setType", "image/png");
                     intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_TEXT"), shareText);
-                    using (var fileUri = fileClass.CallStatic<AndroidJavaObject>("parse", "file://" + screenshotPath))
-                    {
-                        intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), fileUri);
-                    }
+                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), imageUri);
                     intent.Call<AndroidJavaObject>("addFlags", 0x00000001);
-                    var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
-                    var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
-                    currentActivity.Call("startActivity", intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share Run Stats"));
+                    var chooser = intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share Run Stats");
+                    currentActivity.Call("startActivity", chooser);
                 }
-                ShowToast("📤", "Screenshot + stats shared!", 2.5f);
+
+                ShowToast("📤", "Screenshot saved + ready to share!", 2.5f);
             }
             catch (System.Exception e)
             {
                 Debug.Log($"[Share] Android share failed: {e.Message}");
                 GUIUtility.systemCopyBuffer = shareText;
-                ShowToast("📤", "Stats copied! Screenshot saved locally.", 2.5f);
+                ShowToast("📤", "Stats copied to clipboard!", 2.5f);
             }
-        }
-#endif
-
-#if UNITY_IOS && !UNITY_EDITOR
-        private void ShareWithScreenshotIOS(string screenshotPath, string shareText)
-        {
-            ShowToast("📤", "Screenshot saved to Photos + stats copied!", 2.5f);
-            GUIUtility.systemCopyBuffer = shareText;
         }
 #endif
         #endregion
