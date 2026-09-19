@@ -76,7 +76,7 @@ export default function DownloadPage() {
           letterSpacing: '0.8px',
           textTransform: 'uppercase'
         }}>
-           v3.0 Release · Photo Mode · Gender Audio · Screen Shake · Parallax · Swipe Tutorial
+           v3.0 Release · Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share
         </div>
         
         <h1 style={{

@@ -475,7 +475,7 @@ export default function Home() {
         </div>
 
         <div className="container hero-content">
-          <div className="hero-badge">v3.0 Release · Photo Mode · Gender Audio · Screenshot Share · Parallax · Swipe Tutorial</div>
+          <div className="hero-badge">v3.0 Release · Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share · 60 FPS</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -484,7 +484,7 @@ export default function Home() {
 
           <p className="hero-subtitle">
             Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke through a living jungle that transitions from dawn to night!
-            NEW in v3.0: Photo mode with free camera, screenshot sharing, gender-specific audio, animated title, parallax background, and dynamic resolution scaling.
+            NEW in v3.0: Photo mode orbits around your character, screenshots save to gallery, share to WhatsApp/any app, gender-specific audio, smooth 60 FPS.
             Smooth lane switching with lean animation, dynamic day/night cycles, and immersive music fade. All on Android at 60 FPS.
           </p>
 
@@ -546,13 +546,13 @@ export default function Home() {
               What's New in v3.0
             </div>
             <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#f2ede8', marginBottom: '16px' }}>
-              Photo Mode · Screenshot Share · Gender Audio · Parallax
+              Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share
             </h2>
             <p style={{ color: '#8a8a9a', fontSize: '15px', lineHeight: '1.7', maxWidth: '640px', margin: '0 auto 20px' }}>
-              <b style={{ color: '#2aff8a' }}>📸 Photo Mode</b> — Pause and enter free camera. Drag to orbit, scroll to zoom, capture stunning screenshots.<br/>
-              <b style={{ color: '#d4a853' }}>📤 Screenshot Sharing</b> — Share a screenshot with your run stats via native Android share intent.<br/>
-              <b style={{ color: '#ff5555' }}>🎵 Gender-Specific Audio</b> — Female characters get unique higher-pitched jump, slide, and lane-change sounds.<br/>
-              <b style={{ color: '#7eb8ff' }}>🌆 Parallax Background</b> — 3-layer jungle silhouettes scroll at different speeds for depth illusion.
+              <b style={{ color: '#2aff8a' }}>📸 Photo Mode</b> — Pause gameplay, orbit around your character, pinch to zoom, capture cinematic screenshots.<br/>
+              <b style={{ color: '#d4a853' }}>📤 Screenshot Sharing</b> — Screenshots save directly to your gallery (Pictures/SpiderTempleEscape). Share to WhatsApp, Telegram, Instagram, or any app via native share chooser.<br/>
+              <b style={{ color: '#ff5555' }}>🎵 Gender-Specific Audio</b> — Female characters (Nezuko, Hinata, Anya) get unique higher-pitched jump, slide, and lane-change sounds.<br/>
+              <b style={{ color: '#7eb8ff' }}>🔧 Performance Fixes</b> — Fixed menu black boxes, frame drops, smooth 60 FPS on all devices.
             </p>
             <Link href="/download" style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -915,10 +915,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v3.0 · Photo Mode · Gender Audio · Screenshot Share · 60 FPS</div>
+          <div className="download-badge">Native Android APK v3.0 · Photo Mode · Gallery Save · WhatsApp Share · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v3.0 directly to your Android device. New: photo mode with free camera, screenshot sharing via native Android share, gender-specific audio for female characters, parallax menu background, animated title, dynamic resolution scaling, swipe tutorial for first-time players, and all 8 heroes unlocked.
+            Download the native APK v3.0 directly to your Android device. Photo mode orbits around your character, screenshots save to your gallery, share to WhatsApp/Telegram/Instagram via native chooser. Gender-specific audio for female characters, dynamic resolution scaling, swipe tutorial, and all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
