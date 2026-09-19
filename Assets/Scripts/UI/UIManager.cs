@@ -20,6 +20,15 @@ namespace Runner.UI
     }
 
     /// <summary>
+    /// Photo Mode state for free camera screenshots during gameplay.
+    /// </summary>
+    public enum PhotoModeState
+    {
+        Off,
+        Active
+    }
+
+    /// <summary>
     /// Comprehensive UI Manager for Spider Temple Escape:
     /// 1. Main Menu (Stitch design): Top HUD pills (Hearts, Hero Level/XP, Best Score),
     ///    cinematic Jungle Escape title, radiant golden START RUN CTA, 4 glass action cards
@@ -40,6 +49,7 @@ namespace Runner.UI
         private int lastFinalScore;
         private bool isGameOver = false;
         private float gameOverDuration = 0f;
+        private float deathScreenEntranceTimer = 0f;
 
         // Main Menu State & Modals
         private MenuModal activeModal = MenuModal.None;
@@ -83,6 +93,7 @@ namespace Runner.UI
         private string toastMessage = "";
         private float toastTimer = 0f;
         private int mainMenuCharOffset = 0;
+        private float menuEntranceTimer = 0f;
 
         // Loading Screen System (Starting Boot & Death -> Main Menu)
         private bool isLoading = true; // Starts TRUE for initial boot loading screen!
@@ -109,6 +120,20 @@ namespace Runner.UI
             "🕷️ ZOMBIE THREAT // The ancient guardian is relentless - keep running!",
             "🕸️ WEB-SLING RECOVERY // Double-check lane indicators before entering foggy temple corridors"
         };
+
+        // First-Time Tutorial Overlay
+        private const string TUTORIAL_SHOWN_KEY = "SpiderRunner_TutorialShown";
+        private bool showTutorial = false;
+        private float tutorialTimer = 0f;
+        private int tutorialStep = 0;
+        private float tutorialFadeAlpha = 0f;
+
+        // Photo Mode
+        private PhotoModeState photoModeState = PhotoModeState.Off;
+        private Vector3 photoModeCameraPos;
+        private Quaternion photoModeCameraRot;
+        private float photoModeSensitivity = 3.0f;
+        private float photoModeZoom = 1.0f;
 
         private void Awake()
         {
@@ -230,6 +255,19 @@ namespace Runner.UI
                 gameOverDuration = 0f;
                 lastMilestoneIndex = -1;
                 milestoneBannerTimer = 0f;
+
+                // Show tutorial on first run
+                if (!showTutorial && PlayerPrefs.GetInt(TUTORIAL_SHOWN_KEY, 0) == 0)
+                {
+                    showTutorial = true;
+                    tutorialTimer = 0f;
+                    tutorialStep = 0;
+                    tutorialFadeAlpha = 0f;
+                }
+            }
+            if (state == GameState.Menu)
+            {
+                menuEntranceTimer = 0f;
             }
             if (InGameCanvasHUD.Instance != null)
             {
@@ -632,6 +670,7 @@ namespace Runner.UI
             Cursor.lockState = CursorLockMode.None;
             lastDeathType = deathType;
             lastFinalScore = finalScore;
+            deathScreenEntranceTimer = 0f;
         }
 
         private void GetDeathDetails(DeathType deathType, out string tag, out string title, out string subtitle)
@@ -711,6 +750,11 @@ namespace Runner.UI
                 toastTimer -= Time.unscaledDeltaTime;
             }
 
+            if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Menu)
+            {
+                menuEntranceTimer += Time.unscaledDeltaTime;
+            }
+
             if (heartBloomTimer > 0f)
             {
                 heartBloomTimer -= Time.unscaledDeltaTime;
@@ -724,6 +768,7 @@ namespace Runner.UI
             if (isGameOver)
             {
                 gameOverDuration += Time.unscaledDeltaTime;
+                deathScreenEntranceTimer += Time.unscaledDeltaTime;
                 if (gameOverDuration > 0.35f && Time.timeScale > 0f)
                 {
                     Time.timeScale = 0f;
@@ -740,10 +785,45 @@ namespace Runner.UI
                 }
             }
 
+            // Tutorial overlay timer
+            if (showTutorial)
+            {
+                tutorialTimer += Time.unscaledDeltaTime;
+                float stepDuration = 3.0f;
+                float totalDuration = stepDuration * 3f;
+
+                // Fade in/out
+                if (tutorialTimer < 0.4f)
+                    tutorialFadeAlpha = tutorialTimer / 0.4f;
+                else if (tutorialTimer > totalDuration - 0.5f)
+                    tutorialFadeAlpha = Mathf.Max(0f, (totalDuration - tutorialTimer) / 0.5f);
+                else
+                    tutorialFadeAlpha = 1f;
+
+                // Step progression
+                int newStep = Mathf.FloorToInt(tutorialTimer / stepDuration);
+                if (newStep != tutorialStep && newStep < 3)
+                    tutorialStep = newStep;
+
+                // End tutorial
+                if (tutorialTimer >= totalDuration)
+                {
+                    showTutorial = false;
+                    PlayerPrefs.SetInt(TUTORIAL_SHOWN_KEY, 1);
+                    PlayerPrefs.Save();
+                }
+            }
+
+            // Photo Mode camera control
+            if (photoModeState == PhotoModeState.Active)
+            {
+                UpdatePhotoModeCamera();
+            }
+
             // Universal key detection from Update for restarting on game over
             if (GameManager.Instance != null)
             {
-                if (GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.25f)
+                if (GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.8f)
                 {
                     if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
                         Input.GetKeyDown(KeyCode.R))
@@ -784,13 +864,13 @@ namespace Runner.UI
                                 e.Use();
                             }
                         }
-                        else if (GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.25f)
-                        {
-                            GameManager.Instance.RestartGame();
-                            e.Use();
-                        }
+                    else if (GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.8f)
+                    {
+                        GameManager.Instance.RestartGame();
+                        e.Use();
                     }
-                    else if (e.keyCode == KeyCode.R && GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.25f)
+                }
+                else if (e.keyCode == KeyCode.R && GameManager.Instance.CurrentState == GameState.GameOver && gameOverDuration > 0.8f)
                     {
                         GameManager.Instance.RestartGame();
                         e.Use();
@@ -844,11 +924,17 @@ namespace Runner.UI
                     break;
                 case GameState.Playing:
                     RenderInGameHUD();
+                    RenderTutorialOverlay();
                     break;
                 case GameState.Paused:
                     RenderInGameHUD();
+                    RenderTutorialOverlay();
                     float pauseScale = Mathf.Clamp(Mathf.Min(Screen.width / 420.0f, Screen.height / 640.0f), 0.75f, 2.2f);
-                    if (resumeCountdownTimer > 0f)
+                    if (photoModeState == PhotoModeState.Active)
+                    {
+                        RenderPhotoModeUI();
+                    }
+                    else if (resumeCountdownTimer > 0f)
                     {
                         RenderResumeCountdown(pauseScale);
                     }
@@ -879,10 +965,17 @@ namespace Runner.UI
 
             float uiScale = Mathf.Clamp(Screen.width / 390.0f, 0.80f, 2.2f);
 
+            // Menu entrance animation (0.4s ease-out for bottom elements)
+            float menuEntranceProgress = Mathf.Clamp01(menuEntranceTimer / 0.4f);
+            float menuEntranceEase = 1f - Mathf.Pow(1f - menuEntranceProgress, 3f);
+
             // 1. Cinematic Soft Vignette Backdrop (reveals 3D character runner & ancient runway)
             DrawCinematicVignette();
             GUI.color = new Color(0.02f, 0.04f, 0.03f, 0.28f);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
+
+            // 1.5 Parallax Jungle Layers (depth illusion for 3D scene backdrop)
+            DrawParallaxJungleLayers();
 
             // If a sub-modal is open, render modal in foreground and return immediately
             if (activeModal != MenuModal.None)
@@ -973,25 +1066,38 @@ namespace Runner.UI
             GUI.Label(subRect, "• 3D ANCIENT EXPEDITION •");
 
             // Grand Floating Title
-            float floatOffset = Mathf.Sin(Time.unscaledTime * 2.5f) * 2.5f;
+            float animT = Time.unscaledTime;
+            float floatOffset = Mathf.Sin(animT * 2.5f) * 2.5f;
             float mainTitleY = titleY + tagH + (4f * uiScale) + floatOffset;
             int titleFontSize = Mathf.RoundToInt(26 * uiScale);
 
-            // Shadow
-            GUI.color = new Color(0.02f, 0.02f, 0.02f, 0.90f);
-            GUI.skin.label.fontSize = titleFontSize;
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(2f, mainTitleY + 2f, Screen.width, 34f * uiScale), "SPIDER TEMPLE ESCAPE");
+            // Animated breathing scale
+            float breathe = 1.0f + Mathf.Sin(animT * 1.8f) * 0.018f;
+            int animatedFontSize = Mathf.RoundToInt(titleFontSize * breathe);
 
-            // Radiant Gold
-            GUI.color = new Color(1.0f, 0.90f, 0.45f);
+            // Glow pulse intensity
+            float glowPulse = (Mathf.Sin(animT * 2.0f) + 1f) * 0.5f;
+
+            // Shadow with animated offset
+            float shadowOffset = 2f + glowPulse * 1f;
+            GUI.color = new Color(0.02f, 0.02f, 0.02f, 0.90f);
+            GUI.skin.label.fontSize = animatedFontSize;
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(2f, mainTitleY + shadowOffset, Screen.width, 34f * uiScale), "SPIDER TEMPLE ESCAPE");
+
+            // Radiant Gold with glow
+            float goldR = 1.0f;
+            float goldG = 0.88f + glowPulse * 0.08f;
+            float goldB = 0.40f + glowPulse * 0.15f;
+            GUI.color = new Color(goldR, goldG, goldB);
             GUI.Label(new Rect(0, mainTitleY, Screen.width, 34f * uiScale), "SPIDER TEMPLE ESCAPE");
 
-            // Thin Golden Filigree Line
+            // Thin Golden Filigree Line with animated shimmer
             float divW = 140f * uiScale;
             float divY = mainTitleY + (36f * uiScale);
             float divX = (Screen.width - divW) * 0.5f;
-            GUI.color = new Color(1.0f, 0.78f, 0.20f, 0.75f);
+            float shimmer = Mathf.Sin(animT * 3.5f) * 0.15f;
+            GUI.color = new Color(1.0f, 0.78f + shimmer, 0.20f, 0.75f);
             GUI.DrawTexture(new Rect(divX, divY + (3f * uiScale), divW * 0.42f, 1f), whiteTexture);
             GUI.DrawTexture(new Rect(divX + (divW * 0.58f), divY + (3f * uiScale), divW * 0.42f, 1f), whiteTexture);
             GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
@@ -1009,6 +1115,10 @@ namespace Runner.UI
             float dockGap = 5f * uiScale;
             float totalBottomH = charSectionH + dockGap + mapBannerH + dockGap + ctaH + dockGap + dockTileH;
             float dockY = Screen.height - dockBottom - totalBottomH;
+
+            // Apply slide-up entrance animation to bottom dock
+            float dockSlideOffset = (1f - menuEntranceEase) * 60f;
+            dockY += dockSlideOffset;
 
             // 6. Character Selection Section (Horizontal Cards matching approved AAA mockup)
             RenderMainMenuCharacterSection(dockX, dockY, dockW, charSectionH, uiScale);
@@ -1160,6 +1270,9 @@ namespace Runner.UI
             float cardsAreaW = w - (arrowW * 2f);
             float cardW = (cardsAreaW - (gap * (visibleCount - 1))) / visibleCount;
 
+            // Card animation time
+            float animTime = Time.unscaledTime;
+
             // Clamp offset
             mainMenuCharOffset = Mathf.Clamp(mainMenuCharOffset, 0, Mathf.Max(0, totalCount - visibleCount));
 
@@ -1202,27 +1315,47 @@ namespace Runner.UI
                                             new Color(0.04f, 0.05f, 0.07f, 0.82f);
                 DrawCard(cardRect, cardBg);
 
-                // Ornate Border
-                Color borderCol = isSelected ? new Color(1.0f, 0.85f, 0.30f, 0.95f) :
-                                  isUnlocked ? new Color(0.25f, 0.75f, 0.90f, 0.50f) :
-                                               new Color(0.40f, 0.40f, 0.48f, 0.35f);
-                DrawBorder(cardRect, borderCol, isSelected ? 1.8f : 1.0f);
+                // Animated selected card effects
+                if (isSelected)
+                {
+                    // Pulsing glow border
+                    float pulse = (Mathf.Sin(animTime * 3.0f) + 1f) * 0.5f;
+                    Color glowCol = new Color(1.0f, 0.85f, 0.30f, 0.70f + pulse * 0.30f);
+                    DrawBorder(cardRect, glowCol, 1.8f + pulse * 0.6f);
+
+                    // Subtle vertical bounce on icon
+                    float bounce = Mathf.Sin(animTime * 2.5f) * 2.0f * uiScale;
+                    // Icon: Spider for Slot 0 (Spider-Man), Custom icon for unlocked heroes
+                    string iconSel = (i == 0) ? "🕷️" : (isUnlocked ? "🦸" : "🔒");
+                    GUI.color = new Color(1.0f, 0.88f, 0.35f, 1.0f);
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                    GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
+                    GUI.skin.label.fontStyle = FontStyle.Bold;
+                    GUI.Label(new Rect(cardX, y + (4f * uiScale) + bounce, cardW, 20f * uiScale), iconSel);
+                }
+                else
+                {
+                    // Ornate Border (non-animated)
+                    Color borderCol = isUnlocked ? new Color(0.25f, 0.75f, 0.90f, 0.50f) :
+                                                 new Color(0.40f, 0.40f, 0.48f, 0.35f);
+                    DrawBorder(cardRect, borderCol, 1.0f);
+
+                    // Icon: Spider for Slot 0 (Spider-Man), Custom icon for unlocked heroes
+                    string icon = (i == 0) ? "🕷️" : (isUnlocked ? "🦸" : "🔒");
+                    GUI.color = isUnlocked ? Color.white : new Color(0.65f, 0.65f, 0.70f);
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                    GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
+                    GUI.skin.label.fontStyle = FontStyle.Bold;
+                    GUI.Label(new Rect(cardX, y + (4f * uiScale), cardW, 20f * uiScale), icon);
+                }
 
                 // Top highlight line for equipped hero
                 if (isSelected)
                 {
-                    GUI.color = new Color(1.0f, 0.88f, 0.40f, 0.90f);
+                    float highlightPulse = (Mathf.Sin(animTime * 4.0f) + 1f) * 0.5f;
+                    GUI.color = new Color(1.0f, 0.88f, 0.40f, 0.75f + highlightPulse * 0.25f);
                     GUI.DrawTexture(new Rect(cardX + 2, y + 2, cardW - 4, 1.5f), whiteTexture);
                 }
-
-                // Icon: Spider for Slot 0 (Spider-Man), Custom icon for unlocked heroes
-                string icon = (i == 0) ? "🕷️" : (isUnlocked ? "🦸" : "🔒");
-                GUI.color = isSelected ? new Color(1.0f, 0.88f, 0.35f) :
-                            (isUnlocked ? Color.white : new Color(0.65f, 0.65f, 0.70f));
-                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
-                GUI.skin.label.fontStyle = FontStyle.Bold;
-                GUI.Label(new Rect(cardX, y + (4f * uiScale), cardW, 20f * uiScale), icon);
 
                 // Character Name
                 string nameText = (i == 0) ? "SPIDER" : (slot != null ? slot.characterName.ToUpperInvariant() : $"HERO {i + 1}");
@@ -1455,6 +1588,7 @@ namespace Runner.UI
             float cardH = 68f * scale;
             float cardW = w - (32f * scale);
             float startX = x + (16f * scale);
+            float animTime = Time.unscaledTime;
 
             for (int i = 0; i < count; i++)
             {
@@ -1470,10 +1604,18 @@ namespace Runner.UI
                                             new Color(0.06f, 0.07f, 0.09f, 0.78f);
                 DrawCard(r, cardBg);
 
-                Color borderCol = isSelected ? new Color(0.20f, 0.95f, 0.65f, 0.85f) :
-                                  isUnlocked ? new Color(0.25f, 0.75f, 0.90f, 0.50f) :
-                                               new Color(0.40f, 0.40f, 0.45f, 0.35f);
-                DrawBorder(r, borderCol, 1.2f);
+                if (isSelected)
+                {
+                    float pulse = (Mathf.Sin(animTime * 3.0f) + 1f) * 0.5f;
+                    Color borderPulse = new Color(0.20f, 0.95f, 0.65f, 0.75f + pulse * 0.25f);
+                    DrawBorder(r, borderPulse, 1.2f + pulse * 0.5f);
+                }
+                else
+                {
+                    Color borderCol = isUnlocked ? new Color(0.25f, 0.75f, 0.90f, 0.50f) :
+                                                 new Color(0.40f, 0.40f, 0.45f, 0.35f);
+                    DrawBorder(r, borderCol, 1.2f);
+                }
 
                 string charName = (slot != null) ? slot.characterName : (i == 0 ? "Spider-Man" : $"Hero Slot {i + 1}");
                 string charTitle = (slot != null) ? slot.characterTitle : (i == 0 ? "Temple Runner" : "Ready for Model");
@@ -2471,6 +2613,18 @@ namespace Runner.UI
                 isMidGameSettingsOpen = true;
             }
 
+            // 2.5 PHOTO MODE
+            curY += btnH + gap;
+            Rect photoRect = new Rect(btnX, curY, btnW, btnH);
+            DrawCard(photoRect, new Color(0.10f, 0.14f, 0.20f, 0.90f));
+            DrawBorder(photoRect, new Color(0.30f, 0.80f, 1.0f, 0.50f), 1.2f);
+            GUI.color = new Color(0.40f, 0.85f, 1.0f);
+            GUI.Label(photoRect, "📸  PHOTO MODE");
+            if (IsCardClicked(805, photoRect))
+            {
+                EnterPhotoMode();
+            }
+
             // 3. RESTART (Fresh 0m)
             curY += btnH + gap;
             Rect restartRect = new Rect(btnX, curY, btnW, btnH);
@@ -2541,6 +2695,311 @@ namespace Runner.UI
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(r, text);
         }
+
+        #region Photo Mode
+        public void EnterPhotoMode()
+        {
+            if (Runner.CameraControl.RunnerCameraController.Instance == null) return;
+            photoModeState = PhotoModeState.Active;
+            photoModeCameraPos = Runner.CameraControl.RunnerCameraController.Instance.transform.position;
+            photoModeCameraRot = Runner.CameraControl.RunnerCameraController.Instance.transform.rotation;
+            photoModeZoom = 1.0f;
+            Time.timeScale = 0f;
+            ShowToast("📸", "Photo Mode - Drag to move, pinch to zoom", 2.0f);
+        }
+
+        public void ExitPhotoMode()
+        {
+            photoModeState = PhotoModeState.Off;
+            Time.timeScale = 1.0f;
+            if (Runner.CameraControl.RunnerCameraController.Instance != null)
+            {
+                Runner.CameraControl.RunnerCameraController.Instance.SnapToPlayer();
+            }
+        }
+
+        private void UpdatePhotoModeCamera()
+        {
+            if (Runner.CameraControl.RunnerCameraController.Instance == null) return;
+
+            Camera cam = Runner.CameraControl.RunnerCameraController.Instance.GetComponent<Camera>();
+            if (cam == null) return;
+
+            // Mouse / touch drag to orbit
+            if (Input.GetMouseButton(0))
+            {
+                float h = Input.GetAxis("Mouse X") * photoModeSensitivity;
+                float v = Input.GetAxis("Mouse Y") * photoModeSensitivity;
+                photoModeCameraRot = Quaternion.Euler(photoModeCameraRot.eulerAngles.x - v, photoModeCameraRot.eulerAngles.y + h, 0);
+            }
+
+            // Scroll / pinch to zoom
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (Mathf.Abs(scroll) > 0.01f)
+            {
+                photoModeZoom = Mathf.Clamp(photoModeZoom - scroll * 2f, 0.3f, 3.0f);
+            }
+
+            // Touch pinch zoom
+            if (Input.touchCount == 2)
+            {
+                Touch t0 = Input.GetTouch(0);
+                Touch t1 = Input.GetTouch(1);
+                float prevDist = ((t0.position - t0.deltaPosition) - (t1.position - t1.deltaPosition)).magnitude;
+                float currDist = (t0.position - t1.position).magnitude;
+                float diff = prevDist - currDist;
+                photoModeZoom = Mathf.Clamp(photoModeZoom + diff * 0.005f, 0.3f, 3.0f);
+            }
+
+            // WASD / arrow keys to move
+            float moveSpeed = 5.0f * Time.unscaledDeltaTime;
+            Vector3 move = Vector3.zero;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) move += photoModeCameraRot * Vector3.forward;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) move -= photoModeCameraRot * Vector3.forward;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) move -= photoModeCameraRot * Vector3.right;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) move += photoModeCameraRot * Vector3.right;
+            if (Input.GetKey(KeyCode.Q)) move += Vector3.up * moveSpeed;
+            if (Input.GetKey(KeyCode.E)) move -= Vector3.up * moveSpeed;
+            photoModeCameraPos += move * moveSpeed;
+
+            cam.transform.position = photoModeCameraPos;
+            cam.transform.rotation = photoModeCameraRot;
+            cam.fieldOfView = Mathf.Lerp(60f, 20f, (photoModeZoom - 0.3f) / 2.7f);
+
+            // Escape / back to exit photo mode
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+            {
+                ExitPhotoMode();
+            }
+        }
+
+        private void RenderPhotoModeUI()
+        {
+            if (photoModeState != PhotoModeState.Active) return;
+
+            float uiScale = Mathf.Clamp(Screen.width / 420.0f, 0.85f, 2.4f);
+            Rect safe = Screen.safeArea;
+
+            // Top bar with controls
+            float barH = 50f * uiScale;
+            float barY = safe.y + 8f * uiScale;
+            float barW = Mathf.Min(Screen.width * 0.9f, 380f * uiScale);
+            float barX = (Screen.width - barW) * 0.5f;
+
+            GUI.color = new Color(0.02f, 0.03f, 0.02f, 0.85f);
+            GUI.DrawTexture(new Rect(barX, barY, barW, barH), whiteTexture);
+            GUI.color = new Color(0.20f, 0.90f, 0.55f, 0.60f);
+            GUI.DrawTexture(new Rect(barX, barY, barW, 1.5f), whiteTexture);
+            GUI.DrawTexture(new Rect(barX, barY + barH - 1.5f, barW, 1.5f), whiteTexture);
+
+            GUI.color = new Color(1f, 0.90f, 0.40f);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(13 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(barX, barY, barW, barH), "📸  PHOTO MODE");
+
+            // Bottom controls
+            float btnH = 40f * uiScale;
+            float btnY = Screen.height - safe.y - btnH - (16f * uiScale);
+            float btnW = 120f * uiScale;
+            float gap = 12f * uiScale;
+            float totalBtnsW = btnW * 2 + gap;
+            float btnStartX = (Screen.width - totalBtnsW) * 0.5f;
+
+            // Capture button
+            Rect captureRect = new Rect(btnStartX, btnY, btnW, btnH);
+            DrawCard(captureRect, new Color(0.15f, 0.70f, 0.35f, 0.95f));
+            GUI.color = Color.white;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
+            GUI.Label(captureRect, "📷 CAPTURE");
+            if (IsCardClicked(920, captureRect))
+            {
+                StartCoroutine(CaptureScreenshotCoroutine());
+            }
+
+            // Exit button
+            Rect exitRect = new Rect(btnStartX + btnW + gap, btnY, btnW, btnH);
+            DrawCard(exitRect, new Color(0.65f, 0.18f, 0.18f, 0.95f));
+            GUI.color = Color.white;
+            GUI.Label(exitRect, "✕ EXIT");
+            if (IsCardClicked(921, exitRect))
+            {
+                ExitPhotoMode();
+            }
+
+            // Hint text
+            GUI.color = new Color(0.6f, 0.65f, 0.62f, 0.6f);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(8 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Normal;
+            GUI.Label(new Rect(0, btnY - (16f * uiScale), Screen.width, 14f * uiScale),
+                "Drag to orbit • Scroll/Pinch to zoom • WASD to move • ESC to exit");
+        }
+
+        private System.Collections.IEnumerator CaptureScreenshotCoroutine()
+        {
+            yield return new WaitForEndOfFrame();
+            Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
+            tex.Apply();
+
+            byte[] bytes = tex.EncodeToPNG();
+            Destroy(tex);
+
+            string filename = $"SpiderTemple_{System.DateTime.Now:yyyyMMdd_HHmmss}.png";
+            string path = System.IO.Path.Combine(Application.temporaryCachePath, filename);
+            System.IO.File.WriteAllBytes(path, bytes);
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+            ShareScreenshotAndroid(path, filename);
+#elif UNITY_IOS && !UNITY_EDITOR
+            ShareScreenshotIOS(path, filename);
+#else
+            GUIUtility.systemCopyBuffer = path;
+            ShowToast("📸", $"Screenshot saved: {filename}", 2.5f);
+#endif
+        }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        private void ShareScreenshotAndroid(string path, string filename)
+        {
+            try
+            {
+                using (var intentClass = new AndroidJavaClass("android.content.Intent"))
+                using (var intent = new AndroidJavaObject("android.content.Intent"))
+                using (var fileClass = new AndroidJavaClass("android.net.Uri"))
+                {
+                    intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_SEND"));
+                    intent.Call<AndroidJavaObject>("setType", "image/png");
+                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_TEXT"),
+                        GenerateShareText());
+                    using (var fileUri = fileClass.CallStatic<AndroidJavaObject>("parse", "file://" + path))
+                    {
+                        intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), fileUri);
+                    }
+                    intent.Call<AndroidJavaObject>("addFlags", 0x00000001); // FLAG_GRANT_READ_URI_PERMISSION
+                    var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                    var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                    currentActivity.Call("startActivity", intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share Screenshot"));
+                }
+                ShowToast("📸", "Screenshot shared!", 2.0f);
+            }
+            catch (System.Exception e)
+            {
+                Debug.Log($"[PhotoMode] Share failed: {e.Message}");
+                ShowToast("📸", "Screenshot saved to device", 2.0f);
+            }
+        }
+#endif
+
+#if UNITY_IOS && !UNITY_EDITOR
+        private void ShareScreenshotIOS(string path, string filename)
+        {
+            ShowToast("📸", "Screenshot saved to Photos", 2.0f);
+        }
+#endif
+
+        private string GenerateShareText()
+        {
+            float distance = GameManager.Instance != null ? GameManager.Instance.DistanceTraveled : 0f;
+            int score = lastFinalScore;
+            int coins = GameManager.Instance != null ? GameManager.Instance.CoinsCollected : 0;
+            string charName = "Spider-Man";
+            if (Characters.CharacterManager.Instance != null)
+            {
+                var slot = Characters.CharacterManager.Instance.GetCharacter(Characters.CharacterManager.Instance.SelectedCharacterIndex);
+                if (slot != null && !string.IsNullOrEmpty(slot.characterName))
+                    charName = slot.characterName;
+            }
+            return $"SPIDER TEMPLE ESCAPE\n{distance:N0}m | {score:N0}pts | {coins:N0} hearts\nHero: {charName}\nCan you beat my run?";
+        }
+        #endregion
+
+        private void RenderTutorialOverlay()
+        {
+            if (!showTutorial || tutorialFadeAlpha <= 0f) return;
+
+            float uiScale = Mathf.Clamp(Screen.width / 420.0f, 0.85f, 2.4f);
+            float w = Screen.width;
+            float h = Screen.height;
+            float animT = Time.unscaledTime;
+
+            // Dim background
+            GUI.color = new Color(0f, 0f, 0f, 0.55f * tutorialFadeAlpha);
+            GUI.DrawTexture(new Rect(0, 0, w, h), whiteTexture);
+
+            // Tutorial card
+            float cardW = Mathf.Min(w * 0.85f, 360f * uiScale);
+            float cardH = 200f * uiScale;
+            float cardX = (w - cardW) * 0.5f;
+            float cardY = (h - cardH) * 0.5f;
+
+            GUI.color = new Color(0.04f, 0.07f, 0.05f, 0.95f * tutorialFadeAlpha);
+            GUI.DrawTexture(new Rect(cardX, cardY, cardW, cardH), whiteTexture);
+            GUI.color = new Color(0.20f, 0.90f, 0.55f, 0.70f * tutorialFadeAlpha);
+            GUI.DrawTexture(new Rect(cardX, cardY, cardW, 2f), whiteTexture);
+            GUI.DrawTexture(new Rect(cardX, cardY + cardH - 2f, cardW, 2f), whiteTexture);
+            GUI.DrawTexture(new Rect(cardX, cardY, 2f, cardH), whiteTexture);
+            GUI.DrawTexture(new Rect(cardX + cardW - 2f, cardY, 2f, cardH), whiteTexture);
+
+            // Title
+            GUI.color = new Color(1f, 0.90f, 0.40f, tutorialFadeAlpha);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(16 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(cardX, cardY + (12f * uiScale), cardW, 24f * uiScale), "🕷️ HOW TO SURVIVE");
+
+            // Step content
+            string[][] steps = new string[][] {
+                new string[] { "⬆️  SWIPE UP", "Leap over fallen logs,\nstone barriers & spikes" },
+                new string[] { "⬇️  SWIPE DOWN", "Slide under temple arches,\nwooden beams & grates" },
+                new string[] { "⬅️ ➡️  SWIPE LEFT/RIGHT", "Dodge between 3 lanes\nto avoid obstacles" }
+            };
+
+            if (tutorialStep < steps.Length)
+            {
+                float bounce = Mathf.Sin(animT * 3.0f) * 3f * uiScale;
+                GUI.color = new Color(0.25f, 0.95f, 0.65f, tutorialFadeAlpha);
+                GUI.skin.label.fontSize = Mathf.RoundToInt(20 * uiScale);
+                GUI.Label(new Rect(cardX, cardY + (50f * uiScale) + bounce, cardW, 30f * uiScale), steps[tutorialStep][0]);
+
+                GUI.color = new Color(0.85f, 0.92f, 0.88f, 0.85f * tutorialFadeAlpha);
+                GUI.skin.label.fontSize = Mathf.RoundToInt(11 * uiScale);
+                GUI.skin.label.fontStyle = FontStyle.Normal;
+                bool prevWrap = GUI.skin.label.wordWrap;
+                GUI.skin.label.wordWrap = true;
+                GUI.Label(new Rect(cardX + (20f * uiScale), cardY + (95f * uiScale), cardW - (40f * uiScale), 50f * uiScale), steps[tutorialStep][1]);
+                GUI.skin.label.wordWrap = prevWrap;
+            }
+
+            // Step indicators
+            float dotSize = 8f * uiScale;
+            float dotGap = 16f * uiScale;
+            float dotsW = dotSize * 3 + dotGap * 2;
+            float dotsX = (w - dotsW) * 0.5f;
+            float dotsY = cardY + cardH - (28f * uiScale);
+            for (int i = 0; i < 3; i++)
+            {
+                float dx = dotsX + i * (dotSize + dotGap);
+                GUI.color = (i == tutorialStep)
+                    ? new Color(0.25f, 0.95f, 0.65f, tutorialFadeAlpha)
+                    : new Color(0.4f, 0.4f, 0.4f, 0.5f * tutorialFadeAlpha);
+                GUI.DrawTexture(new Rect(dx, dotsY, dotSize, dotSize), whiteTexture);
+            }
+
+            // Tap to skip hint
+            GUI.color = new Color(0.6f, 0.65f, 0.62f, 0.6f * tutorialFadeAlpha);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(8 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Normal;
+            GUI.Label(new Rect(cardX, cardY + cardH - (12f * uiScale), cardW, 14f * uiScale), "TAP ANYWHERE TO CONTINUE");
+
+            // Tap to dismiss
+            if (tutorialFadeAlpha > 0.9f && Event.current.type == EventType.MouseDown)
+            {
+                showTutorial = false;
+                PlayerPrefs.SetInt(TUTORIAL_SHOWN_KEY, 1);
+                PlayerPrefs.Save();
+            }
+        }
         #endregion
 
         #region Game Over Modal (Clean Modern UI/UX)
@@ -2553,24 +3012,30 @@ namespace Runner.UI
             float scaleH = Screen.height / 780.0f;
             float uiScale = Mathf.Clamp(Mathf.Min(scaleW, scaleH), 0.75f, 2.2f);
 
+            // Entrance animation: smooth scale-in and fade-in over 0.5s
+            float entranceProgress = Mathf.Clamp01(deathScreenEntranceTimer / 0.5f);
+            float entranceEase = 1f - Mathf.Pow(1f - entranceProgress, 3f); // ease-out cubic
+            float entranceAlpha = Mathf.Clamp01(deathScreenEntranceTimer / 0.35f);
+            float entranceScale = 0.85f + 0.15f * entranceEase;
+
             // 1. Atmospheric Defeat Backdrop with Dark Vignette
             if (deathBgTexture != null)
             {
-                GUI.color = Color.white;
+                GUI.color = new Color(1f, 1f, 1f, entranceAlpha);
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), deathBgTexture, ScaleMode.ScaleAndCrop);
-                GUI.color = new Color(0.04f, 0.02f, 0.03f, 0.78f);
+                GUI.color = new Color(0.04f, 0.02f, 0.03f, 0.78f * entranceAlpha);
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
             }
             else
             {
-                GUI.color = new Color(0.04f, 0.02f, 0.03f, 0.94f);
+                GUI.color = new Color(0.04f, 0.02f, 0.03f, 0.94f * entranceAlpha);
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
             }
 
             // Red danger vignette glow around screen edges
             if (vignetteRedTexture != null)
             {
-                GUI.color = new Color(1f, 1f, 1f, 0.75f);
+                GUI.color = new Color(1f, 1f, 1f, 0.75f * entranceAlpha);
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), vignetteRedTexture, ScaleMode.StretchToFill);
             }
 
@@ -2587,7 +3052,7 @@ namespace Runner.UI
             {
                 float relicH = 32f * uiScale;
                 Rect topRelicRect = new Rect((Screen.width - relicH) * 0.5f, headerY, relicH, relicH);
-                GUI.color = new Color(1.0f, 0.80f, 0.80f, 0.95f);
+                GUI.color = new Color(1.0f, 0.80f, 0.80f, 0.95f * entranceAlpha);
                 GUI.DrawTexture(topRelicRect, relicTexture, ScaleMode.ScaleToFit);
                 headerY += (34f * uiScale);
             }
@@ -2596,44 +3061,45 @@ namespace Runner.UI
             float tagW = 200f * uiScale;
             float tagH = 22f * uiScale;
             Rect tagRect = new Rect((Screen.width - tagW) * 0.5f, headerY, tagW, tagH);
-            DrawGlassPill(tagRect, new Color(0.24f, 0.05f, 0.08f, 0.92f), new Color(0.95f, 0.30f, 0.35f, 0.75f));
-            GUI.color = new Color(1.0f, 0.75f, 0.75f);
+            DrawGlassPill(tagRect, new Color(0.24f, 0.05f, 0.08f, 0.92f * entranceAlpha), new Color(0.95f, 0.30f, 0.35f, 0.75f * entranceAlpha));
+            GUI.color = new Color(1.0f, 0.75f, 0.75f, entranceAlpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(tagRect, $"✦ {causeTag} ✦");
 
-            // Bold Death Title
+            // Bold Death Title (with scale-in animation)
             float titleY = headerY + tagH + (6f * uiScale);
             float titleH = 34f * uiScale;
-            int titleFont = Mathf.RoundToInt(25 * uiScale);
+            int titleFont = Mathf.RoundToInt(25 * uiScale * entranceScale);
 
             // Drop shadow
-            GUI.color = new Color(0.02f, 0.01f, 0.01f, 0.95f);
+            GUI.color = new Color(0.02f, 0.01f, 0.01f, 0.95f * entranceAlpha);
             GUI.skin.label.fontSize = titleFont;
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(2f, titleY + 2f, Screen.width, titleH), deathTitle);
 
             // Front radiant layer
-            GUI.color = new Color(1.0f, 0.92f, 0.92f);
+            GUI.color = new Color(1.0f, 0.92f, 0.92f, entranceAlpha);
             GUI.Label(new Rect(0, titleY, Screen.width, titleH), deathTitle);
 
             // Subtitle
             float subY = titleY + titleH;
-            GUI.color = new Color(1.0f, 0.82f, 0.60f, 0.90f);
+            GUI.color = new Color(1.0f, 0.82f, 0.60f, 0.90f * entranceAlpha);
             GUI.skin.label.fontSize = Mathf.RoundToInt(10.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Italic;
             GUI.Label(new Rect(0, subY, Screen.width, 18f * uiScale), deathSubtitle);
 
-            // 3. Unified Glass Scorecard
+            // 3. Unified Glass Scorecard (slides up from below)
             float cardW = Mathf.Min(Screen.width - (36f * uiScale), 350f * uiScale);
             float cardH = 168f * uiScale;
             float cardX = (Screen.width - cardW) * 0.5f;
-            float cardY = subY + (12f * uiScale);
+            float cardSlideOffset = (1f - entranceEase) * 40f;
+            float cardY = subY + (12f * uiScale) + cardSlideOffset;
 
             Rect summaryRect = new Rect(cardX, cardY, cardW, cardH);
-            DrawGlassCard(summaryRect, new Color(0.06f, 0.08f, 0.12f, 0.95f), new Color(1f, 1f, 1f, 0.15f), 1.2f);
-            DrawCornerBrackets(summaryRect, 10f * uiScale, 1.5f, new Color(1.0f, 0.82f, 0.30f, 0.70f));
+            DrawGlassCard(summaryRect, new Color(0.06f, 0.08f, 0.12f, 0.95f * entranceAlpha), new Color(1f, 1f, 1f, 0.15f * entranceAlpha), 1.2f);
+            DrawCornerBrackets(summaryRect, 10f * uiScale, 1.5f, new Color(1.0f, 0.82f, 0.30f, 0.70f * entranceAlpha));
 
             // Record Badge Pill
             bool isNewRecord = lastFinalScore >= GameManager.Instance.HighScore && lastFinalScore > 0;
@@ -2642,13 +3108,13 @@ namespace Runner.UI
             Rect recRect = new Rect(cardX + (cardW - recW) * 0.5f, cardY + (10f * uiScale), recW, recH);
             if (isNewRecord)
             {
-                DrawGlassPill(recRect, new Color(0.28f, 0.20f, 0.04f, 0.95f), new Color(1.0f, 0.88f, 0.30f, 0.90f));
-                GUI.color = new Color(1.0f, 0.92f, 0.40f);
+                DrawGlassPill(recRect, new Color(0.28f, 0.20f, 0.04f, 0.95f * entranceAlpha), new Color(1.0f, 0.88f, 0.30f, 0.90f * entranceAlpha));
+                GUI.color = new Color(1.0f, 0.92f, 0.40f, entranceAlpha);
             }
             else
             {
-                DrawGlassPill(recRect, new Color(0.10f, 0.14f, 0.18f, 0.90f), new Color(1f, 1f, 1f, 0.20f));
-                GUI.color = new Color(0.80f, 0.88f, 0.95f);
+                DrawGlassPill(recRect, new Color(0.10f, 0.14f, 0.18f, 0.90f * entranceAlpha), new Color(1f, 1f, 1f, 0.20f * entranceAlpha));
+                GUI.color = new Color(0.80f, 0.88f, 0.95f, entranceAlpha);
             }
             GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
@@ -2657,19 +3123,19 @@ namespace Runner.UI
 
             // Hero Metric: Distance Traveled
             float metricY = cardY + (38f * uiScale);
-            GUI.color = new Color(0.80f, 0.85f, 0.92f);
+            GUI.color = new Color(0.80f, 0.85f, 0.92f, entranceAlpha);
             GUI.skin.label.fontSize = Mathf.RoundToInt(10f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Normal;
             GUI.Label(new Rect(cardX, metricY, cardW, 14f * uiScale), "DISTANCE SURVIVED");
 
-            GUI.color = new Color(1.0f, 0.88f, 0.25f);
+            GUI.color = new Color(1.0f, 0.88f, 0.25f, entranceAlpha);
             GUI.skin.label.fontSize = Mathf.RoundToInt(28 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(cardX, metricY + (14f * uiScale), cardW, 34f * uiScale), $"{GameManager.Instance.DistanceTraveled:N0} M");
 
             // Divider Line
             float divY = metricY + (52f * uiScale);
-            GUI.color = new Color(1f, 1f, 1f, 0.10f);
+            GUI.color = new Color(1f, 1f, 1f, 0.10f * entranceAlpha);
             GUI.DrawTexture(new Rect(cardX + 18, divY, cardW - 36, 1), whiteTexture);
 
             // 2-Column Secondary Metrics Grid
@@ -2678,32 +3144,36 @@ namespace Runner.UI
 
             // Left Col: Relics Saved
             Rect relicsBox = new Rect(cardX + (10f * uiScale), gridY, colW, 48f * uiScale);
-            DrawGlassCard(relicsBox, new Color(0.04f, 0.06f, 0.08f, 0.85f), new Color(1.0f, 0.35f, 0.65f, 0.40f));
+            DrawGlassCard(relicsBox, new Color(0.04f, 0.06f, 0.08f, 0.85f * entranceAlpha), new Color(1.0f, 0.35f, 0.65f, 0.40f * entranceAlpha));
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Normal;
-            GUI.color = new Color(0.85f, 0.90f, 0.95f);
+            GUI.color = new Color(0.85f, 0.90f, 0.95f, entranceAlpha);
             GUI.Label(new Rect(relicsBox.x, relicsBox.y + (4f * uiScale), colW, 14f * uiScale), "HEARTS COLLECTED");
 
             GUI.skin.label.fontSize = Mathf.RoundToInt(16 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.color = new Color(1.0f, 0.40f, 0.72f);
+            GUI.color = new Color(1.0f, 0.40f, 0.72f, entranceAlpha);
             GUI.Label(new Rect(relicsBox.x, relicsBox.y + (20f * uiScale), colW, 22f * uiScale), $"💖 {GameManager.Instance.CoinsCollected:N0}");
 
             // Right Col: Expedition Score
             Rect scoreBox = new Rect(cardX + cardW - colW - (10f * uiScale), gridY, colW, 48f * uiScale);
-            DrawGlassCard(scoreBox, new Color(0.04f, 0.06f, 0.08f, 0.85f), new Color(0.20f, 0.85f, 0.95f, 0.40f));
+            DrawGlassCard(scoreBox, new Color(0.04f, 0.06f, 0.08f, 0.85f * entranceAlpha), new Color(0.20f, 0.85f, 0.95f, 0.40f * entranceAlpha));
             GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Normal;
-            GUI.color = new Color(0.85f, 0.90f, 0.95f);
+            GUI.color = new Color(0.85f, 0.90f, 0.95f, entranceAlpha);
             GUI.Label(new Rect(scoreBox.x, scoreBox.y + (4f * uiScale), colW, 14f * uiScale), "FINAL SCORE");
 
             GUI.skin.label.fontSize = Mathf.RoundToInt(16 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.color = new Color(0.25f, 0.92f, 1.0f);
+            GUI.color = new Color(0.25f, 0.92f, 1.0f, entranceAlpha);
             GUI.Label(new Rect(scoreBox.x, scoreBox.y + (20f * uiScale), colW, 22f * uiScale), $"⭐ {lastFinalScore:N0}");
 
-            // 4. Action Buttons (Instant Replay Hierarchy)
+            // 4. Action Buttons (only appear after entrance animation and safe delay)
+            float safeButtonDelay = 0.8f; // Prevent accidental clicks
+            bool buttonsReady = gameOverDuration > safeButtonDelay && entranceProgress > 0.9f;
+            float btnAlpha = buttonsReady ? Mathf.Clamp01((gameOverDuration - safeButtonDelay) / 0.3f) : 0f;
+
             float footerY = cardY + cardH + (14f * uiScale);
             float btnW = cardW;
             float btnH = 48f * uiScale;
@@ -2711,22 +3181,20 @@ namespace Runner.UI
 
             // 1. PLAY AGAIN (Prominent Emerald Radiant Primary CTA)
             Rect playAgainRect = new Rect(btnX, footerY, btnW, btnH);
-            DrawCard(playAgainRect, new Color(0.12f, 0.78f, 0.38f, 0.98f));
-            // Bevel highlight line
-            GUI.color = new Color(1f, 1f, 1f, 0.30f);
+            DrawCard(playAgainRect, new Color(0.12f, 0.78f, 0.38f, 0.98f * btnAlpha));
+            GUI.color = new Color(1f, 1f, 1f, 0.30f * btnAlpha);
             GUI.DrawTexture(new Rect(btnX + 4, footerY + 2, btnW - 8, 2f), whiteTexture);
-            // Shadow line
-            GUI.color = new Color(0.06f, 0.40f, 0.18f, 0.80f);
+            GUI.color = new Color(0.06f, 0.40f, 0.18f, 0.80f * btnAlpha);
             GUI.DrawTexture(new Rect(btnX + 4, footerY + btnH - 3, btnW - 8, 3f), whiteTexture);
-            DrawBorder(playAgainRect, new Color(0.40f, 0.95f, 0.60f, 1f), 1.5f * uiScale);
+            DrawBorder(playAgainRect, new Color(0.40f, 0.95f, 0.60f, btnAlpha), 1.5f * uiScale);
 
-            GUI.color = Color.white;
+            GUI.color = new Color(1f, 1f, 1f, btnAlpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(16 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(playAgainRect, "▶   PLAY AGAIN");
 
-            if ((IsCardClicked(601, playAgainRect) || GUI.Button(playAgainRect, GUIContent.none, GUIStyle.none)) && gameOverDuration > 0.20f)
+            if (buttonsReady && (IsCardClicked(601, playAgainRect) || GUI.Button(playAgainRect, GUIContent.none, GUIStyle.none)))
             {
                 isGameOver = false;
                 Time.timeScale = 1.0f;
@@ -2737,15 +3205,15 @@ namespace Runner.UI
             float menuY = footerY + btnH + (8f * uiScale);
             float menuH = 42f * uiScale;
             Rect mainMenuRect = new Rect(btnX, menuY, btnW, menuH);
-            DrawGlassCard(mainMenuRect, new Color(0.12f, 0.16f, 0.22f, 0.90f), new Color(1f, 1f, 1f, 0.20f), 1.2f);
+            DrawGlassCard(mainMenuRect, new Color(0.12f, 0.16f, 0.22f, 0.90f * btnAlpha), new Color(1f, 1f, 1f, 0.20f * btnAlpha), 1.2f);
 
-            GUI.color = new Color(0.85f, 0.90f, 0.95f);
+            GUI.color = new Color(0.85f, 0.90f, 0.95f, btnAlpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(13.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(mainMenuRect, "🏠   RETURN TO CAMP");
 
-            if ((IsCardClicked(602, mainMenuRect) || GUI.Button(mainMenuRect, GUIContent.none, GUIStyle.none)) && gameOverDuration > 0.20f)
+            if (buttonsReady && (IsCardClicked(602, mainMenuRect) || GUI.Button(mainMenuRect, GUIContent.none, GUIStyle.none)))
             {
                 isGameOver = false;
                 Time.timeScale = 1.0f;
@@ -2759,22 +3227,22 @@ namespace Runner.UI
             float shareY = menuY + menuH + (8f * uiScale);
             float shareH = 42f * uiScale;
             Rect shareRect = new Rect(btnX, shareY, btnW, shareH);
-            DrawGlassCard(shareRect, new Color(0.18f, 0.14f, 0.04f, 0.92f), new Color(1.0f, 0.82f, 0.30f, 0.45f), 1.2f);
+            DrawGlassCard(shareRect, new Color(0.18f, 0.14f, 0.04f, 0.92f * btnAlpha), new Color(1.0f, 0.82f, 0.30f, 0.45f * btnAlpha), 1.2f);
 
-            GUI.color = new Color(1.0f, 0.88f, 0.35f);
+            GUI.color = new Color(1.0f, 0.88f, 0.35f, btnAlpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(13.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(shareRect, "📤   SHARE RUN STATS");
 
-            if ((IsCardClicked(603, shareRect) || GUI.Button(shareRect, GUIContent.none, GUIStyle.none)) && gameOverDuration > 0.20f)
+            if (buttonsReady && (IsCardClicked(603, shareRect) || GUI.Button(shareRect, GUIContent.none, GUIStyle.none)))
             {
                 ShareRunStats();
             }
 
             // Subtle keyboard navigation hint
             float hintY = shareY + shareH + (8f * uiScale);
-            GUI.color = new Color(0.70f, 0.75f, 0.80f, 0.65f);
+            GUI.color = new Color(0.70f, 0.75f, 0.80f, 0.65f * btnAlpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(9f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Italic;
@@ -3211,6 +3679,77 @@ namespace Runner.UI
         }
         #endregion
 
+        #region Parallax Jungle Background Layers
+        /// <summary>
+        /// Draws layered jungle silhouettes that scroll at different speeds to create depth.
+        /// Far layers move slowly, near layers move faster — parallax effect.
+        /// </summary>
+        private void DrawParallaxJungleLayers()
+        {
+            if (whiteTexture == null) return;
+
+            float w = Screen.width;
+            float h = Screen.height;
+            float t = Time.unscaledTime;
+
+            // Layer 1: Far mountains (very slow, dark teal)
+            float farOffset = (t * 3f) % (w * 0.5f);
+            GUI.color = new Color(0.04f, 0.08f, 0.07f, 0.65f);
+            for (float x = -farOffset; x < w + 100f; x += w * 0.5f)
+            {
+                // Triangular mountain silhouettes
+                DrawMountainSilhouette(x, h * 0.25f, w * 0.35f, h * 0.40f);
+            }
+
+            // Layer 2: Mid jungle canopy (medium speed, dark green)
+            float midOffset = (t * 8f) % (w * 0.4f);
+            GUI.color = new Color(0.03f, 0.06f, 0.04f, 0.70f);
+            for (float x = -midOffset; x < w + 80f; x += w * 0.4f)
+            {
+                DrawCanopySilhouette(x, h * 0.35f, w * 0.30f, h * 0.25f);
+            }
+
+            // Layer 3: Near foliage (fast, very dark green)
+            float nearOffset = (t * 18f) % (w * 0.3f);
+            GUI.color = new Color(0.02f, 0.04f, 0.03f, 0.75f);
+            for (float x = -nearOffset; x < w + 60f; x += w * 0.3f)
+            {
+                DrawFoliageSilhouette(x, h * 0.50f, w * 0.22f, h * 0.18f);
+            }
+        }
+
+        private void DrawMountainSilhouette(float x, float y, float width, float peakHeight)
+        {
+            // Draw a triangle mountain shape using three overlapping rectangles
+            float halfW = width * 0.5f;
+            GUI.DrawTexture(new Rect(x, y, width, 3f), whiteTexture); // peak line
+            GUI.DrawTexture(new Rect(x + halfW * 0.3f, y + peakHeight * 0.3f, width * 0.7f, 2f), whiteTexture);
+            GUI.DrawTexture(new Rect(x + halfW * 0.1f, y + peakHeight * 0.6f, width * 0.9f, 2f), whiteTexture);
+            GUI.DrawTexture(new Rect(x, y + peakHeight, width, 4f), whiteTexture); // base
+        }
+
+        private void DrawCanopySilhouette(float x, float y, float width, float height)
+        {
+            // Draw jagged tree canopy shapes
+            float segW = width * 0.25f;
+            for (int i = 0; i < 4; i++)
+            {
+                float sx = x + i * segW;
+                float segH = height * (0.6f + (i % 2) * 0.4f);
+                GUI.DrawTexture(new Rect(sx, y - segH * 0.3f, segW * 0.8f, segH), whiteTexture);
+            }
+        }
+
+        private void DrawFoliageSilhouette(float x, float y, float width, float height)
+        {
+            // Draw dense undergrowth / bush shapes
+            float segW = width * 0.35f;
+            GUI.DrawTexture(new Rect(x, y, segW, height * 0.7f), whiteTexture);
+            GUI.DrawTexture(new Rect(x + segW * 0.6f, y - height * 0.2f, segW * 0.9f, height), whiteTexture);
+            GUI.DrawTexture(new Rect(x + segW * 1.4f, y + height * 0.1f, segW * 0.7f, height * 0.6f), whiteTexture);
+        }
+        #endregion
+
         #region AAA Cinematic Overlays
         /// <summary>
         /// Draws a radial vignette overlay for cinematic depth.
@@ -3268,39 +3807,79 @@ namespace Runner.UI
         }
 
         /// <summary>
-        /// Shares the run stats via native Android share intent or copies to clipboard.
-        /// Generates a formatted text summary with distance, score, coins, and character.
+        /// Captures a screenshot of the death screen and shares it with run stats via native share intent.
         /// </summary>
         private void ShareRunStats()
         {
-            float distance = GameManager.Instance != null ? GameManager.Instance.DistanceTraveled : 0f;
-            int score = lastFinalScore;
-            int coins = GameManager.Instance != null ? GameManager.Instance.CoinsCollected : 0;
-            float bestDist = GameManager.Instance != null ? GameManager.Instance.BestDistance : 0f;
-            bool isNewBest = distance >= bestDist && distance > 0;
+            StartCoroutine(ShareRunStatsWithScreenshot());
+        }
 
-            string charName = "Spider-Man";
-            if (Characters.CharacterManager.Instance != null)
-            {
-                var slot = Characters.CharacterManager.Instance.GetCharacter(Characters.CharacterManager.Instance.SelectedCharacterIndex);
-                if (slot != null && !string.IsNullOrEmpty(slot.characterName))
-                {
-                    charName = slot.characterName;
-                }
-            }
+        private System.Collections.IEnumerator ShareRunStatsWithScreenshot()
+        {
+            yield return new WaitForEndOfFrame();
 
-            string shareText = $"SPIDER TEMPLE ESCAPE\n\n" +
-                               $"Distance: {distance:N0}m\n" +
-                               $"Score: {score:N0}\n" +
-                               $"Hearts: {coins:N0}\n" +
-                               $"Hero: {charName}\n" +
-                               (isNewBest ? "NEW BEST RECORD!\n" : $"Best: {bestDist:N0}m\n") +
-                               $"\nCan you beat my run?";
+            // Capture death screen as screenshot
+            Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
+            tex.Apply();
+            byte[] screenshotBytes = tex.EncodeToPNG();
+            Destroy(tex);
 
-            // Always copy to clipboard — reliable on all platforms
+            string filename = $"SpiderTemple_Run_{System.DateTime.Now:yyyyMMdd_HHmmss}.png";
+            string screenshotPath = System.IO.Path.Combine(Application.temporaryCachePath, filename);
+            System.IO.File.WriteAllBytes(screenshotPath, screenshotBytes);
+
+            string shareText = GenerateShareText();
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+            ShareWithScreenshotAndroid(screenshotPath, shareText);
+#elif UNITY_IOS && !UNITY_EDITOR
+            ShareWithScreenshotIOS(screenshotPath, shareText);
+#else
             GUIUtility.systemCopyBuffer = shareText;
             ShowToast("📤", "Run stats copied to clipboard! Paste to share.", 2.5f);
+#endif
         }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        private void ShareWithScreenshotAndroid(string screenshotPath, string shareText)
+        {
+            try
+            {
+                using (var intentClass = new AndroidJavaClass("android.content.Intent"))
+                using (var intent = new AndroidJavaObject("android.content.Intent"))
+                using (var fileClass = new AndroidJavaClass("android.net.Uri"))
+                {
+                    intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_SEND"));
+                    intent.Call<AndroidJavaObject>("setType", "image/*");
+                    intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_TEXT"), shareText);
+                    using (var fileUri = fileClass.CallStatic<AndroidJavaObject>("parse", "file://" + screenshotPath))
+                    {
+                        intent.Call<AndroidJavaObject>("putExtra", intentClass.GetStatic<string>("EXTRA_STREAM"), fileUri);
+                    }
+                    intent.Call<AndroidJavaObject>("addFlags", 0x00000001);
+                    var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                    var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                    currentActivity.Call("startActivity", intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share Run Stats"));
+                }
+                ShowToast("📤", "Screenshot + stats shared!", 2.5f);
+            }
+            catch (System.Exception e)
+            {
+                Debug.Log($"[Share] Android share failed: {e.Message}");
+                GUIUtility.systemCopyBuffer = shareText;
+                ShowToast("📤", "Stats copied! Screenshot saved locally.", 2.5f);
+            }
+        }
+#endif
+
+#if UNITY_IOS && !UNITY_EDITOR
+        private void ShareWithScreenshotIOS(string screenshotPath, string shareText)
+        {
+            ShowToast("📤", "Screenshot saved to Photos + stats copied!", 2.5f);
+            GUIUtility.systemCopyBuffer = shareText;
+        }
+#endif
         #endregion
     }
 }

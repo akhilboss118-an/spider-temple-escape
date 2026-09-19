@@ -541,6 +541,7 @@ namespace Runner.Player
             if (CurrentLane > -1)
             {
                 CurrentLane--;
+                Runner.Audio.AudioManager.Instance?.PlayLaneChange();
             }
         }
 
@@ -564,6 +565,7 @@ namespace Runner.Player
             if (CurrentLane < 1)
             {
                 CurrentLane++;
+                Runner.Audio.AudioManager.Instance?.PlayLaneChange();
             }
         }
 

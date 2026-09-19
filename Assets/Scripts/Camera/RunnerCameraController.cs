@@ -157,11 +157,23 @@ namespace Runner.CameraControl
                 Vector3 recoilDisplacement = -transform.forward * (recoilIntensity * t * 0.7f) + Vector3.down * (recoilIntensity * t * 0.3f);
                 transform.position += recoilDisplacement;
             }
+
+            // 5. Lateral Wobble (stumble impact side-to-side shake)
+            if (lateralWobbleTimer > 0.0f)
+            {
+                lateralWobbleTimer -= dt;
+                float t = lateralWobbleTimer / lateralWobbleDuration;
+                float wobble = Mathf.Sin(t * Mathf.PI * 6f) * lateralWobbleIntensity * t;
+                transform.position += transform.right * wobble;
+            }
         }
 
         private float recoilTimer = 0.0f;
         private float recoilDuration = 0.25f;
         private float recoilIntensity = 0.0f;
+        private float lateralWobbleTimer = 0.0f;
+        private float lateralWobbleDuration = 0.0f;
+        private float lateralWobbleIntensity = 0.0f;
 
         public void TriggerPhysicalRecoil(float intensity, float duration)
         {
@@ -175,14 +187,31 @@ namespace Runner.CameraControl
             TriggerPhysicalRecoil(intensity * 0.8f, duration);
         }
 
+        public void TriggerLateralWobble(float intensity, float duration)
+        {
+            lateralWobbleIntensity = intensity;
+            lateralWobbleDuration = Mathf.Max(0.1f, duration);
+            lateralWobbleTimer = lateralWobbleDuration;
+        }
+
+        public void TriggerFovKick(float kickAmount, float recoveryDuration)
+        {
+            if (cam == null) return;
+            cam.fieldOfView += kickAmount;
+        }
+
         private void HandleStumbled(int count, float decayTime)
         {
             TriggerPhysicalRecoil(stumbleShakeIntensity, stumbleShakeDuration);
+            TriggerLateralWobble(stumbleShakeIntensity * 1.2f, stumbleShakeDuration * 0.8f);
+            TriggerFovKick(4f, 0.3f);
         }
 
         private void HandleGameOver(DeathType deathType, int finalScore)
         {
             TriggerPhysicalRecoil(deathShakeIntensity, deathShakeDuration);
+            TriggerLateralWobble(deathShakeIntensity * 0.6f, deathShakeDuration * 0.7f);
+            TriggerFovKick(8f, 0.5f);
         }
     }
 }

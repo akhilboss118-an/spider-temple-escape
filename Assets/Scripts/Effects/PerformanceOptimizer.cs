@@ -36,12 +36,20 @@ namespace Runner.Effects
 
         [Header("Frame Rate Targets")]
         [SerializeField] private float targetFrameRate = 60f;
-        [SerializeField] private float criticalFrameRate = 30f;
+        [SerializeField] private float criticalFrameRate = 40f;
 
         [Header("Dynamic Quality Scaling")]
         [SerializeField] private bool enableDynamicScaling = true;
-        [SerializeField] private float frameRateCheckInterval = 2f;
-        [SerializeField] private float qualityStepDownCooldown = 5f;
+        [SerializeField] private float frameRateCheckInterval = 1.5f;
+        [SerializeField] private float qualityStepDownCooldown = 3f;
+
+        [Header("Dynamic Resolution Scaling")]
+        [SerializeField] private bool enableDynamicResolution = true;
+        [SerializeField] private float minResolutionScale = 0.65f;
+        [SerializeField] private float maxResolutionScale = 1.0f;
+        [SerializeField] private float resolutionStepSize = 0.05f;
+        [SerializeField] private float resolutionCriticalFps = 35f;
+        [SerializeField] private float resolutionRecoveryFps = 55f;
 
         // Device classification
         public enum DeviceTier { Low, Mid, High }
@@ -63,6 +71,10 @@ namespace Runner.Effects
         private bool originalAntiAliasing;
         private int originalTextureQuality;
 
+        // Dynamic resolution scaling
+        private float currentResolutionScale = 1.0f;
+        private float lastResolutionAdjustTime;
+
         private void Awake()
         {
             if (_instance != null && _instance != this)
@@ -83,6 +95,17 @@ namespace Runner.Effects
 
             // Monitor frame rate for dynamic adjustments
             InvokeRepeating(nameof(MonitorFrameRate), 1f, frameRateCheckInterval);
+        }
+
+        /// <summary>
+        /// Resets resolution to native when returning to menu (called by GameManager).
+        /// </summary>
+        public void ResetResolutionToNative()
+        {
+            if (!enableDynamicResolution) return;
+            currentResolutionScale = maxResolutionScale;
+            ApplyResolutionScale();
+            Debug.Log("[PerformanceOptimizer] Resolution reset to native");
         }
 
         private void ClassifyDevice()
@@ -278,6 +301,42 @@ namespace Runner.Effects
                     lastQualityAdjustTime = Time.time;
                 }
             }
+
+            // Dynamic resolution scaling (runs independently of quality stepping)
+            if (enableDynamicResolution)
+            {
+                UpdateDynamicResolution();
+            }
+        }
+
+        private void UpdateDynamicResolution()
+        {
+            if (Time.time - lastResolutionAdjustTime < qualityStepDownCooldown * 0.5f) return;
+
+            if (avgFrameRate < resolutionCriticalFps && currentResolutionScale > minResolutionScale)
+            {
+                currentResolutionScale = Mathf.Max(minResolutionScale, currentResolutionScale - resolutionStepSize);
+                ApplyResolutionScale();
+                Debug.Log($"[PerformanceOptimizer] Resolution scaled down to {currentResolutionScale * 100:F0}% ({avgFrameRate:F1} FPS)");
+                lastResolutionAdjustTime = Time.time;
+            }
+            else if (avgFrameRate > resolutionRecoveryFps && currentResolutionScale < maxResolutionScale)
+            {
+                currentResolutionScale = Mathf.Min(maxResolutionScale, currentResolutionScale + resolutionStepSize * 0.5f);
+                ApplyResolutionScale();
+                Debug.Log($"[PerformanceOptimizer] Resolution scaled up to {currentResolutionScale * 100:F0}% ({avgFrameRate:F1} FPS)");
+                lastResolutionAdjustTime = Time.time;
+            }
+        }
+
+        private void ApplyResolutionScale()
+        {
+            float scale = currentResolutionScale;
+            Screen.SetResolution(
+                Mathf.Max(320, (int)(Screen.currentResolution.width * scale)),
+                Mathf.Max(480, (int)(Screen.currentResolution.height * scale)),
+                true
+            );
         }
 
         private void StepDownQuality()

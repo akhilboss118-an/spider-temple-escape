@@ -293,6 +293,9 @@ namespace Runner.Pickups
         #region Unified Power-Up API
         public void ActivatePowerUp(PowerUpType type, float customDuration = -1f)
         {
+            if (Runner.Core.GameManager.Instance != null)
+                Runner.Core.GameManager.Instance.TriggerHapticLight();
+
             switch (type)
             {
                 case PowerUpType.Shield:

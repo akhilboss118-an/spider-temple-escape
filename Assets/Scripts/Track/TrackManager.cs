@@ -17,10 +17,17 @@ namespace Runner.Track
 
         [Header("Pool Settings")]
         [Tooltip("Target number of chunks kept active in front of the player")]
-        [SerializeField] private int activeChunkCount = 14;
+        [SerializeField] private int activeChunkCount = 10;
 
         [Tooltip("Distance behind the player before a chunk is recycled")]
         [SerializeField] private float recycleDistanceBehindPlayer = 15.0f;
+
+        [Header("Performance Limits")]
+        [Tooltip("Maximum number of active point lights from braziers")]
+        [SerializeField] private int maxActiveLights = 4;
+
+        // Track active brazier lights for capping
+        private readonly List<Light> activeBrazierLights = new List<Light>();
 
         [Header("Chunk Prefabs (9 Types)")]
         [SerializeField] private TrackChunk straightPrefab;
@@ -289,7 +296,7 @@ namespace Runner.Track
             if (Runner.Effects.BiomeManager.Instance != null)
             {
                 var curBiome = Runner.Effects.BiomeManager.Instance.CurrentBiome;
-                var floorMat = Runner.Effects.BiomeManager.Instance.GetFloorMaterialForBiome(curBiome);
+                var floorMat = Runner.Effects.BiomeManager.Instance.GetFloorVariant(activeChunks.Count);
                 var curbMat = Runner.Effects.BiomeManager.Instance.GetCurbMaterialForBiome(curBiome);
                 chunk.ApplyBiome(floorMat, curbMat);
             }
@@ -409,12 +416,33 @@ namespace Runner.Track
             Vector3 branchDir = newRot * Vector3.forward;
             nextSpawnPosition = junction.GetSnapCenter() + (branchDir * 10.0f);
 
-            // Populate the new corridor with full activeChunkCount (28 chunks)
+            // Populate the new corridor with chunks spread across multiple frames to avoid frame spikes
             // First 4 guaranteed straight, followed by normal runner chunks
-            for (int i = 0; i < activeChunkCount; i++)
+            if (junctionSpawnCoroutine != null)
             {
-                ChunkType type = (i < 4) ? ChunkType.Straight : SelectNextValidChunkType();
-                SpawnChunkOfType(type);
+                StopCoroutine(junctionSpawnCoroutine);
+            }
+            junctionSpawnCoroutine = StartCoroutine(SpawnJunctionChunksCoroutine());
+        }
+
+        private Coroutine junctionSpawnCoroutine;
+        private const int CHUNKS_PER_FRAME = 4;
+
+        private System.Collections.IEnumerator SpawnJunctionChunksCoroutine()
+        {
+            int totalToSpawn = activeChunkCount;
+            int spawned = 0;
+
+            while (spawned < totalToSpawn)
+            {
+                int batchSize = Mathf.Min(CHUNKS_PER_FRAME, totalToSpawn - spawned);
+                for (int i = 0; i < batchSize; i++)
+                {
+                    ChunkType type = (spawned < 4) ? ChunkType.Straight : SelectNextValidChunkType();
+                    SpawnChunkOfType(type);
+                    spawned++;
+                }
+                yield return null; // Wait one frame before spawning next batch
             }
         }
 
@@ -1781,17 +1809,21 @@ namespace Runner.Track
                 }
             }
 
-            // Warm radiant fiery amber point light positioned at flame elevation
-            GameObject lightObj = new GameObject("TorchLight");
-            lightObj.transform.SetParent(brazier.transform, false);
-            lightObj.transform.localPosition = new Vector3(0, 1.25f, 0.05f);
+            // Only spawn point light if under the active light cap
+            if (activeBrazierLights.Count < maxActiveLights)
+            {
+                GameObject lightObj = new GameObject("TorchLight");
+                lightObj.transform.SetParent(brazier.transform, false);
+                lightObj.transform.localPosition = new Vector3(0, 1.25f, 0.05f);
 
-            Light torchLight = lightObj.AddComponent<Light>();
-            torchLight.type = LightType.Point;
-            torchLight.color = new Color(1.0f, 0.65f, 0.15f);
-            torchLight.range = 8.5f;
-            torchLight.intensity = 2.8f;
-            torchLight.shadows = LightShadows.None;
+                Light torchLight = lightObj.AddComponent<Light>();
+                torchLight.type = LightType.Point;
+                torchLight.color = new Color(1.0f, 0.65f, 0.15f);
+                torchLight.range = 8.5f;
+                torchLight.intensity = 2.8f;
+                torchLight.shadows = LightShadows.None;
+                activeBrazierLights.Add(torchLight);
+            }
         }
 
         /// <summary>
@@ -2479,16 +2511,16 @@ namespace Runner.Track
             }
 
 
-            // 3. Lush 3D Roadside Trees on BOTH sides outside the lane (optimized 3 trees per line for smooth 60 FPS on mobile)
+            // 3. Lush 3D Roadside Trees on BOTH sides outside the lane (optimized 2 trees per side for smooth 60 FPS on mobile)
             if (monsteraTreePrefab != null || pineTreePrefab != null)
             {
                 bool isLeftBranch = (type == ChunkType.TJunctionLeft || type == ChunkType.TJunctionDouble);
                 bool isRightBranch = (type == ChunkType.TJunctionRight || type == ChunkType.TJunctionDouble);
 
-                // Left side trees (staggered at 1.8m, 5.0m, 8.2m outside left curb)
+                // Left side trees (staggered at 2.5m, 7.0m outside left curb)
                 if (!isLeftBranch)
                 {
-                    float[] zOffsetsL = { 1.8f, 5.0f, 8.2f };
+                    float[] zOffsetsL = { 2.5f, 7.0f };
                     for (int i = 0; i < zOffsetsL.Length; i++)
                     {
                         float zPos = zOffsetsL[i];
@@ -2515,10 +2547,10 @@ namespace Runner.Track
                     }
                 }
 
-                // Right side trees (staggered at 2.2m, 5.4m, 8.6m outside right curb)
+                // Right side trees (staggered at 3.0m, 7.5m outside right curb)
                 if (!isRightBranch)
                 {
-                    float[] zOffsetsR = { 2.2f, 5.4f, 8.6f };
+                    float[] zOffsetsR = { 3.0f, 7.5f };
                     for (int i = 0; i < zOffsetsR.Length; i++)
                     {
                         float zPos = zOffsetsR[i];
@@ -2851,7 +2883,7 @@ namespace Runner.Track
                 t2.gameObject.SetActive(true);
 
                 Material activeFloorMat = Runner.Effects.BiomeManager.Instance != null
-                    ? Runner.Effects.BiomeManager.Instance.GetFloorMaterialForBiome(Runner.Effects.BiomeType.JungleCanopy)
+                    ? Runner.Effects.BiomeManager.Instance.GetFloorVariant(activeChunks.Count)
                     : lowPolyRoadMatCache;
 
                 if (activeFloorMat == null) activeFloorMat = lowPolyRoadMatCache;

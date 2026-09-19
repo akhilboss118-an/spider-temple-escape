@@ -22,6 +22,7 @@ namespace Runner.Characters
         [Range(0.5f, 2.0f)] public float shieldRating = 1.0f;
         [Range(0.5f, 2.0f)] public float agilityRating = 1.0f;
         public bool isDefaultUnlocked = false;
+        public bool isFemale = false;      // Gender for sound effect variation
 
         public string GetAssetFolder()
         {
@@ -156,7 +157,8 @@ namespace Runner.Characters
                     speedRating = 1.15f,
                     shieldRating = 1.05f,
                     agilityRating = 1.30f,
-                    isDefaultUnlocked = true
+                    isDefaultUnlocked = true,
+                    isFemale = true
                 },
                 new CharacterSlot
                 {
@@ -169,7 +171,8 @@ namespace Runner.Characters
                     speedRating = 1.20f,
                     shieldRating = 0.95f,
                     agilityRating = 1.35f,
-                    isDefaultUnlocked = true
+                    isDefaultUnlocked = true,
+                    isFemale = true
                 },
                 new CharacterSlot
                 {
@@ -208,7 +211,8 @@ namespace Runner.Characters
                     speedRating = 1.20f,
                     shieldRating = 1.15f,
                     agilityRating = 1.30f,
-                    isDefaultUnlocked = true
+                    isDefaultUnlocked = true,
+                    isFemale = true
                 },
                 new CharacterSlot
                 {
@@ -350,6 +354,15 @@ namespace Runner.Characters
         public CharacterSlot GetActiveCharacter()
         {
             return GetCharacter(SelectedCharacterIndex);
+        }
+
+        /// <summary>
+        /// Returns true if the currently selected character is female (for sound effect variation).
+        /// </summary>
+        public bool IsCurrentCharacterFemale()
+        {
+            var active = GetActiveCharacter();
+            return active != null && active.isFemale;
         }
 
         public bool IsCharacterUnlocked(int index)

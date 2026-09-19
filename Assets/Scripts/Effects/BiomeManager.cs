@@ -60,6 +60,7 @@ namespace Runner.Effects
         // Biome Material Caches
         private Material jungleFloorMat;
         private Material jungleCurbMat;
+        private Material[] floorVariants; // Road surface variety
 
         // Interpolation Targets
         private Color targetFogColor;
@@ -377,6 +378,26 @@ namespace Runner.Effects
                 );
                 jungleCurbMat.name = "Biome_Jungle_Curb";
             }
+
+            // Road Surface Variants (mossy stone, worn flagstone, cracked earth, vine-covered)
+            floorVariants = new Material[4];
+            floorVariants[0] = jungleFloorMat; // Base mossy stone
+            floorVariants[1] = CreateFloorVariant("Variant_WornFlagstone", new Color(0.32f, 0.30f, 0.26f), 0.30f);
+            floorVariants[2] = CreateFloorVariant("Variant_CrackedEarth", new Color(0.25f, 0.22f, 0.18f), 0.20f);
+            floorVariants[3] = CreateFloorVariant("Variant_VineCovered", new Color(0.22f, 0.30f, 0.20f), 0.28f);
+        }
+
+        private Material CreateFloorVariant(string variantName, Color tint, float smoothness)
+        {
+            Texture2D tex = Resources.Load<Texture2D>("Textures/Tex_Track");
+            Material mat = MaterialHelper.CreatePBRMaterial(
+                tint,
+                albedo: tex,
+                smoothness: smoothness,
+                emissionColor: tint * 0.08f
+            );
+            mat.name = $"Biome_Jungle_{variantName}";
+            return mat;
         }
 
         public Material GetFloorMaterialForBiome(BiomeType biome)
@@ -386,6 +407,21 @@ namespace Runner.Effects
                 InitializeMaterials();
             }
             return jungleFloorMat;
+        }
+
+        /// <summary>
+        /// Returns a road surface variant based on chunk index for visual variety.
+        /// Cycles through 4 different surface textures (mossy stone, worn flagstone, cracked earth, vine-covered).
+        /// </summary>
+        public Material GetFloorVariant(int chunkIndex)
+        {
+            if (floorVariants == null || floorVariants.Length == 0)
+            {
+                InitializeMaterials();
+            }
+            int variantIdx = Mathf.Abs(chunkIndex) % floorVariants.Length;
+            Material variant = floorVariants[variantIdx];
+            return variant != null ? variant : jungleFloorMat;
         }
 
         public Material GetCurbMaterialForBiome(BiomeType biome)

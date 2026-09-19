@@ -61,6 +61,7 @@ namespace Runner.Track
 
         /// <summary>
         /// Resets all dynamic child obstacles and pickups when re-spawned from the object pool.
+        /// Re-enables SpinningBladeAnimator and LaserBeam components that were disabled during recycling.
         /// </summary>
         public void ResetChunk()
         {
@@ -89,6 +90,14 @@ namespace Runner.Track
                     foreach (var c in obs.GetComponentsInChildren<Collider>(true))
                     {
                         c.enabled = true;
+                    }
+
+                    // Force re-initialize spinning blade animator on pool reuse
+                    var spinner = obs.GetComponentInParent<Runner.Obstacles.SpinningBladeAnimator>();
+                    if (spinner != null)
+                    {
+                        spinner.enabled = false;
+                        spinner.enabled = true;
                     }
                 }
             }

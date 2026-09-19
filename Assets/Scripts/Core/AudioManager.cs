@@ -70,6 +70,13 @@ namespace Runner.Audio
         private AudioClip mysteryChestClip;
         private AudioClip missionCompleteClip;
 
+        // Gender-specific sound clips (female characters get higher-pitched variants)
+        private AudioClip femaleJumpClip;
+        private AudioClip femaleSlideClip;
+        private AudioClip femaleLandClip;
+        private AudioClip laneChangeClip;
+        private AudioClip femaleLaneChangeClip;
+
         // New environmental audio clips
         private AudioClip ambientJungleClip;
         private AudioClip ambientTempleClip;
@@ -406,21 +413,33 @@ namespace Runner.Audio
         public void PlayJump()
         {
             if (sfxSource == null) return;
-            AudioClip clip = customJumpClip != null ? customJumpClip : jumpClip;
+            bool isFemale = Characters.CharacterManager.Instance != null && Characters.CharacterManager.Instance.IsCurrentCharacterFemale();
+            AudioClip clip = customJumpClip != null ? customJumpClip : (isFemale ? femaleJumpClip : jumpClip);
             sfxSource.PlayOneShot(clip, 0.75f);
         }
 
         public void PlaySlide()
         {
             if (sfxSource == null) return;
-            AudioClip clip = customSlideClip != null ? customSlideClip : slideClip;
+            bool isFemale = Characters.CharacterManager.Instance != null && Characters.CharacterManager.Instance.IsCurrentCharacterFemale();
+            AudioClip clip = customSlideClip != null ? customSlideClip : (isFemale ? femaleSlideClip : slideClip);
             sfxSource.PlayOneShot(clip, 0.80f);
         }
 
         public void PlayLand()
         {
-            if (sfxSource == null || landClip == null) return;
-            sfxSource.PlayOneShot(landClip, 0.50f);
+            if (sfxSource == null) return;
+            bool isFemale = Characters.CharacterManager.Instance != null && Characters.CharacterManager.Instance.IsCurrentCharacterFemale();
+            AudioClip clip = isFemale ? femaleLandClip : landClip;
+            if (clip != null) sfxSource.PlayOneShot(clip, 0.50f);
+        }
+
+        public void PlayLaneChange()
+        {
+            if (sfxSource == null) return;
+            bool isFemale = Characters.CharacterManager.Instance != null && Characters.CharacterManager.Instance.IsCurrentCharacterFemale();
+            AudioClip clip = isFemale ? femaleLaneChangeClip : laneChangeClip;
+            if (clip != null) sfxSource.PlayOneShot(clip, 0.55f);
         }
 
         public void PlayCoinChime()
@@ -689,6 +708,33 @@ namespace Runner.Audio
             jungleMusicClip = proceduralBgmClip;
             templeMusicClip = CreateTempleMusicClip("TempleMusic", sampleRate);
             volcanicMusicClip = proceduralBgmVolcanicClip;
+
+            // 21. Gender-specific sound variants (higher pitch for female characters)
+            femaleJumpClip = CreateJumpWhooshClip("FemaleJumpWhoosh", sampleRate, pitchMultiplier: 1.3f);
+            femaleSlideClip = CreateSlideGravelClip("FemaleSlideGravel", sampleRate, pitchMultiplier: 1.25f);
+            femaleLandClip = CreateThudClip("FemaleLandThud", 140f, 0.10f, sampleRate);
+
+            // 22. Lane change / swerve sounds
+            laneChangeClip = CreateLaneChangeClip("LaneChange", sampleRate, 1.0f);
+            femaleLaneChangeClip = CreateLaneChangeClip("FemaleLaneChange", sampleRate, 1.35f);
+        }
+
+        private AudioClip CreateLaneChangeClip(string name, int sampleRate, float pitchMultiplier)
+        {
+            float duration = 0.15f;
+            int samples = Mathf.RoundToInt(duration * sampleRate);
+            float[] data = new float[samples];
+            for (int i = 0; i < samples; i++)
+            {
+                float progress = (float)i / samples;
+                float envelope = Mathf.Sin(progress * Mathf.PI) * 0.6f;
+                float freq = Mathf.Lerp(400f * pitchMultiplier, 650f * pitchMultiplier, progress);
+                float tone = Mathf.Sin(2.0f * Mathf.PI * freq * ((float)i / sampleRate));
+                data[i] = tone * envelope * 0.35f;
+            }
+            AudioClip clip = AudioClip.Create(name, samples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
         }
 
         private AudioClip CreateHarmonicToneClip(string name, float freq, float duration, int sampleRate)
@@ -709,7 +755,7 @@ namespace Runner.Audio
             return clip;
         }
 
-        private AudioClip CreateJumpWhooshClip(string name, int sampleRate)
+        private AudioClip CreateJumpWhooshClip(string name, int sampleRate, float pitchMultiplier = 1.0f)
         {
             float duration = 0.28f;
             int samples = Mathf.RoundToInt(duration * sampleRate);
@@ -720,7 +766,7 @@ namespace Runner.Audio
             {
                 float progress = (float)i / samples;
                 float envelope = Mathf.Sin(progress * Mathf.PI); // Arc envelope
-                float freq = Mathf.Lerp(250f, 950f, progress * progress);
+                float freq = Mathf.Lerp(250f * pitchMultiplier, 950f * pitchMultiplier, progress * progress);
                 float tone = Mathf.Sin(2.0f * Mathf.PI * freq * ((float)i / sampleRate));
                 float noise = ((float)rnd.NextDouble() * 2f - 1f) * 0.4f;
                 data[i] = (tone * 0.6f + noise) * envelope * 0.45f;
@@ -730,7 +776,7 @@ namespace Runner.Audio
             return clip;
         }
 
-        private AudioClip CreateSlideGravelClip(string name, int sampleRate)
+        private AudioClip CreateSlideGravelClip(string name, int sampleRate, float pitchMultiplier = 1.0f)
         {
             float duration = 0.38f;
             int samples = Mathf.RoundToInt(duration * sampleRate);
@@ -744,7 +790,7 @@ namespace Runner.Audio
                 float envelope = Mathf.Pow(1.0f - progress, 0.7f) * Mathf.Min(progress * 10f, 1f);
                 float rawNoise = (float)rnd.NextDouble() * 2f - 1f;
                 filterState += (rawNoise - filterState) * 0.25f; // Low-pass
-                data[i] = filterState * envelope * 0.55f;
+                data[i] = filterState * envelope * 0.55f * pitchMultiplier;
             }
             AudioClip clip = AudioClip.Create(name, samples, 1, sampleRate, false);
             clip.SetData(data, 0);

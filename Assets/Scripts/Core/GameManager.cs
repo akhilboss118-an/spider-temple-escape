@@ -133,6 +133,8 @@ namespace Runner.Core
         public float AudioVolume { get; private set; } = 1.0f;
         public int ControlScheme { get; private set; } = 0; // 0 = Swipe/Keys, 1 = Tilt
         public bool IsHapticsEnabled { get; private set; } = true;
+        private float lastHapticTime = -1f;
+        private const float hapticCooldown = 0.15f;
 
         public bool SpendBankedHearts(int amount)
         {
@@ -554,12 +556,14 @@ namespace Runner.Core
 
             if (stumbleCount >= 2)
             {
+                TriggerHapticHeavy();
                 TriggerGameOver(DeathType.CaughtByMonster);
                 return;
             }
 
             stumbleTimer = stumbleDecayDuration;
             stumbleSlowdownTimer = stumbleSlowdownDuration;
+            TriggerHaptic();
             OnStumbled?.Invoke(stumbleCount, stumbleTimer);
         }
 
@@ -588,6 +592,7 @@ namespace Runner.Core
                 return;
 
             SetState(GameState.GameOver);
+            TriggerHapticHeavy();
             MissionManager.Instance?.ReportRunFinished(Score, DistanceTraveled);
 
             // Save High Score & Best Distance
@@ -749,6 +754,7 @@ namespace Runner.Core
             stayInMenuOnLoad = true;
             SetState(GameState.Menu);
             Time.timeScale = 1.0f;
+            Runner.Effects.PerformanceOptimizer.Instance?.ResetResolutionToNative();
             PlayerPrefs.Save();
             string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             if (string.IsNullOrEmpty(sceneName))
@@ -796,6 +802,28 @@ namespace Runner.Core
         public void TriggerHaptic()
         {
             if (!IsHapticsEnabled) return;
+            if (Time.unscaledTime - lastHapticTime < hapticCooldown) return;
+            lastHapticTime = Time.unscaledTime;
+#if UNITY_ANDROID || UNITY_IOS
+            Handheld.Vibrate();
+#endif
+        }
+
+        public void TriggerHapticLight()
+        {
+            if (!IsHapticsEnabled) return;
+            if (Time.unscaledTime - lastHapticTime < hapticCooldown * 0.5f) return;
+            lastHapticTime = Time.unscaledTime;
+#if UNITY_ANDROID || UNITY_IOS
+            Handheld.Vibrate();
+#endif
+        }
+
+        public void TriggerHapticHeavy()
+        {
+            if (!IsHapticsEnabled) return;
+            if (Time.unscaledTime - lastHapticTime < hapticCooldown * 0.3f) return;
+            lastHapticTime = Time.unscaledTime;
 #if UNITY_ANDROID || UNITY_IOS
             Handheld.Vibrate();
 #endif
