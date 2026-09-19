@@ -446,7 +446,7 @@ export default function Home() {
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
           <Link className="nav-cta" href="/download">
-              ↓ Download APK v2.0
+              ↓ Download APK v3.0
           </Link>
         </div>
       </nav>
@@ -475,7 +475,7 @@ export default function Home() {
         </div>
 
         <div className="container hero-content">
-          <div className="hero-badge">v2.0 Release · Share Stats · Boss Fights · Collapsing Floors · 60 FPS Native APK</div>
+          <div className="hero-badge">v3.0 Release · Photo Mode · Gender Audio · Screenshot Share · Parallax · Swipe Tutorial</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -484,7 +484,7 @@ export default function Home() {
 
           <p className="hero-subtitle">
             Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke through a living jungle that transitions from dawn to night!
-            NEW in v2.0: Share your run stats to social media, face boss fights every 5000m, and survive collapsing floor traps.
+            NEW in v3.0: Photo mode with free camera, screenshot sharing, gender-specific audio, animated title, parallax background, and dynamic resolution scaling.
             Smooth lane switching with lean animation, dynamic day/night cycles, and immersive music fade. All on Android at 60 FPS.
           </p>
 
@@ -493,7 +493,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-               Download APK v2.0
+               Download APK v3.0
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -915,10 +915,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v2.0 · Share Stats · Boss Fights · Collapsing Floors · 60 FPS</div>
+          <div className="download-badge">Native Android APK v3.0 · Photo Mode · Gender Audio · Screenshot Share · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v2.0 directly to your Android device. New: share your run stats to social media, face boss fights every 5000m, survive collapsing floor traps, plus day/night cycle, smooth lane-switching, zombie proximity music fade, and all 8 heroes unlocked.
+            Download the native APK v3.0 directly to your Android device. New: photo mode with free camera, screenshot sharing via native Android share, gender-specific audio for female characters, parallax menu background, animated title, dynamic resolution scaling, swipe tutorial for first-time players, and all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
@@ -926,7 +926,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-               Download APK v2.0 — Free (~140 MB)
+               Download APK v3.0 — Free (~132 MB)
             </Link>
             <a
               className="download-github"
