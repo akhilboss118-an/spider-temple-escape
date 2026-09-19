@@ -106,7 +106,7 @@ namespace Runner.UI
             "⚡ MONSTER BURST // Grab energy cans for invulnerable supersonic barrier speed",
             "💖 SACRED RELICS // Gather glowing Hearts to bank artifacts and survive fatal strikes",
             "🛡️ SHIELD PROTOCOL // Shields absorb one catastrophic obstacle crash without losing momentum",
-            "🔥 VOLCANIC RUINS // Beware collapsing lava tiles and sudden magma plumes at high velocity",
+            "🕷️ ZOMBIE THREAT // The ancient guardian is relentless - keep running!",
             "🕸️ WEB-SLING RECOVERY // Double-check lane indicators before entering foggy temple corridors"
         };
 
@@ -1022,35 +1022,6 @@ namespace Runner.UI
             string mapSub = "ENTER ANCIENT TEMPLE RUINS";
             Color mapAccent = new Color(0.25f, 0.95f, 0.55f);
 
-            var activeMapMode = Runner.Effects.BiomeManager.CurrentMapMode;
-            switch (activeMapMode)
-            {
-                case Runner.Effects.SelectedMapMode.VolcanicInferno:
-                    mapIcon = "🔥";
-                    mapName = "VOLCANIC INFERNO";
-                    mapSub = "CRUMBLING BASALT & MAGMA GOLEM";
-                    mapAccent = new Color(1.0f, 0.45f, 0.10f);
-                    break;
-                case Runner.Effects.SelectedMapMode.FrostbiteCitadel:
-                    mapIcon = "❄️";
-                    mapName = "FROSTBITE CITADEL";
-                    mapSub = "SLICK GLACIAL ICE & BLIZZARD";
-                    mapAccent = new Color(0.40f, 0.85f, 1.0f);
-                    break;
-                case Runner.Effects.SelectedMapMode.EndlessVoyage:
-                    mapIcon = "♾️";
-                    mapName = "ENDLESS VOYAGE";
-                    mapSub = "DYNAMIC EXPEDITION ACROSS ALL MAPS";
-                    mapAccent = new Color(1.0f, 0.85f, 0.25f);
-                    break;
-                default:
-                    mapIcon = "🌿";
-                    mapName = "JUNGLE CANOPY";
-                    mapSub = "ENTER ANCIENT TEMPLE RUINS";
-                    mapAccent = new Color(0.25f, 0.95f, 0.55f);
-                    break;
-            }
-
             DrawGlassCard(mapRect, new Color(0.06f, 0.09f, 0.11f, 0.92f), mapAccent * 0.7f);
             GUI.color = mapAccent;
             GUI.skin.label.alignment = TextAnchor.MiddleLeft;
@@ -1424,129 +1395,56 @@ namespace Runner.UI
             }
         }
 
-        private class MapCardDef
-        {
-            public Runner.Effects.SelectedMapMode mode;
-            public string icon;
-            public string name;
-            public string tag;
-            public string desc;
-            public Color accent;
-
-            public MapCardDef(Runner.Effects.SelectedMapMode m, string i, string n, string t, string d, Color a)
-            {
-                mode = m; icon = i; name = n; tag = t; desc = d; accent = a;
-            }
-        }
-
         private void RenderMapSelectBody(float x, float y, float w, float scale)
         {
-            var curMode = Runner.Effects.BiomeManager.CurrentMapMode;
-
-            MapCardDef[] maps = new MapCardDef[]
-            {
-                new MapCardDef(Runner.Effects.SelectedMapMode.JungleCanopy, "🌿", "JUNGLE CANOPY", "CLASSIC TEMPLE",
-                    "Ancient overgrown Aztec ruins, lush foliage, golden sun & falling leaves.",
-                    new Color(0.25f, 0.95f, 0.55f)),
-
-                new MapCardDef(Runner.Effects.SelectedMapMode.VolcanicInferno, "🔥", "VOLCANIC INFERNO", "CUSTOM 3D PATH & MAGMA GOLEM",
-                    "Basalt pathway over molten lava, hunted by the giant Magma Stone Golem!",
-                    new Color(1.0f, 0.45f, 0.10f)),
-
-                new MapCardDef(Runner.Effects.SelectedMapMode.FrostbiteCitadel, "❄️", "FROSTBITE CITADEL", "GLACIAL ICE RUINS",
-                    "Crystalline frozen ice roads through a blinding mountain blizzard storm.",
-                    new Color(0.40f, 0.85f, 1.0f)),
-
-                new MapCardDef(Runner.Effects.SelectedMapMode.EndlessVoyage, "♾️", "ENDLESS VOYAGE", "DYNAMIC PROGRESSION",
-                    "Continuous journey through Jungle, Frostbite & Volcano across stone gates!",
-                    new Color(1.0f, 0.85f, 0.25f))
-            };
-
-            float cardH = 68f * scale;
-            float cardW = w - (32f * scale);
             float startX = x + (16f * scale);
+            float cardW = w - (32f * scale);
+            float cardH = 68f * scale;
 
-            for (int i = 0; i < maps.Length; i++)
-            {
-                var def = maps[i];
-                float cardY = y + (i * (cardH + (6f * scale)));
-                Rect r = new Rect(startX, cardY, cardW, cardH);
+            // Only Jungle Canopy map
+            Rect r = new Rect(startX, y, cardW, cardH);
+            DrawCard(r, new Color(0.10f, 0.20f, 0.14f, 0.95f));
+            DrawBorder(r, new Color(0.25f, 0.95f, 0.55f, 0.90f), 1.8f * scale);
 
-                bool isSelected = (curMode == def.mode);
+            // Icon
+            GUI.color = new Color(0.25f, 0.95f, 0.55f);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(20 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(startX + (4f * scale), y + (10f * scale), 36f * scale, 36f * scale), "🌿");
 
-                Color cardBg = isSelected ? new Color(def.accent.r * 0.15f, def.accent.g * 0.15f, def.accent.b * 0.15f, 0.95f) :
-                                            new Color(0.06f, 0.08f, 0.10f, 0.88f);
-                DrawCard(r, cardBg);
+            // Title & Tag
+            float textX = startX + (42f * scale);
+            float textW = cardW - (125f * scale);
+            GUI.color = Color.white;
+            GUI.skin.label.alignment = TextAnchor.UpperLeft;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(11f * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(textX, y + (5f * scale), textW, 16f * scale), "JUNGLE CANOPY");
 
-                Color borderCol = isSelected ? def.accent : new Color(def.accent.r, def.accent.g, def.accent.b, 0.35f);
-                DrawBorder(r, borderCol, isSelected ? 1.8f * scale : 1.0f * scale);
+            GUI.color = new Color(0.25f, 0.95f, 0.55f);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(8.5f * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(textX, y + (20f * scale), textW, 14f * scale), "• CLASSIC TEMPLE •");
 
-                // Icon
-                GUI.color = def.accent;
-                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                GUI.skin.label.fontSize = Mathf.RoundToInt(20 * scale);
-                GUI.skin.label.fontStyle = FontStyle.Bold;
-                GUI.Label(new Rect(startX + (4f * scale), cardY + (10f * scale), 36f * scale, 36f * scale), def.icon);
+            GUI.color = new Color(0.70f, 0.75f, 0.80f);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(7.5f * scale);
+            GUI.skin.label.fontStyle = FontStyle.Normal;
+            GUI.Label(new Rect(textX, y + (34f * scale), textW, 30f * scale),
+                "Ancient overgrown Aztec ruins, lush foliage, golden sun & falling leaves.");
 
-                // Title & Tag
-                float textX = startX + (42f * scale);
-                float textW = cardW - (125f * scale);
-                GUI.color = isSelected ? Color.white : new Color(0.92f, 0.92f, 0.92f);
-                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                GUI.skin.label.fontSize = Mathf.RoundToInt(11f * scale);
-                GUI.skin.label.fontStyle = FontStyle.Bold;
-                GUI.Label(new Rect(textX, cardY + (5f * scale), textW, 16f * scale), def.name);
-
-                GUI.color = def.accent;
-                GUI.skin.label.fontSize = Mathf.RoundToInt(8.5f * scale);
-                GUI.skin.label.fontStyle = FontStyle.Bold;
-                GUI.Label(new Rect(textX, cardY + (20f * scale), textW, 14f * scale), $"• {def.tag} •");
-
-                // Description
-                GUI.color = new Color(0.70f, 0.75f, 0.80f);
-                GUI.skin.label.fontSize = Mathf.RoundToInt(7.5f * scale);
-                GUI.skin.label.fontStyle = FontStyle.Normal;
-                GUI.Label(new Rect(textX, cardY + (34f * scale), textW, 30f * scale), def.desc);
-
-                // Action Pill / Button
-                float btnW = 72f * scale;
-                float btnH = 28f * scale;
-                float btnX = startX + cardW - btnW - (8f * scale);
-                float btnY = cardY + ((cardH - btnH) * 0.5f);
-                Rect btnRect = new Rect(btnX, btnY, btnW, btnH);
-
-                if (isSelected)
-                {
-                    DrawGlassPill(btnRect, new Color(0.04f, 0.18f, 0.10f, 0.90f), new Color(0.25f, 0.95f, 0.55f, 0.80f));
-                    GUI.color = new Color(0.35f, 0.98f, 0.65f);
-                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                    GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
-                    GUI.skin.label.fontStyle = FontStyle.Bold;
-                    GUI.Label(btnRect, "✓ ACTIVE");
-                }
-                else
-                {
-                    DrawCard(btnRect, new Color(def.accent.r * 0.35f, def.accent.g * 0.35f, def.accent.b * 0.35f, 0.90f));
-                    DrawBorder(btnRect, def.accent, 1.0f * scale);
-                    GUI.color = Color.white;
-                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                    GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
-                    GUI.skin.label.fontStyle = FontStyle.Bold;
-                    GUI.Label(btnRect, "SELECT");
-
-                    int clickId = 250 + i;
-                    if (IsCardClicked(clickId, r) || IsCardClicked(clickId + 10, btnRect))
-                    {
-                        if (Runner.Effects.BiomeManager.Instance != null)
-                        {
-                            Runner.Effects.BiomeManager.Instance.SetSelectedMap(def.mode);
-                        }
-                        ShowToast(def.icon, $"{def.name} Selected!");
-                        activeModal = MenuModal.None;
-                        return;
-                    }
-                }
-            }
+            // Always active badge
+            float btnW = 72f * scale;
+            float btnH = 28f * scale;
+            float btnX = startX + cardW - btnW - (8f * scale);
+            float btnY = y + ((cardH - btnH) * 0.5f);
+            Rect btnRect = new Rect(btnX, btnY, btnW, btnH);
+            DrawGlassPill(btnRect, new Color(0.04f, 0.18f, 0.10f, 0.90f), new Color(0.25f, 0.95f, 0.55f, 0.80f));
+            GUI.color = new Color(0.35f, 0.98f, 0.65f);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(btnRect, "✓ ACTIVE");
         }
 
         private void RenderHeroSuitsBody(float x, float y, float w, float scale)

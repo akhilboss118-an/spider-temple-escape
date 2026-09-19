@@ -8,18 +8,12 @@ namespace Runner.Effects
 {
     public enum BiomeType
     {
-        JungleCanopy = 0,    // 0m - 1000m: Lush mossy temple stones, tropical golden sun, emerald mist
-        SunkenTemple = 1,    // Weathered ancient Aztec sandstone & 3D Rocky Path
-        VolcanicCaverns = 2, // Dark obsidian basalt, pathway.glb & Magma Golem
-        FrostbiteCitadel = 3 // Frozen crystalline ice ruins, blizzard snowfall, glacial sky
+        JungleCanopy = 0
     }
 
     public enum SelectedMapMode
     {
-        EndlessVoyage = -1,
-        JungleCanopy = 0,
-        VolcanicInferno = 1,
-        FrostbiteCitadel = 2
+        JungleCanopy = 0
     }
 
     /// <summary>
@@ -27,7 +21,7 @@ namespace Runner.Effects
     /// - Smoothly transitions lighting, ambient color, and fog across distinct biomes based on distance traveled or map selection.
     /// - Provides dynamic biome-themed road and curb materials to TrackManager for newly spawned chunks.
     /// - Emits cinematic biome transition toasts and ambient sound transitions.
-    /// - Adds speed wind particles, volcanic embers, and glacial snowflakes.
+    /// - Adds speed wind particles and ambient jungle mist.
     /// </summary>
     public class BiomeManager : MonoBehaviour
     {
@@ -51,11 +45,9 @@ namespace Runner.Effects
         }
 
         public const string PREFS_SELECTED_MAP = "SpiderRunner_SelectedMapMode";
-        public static SelectedMapMode CurrentMapMode { get; private set; } = SelectedMapMode.EndlessVoyage;
+        public static SelectedMapMode CurrentMapMode { get; private set; } = SelectedMapMode.JungleCanopy;
 
-        [Header("Biome Distance Thresholds (Meters)")]
-        [SerializeField] private float templeThreshold = 1000f;
-        [SerializeField] private float volcanicThreshold = 2000f;
+        [Header("Speed Wind Particle Settings")]
 
         [Header("Speed Wind Particle Settings")]
         [SerializeField] private float speedWindThreshold = 14.0f;
@@ -68,15 +60,6 @@ namespace Runner.Effects
         // Biome Material Caches
         private Material jungleFloorMat;
         private Material jungleCurbMat;
-
-        private Material templeFloorMat;
-        private Material templeCurbMat;
-
-        private Material volcanicFloorMat;
-        private Material volcanicCurbMat;
-
-        private Material frostbiteFloorMat;
-        private Material frostbiteCurbMat;
 
         // Interpolation Targets
         private Color targetFogColor;
@@ -93,8 +76,6 @@ namespace Runner.Effects
         // AAA Ambient Particle Systems
         private ParticleSystem ambientMotesParticles;    // Floating dust/spore motes
         private ParticleSystem groundMistParticles;       // Low ground fog/mist
-        private ParticleSystem emberParticles;            // Volcanic ember sparks
-        private ParticleSystem snowParticles;             // Frostbite snowfall particles
 
         // Running Trail Effects
         private ParticleSystem dustTrailParticles;
@@ -102,6 +83,27 @@ namespace Runner.Effects
 
         // Biome-specific ambient color tints
         private Color currentAmbientTint = Color.white;
+
+        // Day/Night Cycle based on distance traveled
+        [Header("Day/Night Cycle")]
+        [Tooltip("Meters for a full day-night cycle")]
+        [SerializeField] private float dayNightCycleLength = 4000.0f;
+
+        // Time-of-day phases: Dawn -> Day -> Dusk -> Night -> Dawn
+        private static readonly Color dawnFogColor = new Color(0.85f, 0.65f, 0.45f);
+        private static readonly Color dayFogColor = new Color(0.68f, 0.88f, 0.95f);
+        private static readonly Color duskFogColor = new Color(0.75f, 0.45f, 0.35f);
+        private static readonly Color nightFogColor = new Color(0.08f, 0.10f, 0.18f);
+
+        private static readonly Color dawnLightColor = new Color(1.0f, 0.80f, 0.55f);
+        private static readonly Color dayLightColor = new Color(1.0f, 0.96f, 0.88f);
+        private static readonly Color duskLightColor = new Color(1.0f, 0.65f, 0.35f);
+        private static readonly Color nightLightColor = new Color(0.25f, 0.30f, 0.55f);
+
+        private static readonly Color dawnAmbientSky = new Color(0.90f, 0.70f, 0.55f);
+        private static readonly Color dayAmbientSky = new Color(0.78f, 0.95f, 1.0f);
+        private static readonly Color duskAmbientSky = new Color(0.85f, 0.50f, 0.40f);
+        private static readonly Color nightAmbientSky = new Color(0.10f, 0.12f, 0.25f);
 
         private void Awake()
         {
@@ -116,8 +118,6 @@ namespace Runner.Effects
             InitializeSpeedWindParticles();
             InitializeAmbientMotes();
             InitializeGroundMist();
-            InitializeEmberParticles();
-            InitializeSnowParticles();
             InitializeDustTrail();
             InitializeSpeedStreakTrail();
         }
@@ -125,33 +125,25 @@ namespace Runner.Effects
         private void Start()
         {
             FindDirectionalLight();
-            int savedMode = PlayerPrefs.GetInt(PREFS_SELECTED_MAP, -1);
-            CurrentMapMode = (SelectedMapMode)savedMode;
-            BiomeType startingBiome = GetInitialBiomeForMode(CurrentMapMode);
-            SetBiomeInstant(startingBiome);
+            CurrentMapMode = SelectedMapMode.JungleCanopy;
+            SetBiomeInstant(BiomeType.JungleCanopy);
         }
 
         public void SetSelectedMap(SelectedMapMode mode)
         {
-            CurrentMapMode = mode;
-            PlayerPrefs.SetInt(PREFS_SELECTED_MAP, (int)mode);
+            CurrentMapMode = SelectedMapMode.JungleCanopy;
+            PlayerPrefs.SetInt(PREFS_SELECTED_MAP, (int)CurrentMapMode);
             PlayerPrefs.Save();
-            BiomeType targetBiome = GetInitialBiomeForMode(mode);
-            SetBiomeInstant(targetBiome);
+            SetBiomeInstant(BiomeType.JungleCanopy);
             if (Runner.Monster.MonsterChaser.Instance != null)
             {
-                Runner.Monster.MonsterChaser.Instance.ApplyBiomeMonster(targetBiome);
+                Runner.Monster.MonsterChaser.Instance.ApplyBiomeMonster(BiomeType.JungleCanopy);
             }
         }
 
         public static BiomeType GetInitialBiomeForMode(SelectedMapMode mode)
         {
-            return mode switch
-            {
-                SelectedMapMode.VolcanicInferno => BiomeType.VolcanicCaverns,
-                SelectedMapMode.FrostbiteCitadel => BiomeType.FrostbiteCitadel,
-                _ => BiomeType.JungleCanopy
-            };
+            return BiomeType.JungleCanopy;
         }
 
         private void FindDirectionalLight()
@@ -185,37 +177,24 @@ namespace Runner.Effects
         {
             float dt = Time.deltaTime;
 
-            // 1. Evaluate Current Biome based on player distance (only when in EndlessVoyage mode)
             if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Playing)
             {
-                if (CurrentMapMode == SelectedMapMode.EndlessVoyage)
-                {
-                    float dist = GameManager.Instance.DistanceTraveled;
-                    BiomeType evalBiome = EvaluateBiomeForDistance(dist);
-
-                    if (evalBiome != CurrentBiome)
-                    {
-                        TransitionToBiome(evalBiome);
-                    }
-                }
-
-                // 2. Update Speed Wind Lines
+                // Update Speed Wind Lines
                 UpdateSpeedWindParticles(GameManager.Instance.CurrentSpeed);
 
-                // 3. Update Ambient Particles (motes, mist, embers, snow)
+                // Update Ambient Particles
                 UpdateAmbientParticles(GameManager.Instance.CurrentSpeed, CurrentBiome);
+
+                // Update Day/Night Cycle
+                UpdateDayNightCycle(GameManager.Instance.DistanceTraveled);
             }
 
-            // 4. Smooth Atmospheric Lerp
+            // Smooth Atmospheric Lerp
             LerpAtmosphere(dt);
         }
 
         public BiomeType EvaluateBiomeForDistance(float distance)
         {
-            if (distance >= volcanicThreshold)
-                return BiomeType.VolcanicCaverns;
-            if (distance >= templeThreshold)
-                return BiomeType.FrostbiteCitadel;
             return BiomeType.JungleCanopy;
         }
 
@@ -223,63 +202,17 @@ namespace Runner.Effects
         {
             CurrentBiome = newBiome;
 
-            string toastIcon = "";
-            string toastTitle = "";
+            string toastIcon = "🌿";
+            string toastTitle = "Entering Overgrown Jungle Canopy";
 
-            switch (newBiome)
-            {
-                case BiomeType.JungleCanopy:
-                    toastIcon = "🌿";
-                    toastTitle = "Entering Overgrown Jungle Canopy";
-                    SetAtmosphericTargets(
-                        fogCol: new Color(0.68f, 0.88f, 0.95f),
-                        fogStart: 80.0f, fogEnd: 175.0f,
-                        ambientSky: new Color(0.78f, 0.95f, 1.0f),
-                        ambientGround: new Color(0.48f, 0.52f, 0.38f),
-                        lightCol: new Color(1.0f, 0.96f, 0.88f),
-                        lightIntensity: 1.60f
-                    );
-                    break;
-
-                case BiomeType.SunkenTemple:
-                    toastIcon = "🏛️";
-                    toastTitle = "Entering Sunken Temple (Ancient Rocky Path)";
-                    SetAtmosphericTargets(
-                        fogCol: new Color(0.88f, 0.78f, 0.58f),
-                        fogStart: 65.0f, fogEnd: 165.0f,
-                        ambientSky: new Color(0.82f, 0.72f, 0.50f),
-                        ambientGround: new Color(0.45f, 0.35f, 0.22f),
-                        lightCol: new Color(1.0f, 0.86f, 0.50f),
-                        lightIntensity: 1.60f
-                    );
-                    break;
-
-                case BiomeType.VolcanicCaverns:
-                    toastIcon = "🔥";
-                    toastTitle = "Entering Volcanic Highway Caverns";
-                    SetAtmosphericTargets(
-                        fogCol: new Color(0.68f, 0.22f, 0.15f),
-                        fogStart: 55.0f, fogEnd: 155.0f,
-                        ambientSky: new Color(0.72f, 0.25f, 0.18f),
-                        ambientGround: new Color(0.42f, 0.12f, 0.08f),
-                        lightCol: new Color(1.0f, 0.55f, 0.22f),
-                        lightIntensity: 1.65f
-                    );
-                    break;
-
-                case BiomeType.FrostbiteCitadel:
-                    toastIcon = "❄️";
-                    toastTitle = "Entering Frostbite Citadel (Glacial Ruins)";
-                    SetAtmosphericTargets(
-                        fogCol: new Color(0.72f, 0.86f, 0.96f),
-                        fogStart: 50.0f, fogEnd: 160.0f,
-                        ambientSky: new Color(0.78f, 0.90f, 1.0f),
-                        ambientGround: new Color(0.50f, 0.65f, 0.80f),
-                        lightCol: new Color(0.92f, 0.96f, 1.0f),
-                        lightIntensity: 1.55f
-                    );
-                    break;
-            }
+            SetAtmosphericTargets(
+                fogCol: new Color(0.68f, 0.88f, 0.95f),
+                fogStart: 80.0f, fogEnd: 175.0f,
+                ambientSky: new Color(0.78f, 0.95f, 1.0f),
+                ambientGround: new Color(0.48f, 0.52f, 0.38f),
+                lightCol: new Color(1.0f, 0.96f, 0.88f),
+                lightIntensity: 1.60f
+            );
 
             if (Runner.UI.UIManager.Instance != null)
             {
@@ -298,36 +231,10 @@ namespace Runner.Effects
 
         private void ApplyBiomeSkybox(BiomeType biome)
         {
-            // Load procedural skybox materials
             Material jungleSky = Resources.Load<Material>("Materials/Mat_TempleSkybox");
-            Material templeSky = CreateBiomeSkyboxMaterial(
-                new Color(0.85f, 0.72f, 0.45f),
-                new Color(0.65f, 0.55f, 0.35f),
-                0.6f
-            );
-            Material volcanicSky = CreateBiomeSkyboxMaterial(
-                new Color(0.45f, 0.15f, 0.10f),
-                new Color(0.25f, 0.08f, 0.05f),
-                0.8f
-            );
-            Material frostSky = CreateBiomeSkyboxMaterial(
-                new Color(0.55f, 0.72f, 0.88f),
-                new Color(0.85f, 0.92f, 0.98f),
-                0.65f
-            );
-
-            Material targetSky = biome switch
+            if (jungleSky != null)
             {
-                BiomeType.JungleCanopy => jungleSky,
-                BiomeType.SunkenTemple => templeSky,
-                BiomeType.VolcanicCaverns => volcanicSky,
-                BiomeType.FrostbiteCitadel => frostSky,
-                _ => jungleSky
-            };
-
-            if (targetSky != null)
-            {
-                RenderSettings.skybox = targetSky;
+                RenderSettings.skybox = jungleSky;
             }
         }
 
@@ -373,6 +280,59 @@ namespace Runner.Effects
             }
         }
 
+        private void UpdateDayNightCycle(float distance)
+        {
+            // Cycle through 4 phases: Dawn (0-25%), Day (25-50%), Dusk (50-75%), Night (75-100%)
+            float cyclePosition = (distance % dayNightCycleLength) / dayNightCycleLength;
+            float quarterDay = dayNightCycleLength * 0.25f;
+            float phasePosition = (distance % quarterDay) / quarterDay;
+
+            Color fogColor, lightColor, ambientColor;
+            float lightIntensity;
+
+            if (cyclePosition < 0.25f)
+            {
+                // Dawn -> Day
+                fogColor = Color.Lerp(dawnFogColor, dayFogColor, phasePosition);
+                lightColor = Color.Lerp(dawnLightColor, dayLightColor, phasePosition);
+                ambientColor = Color.Lerp(dawnAmbientSky, dayAmbientSky, phasePosition);
+                lightIntensity = Mathf.Lerp(1.2f, 1.6f, phasePosition);
+            }
+            else if (cyclePosition < 0.50f)
+            {
+                // Day -> Dusk
+                fogColor = Color.Lerp(dayFogColor, duskFogColor, phasePosition);
+                lightColor = Color.Lerp(dayLightColor, duskLightColor, phasePosition);
+                ambientColor = Color.Lerp(dayAmbientSky, duskAmbientSky, phasePosition);
+                lightIntensity = Mathf.Lerp(1.6f, 1.1f, phasePosition);
+            }
+            else if (cyclePosition < 0.75f)
+            {
+                // Dusk -> Night
+                fogColor = Color.Lerp(duskFogColor, nightFogColor, phasePosition);
+                lightColor = Color.Lerp(duskLightColor, nightLightColor, phasePosition);
+                ambientColor = Color.Lerp(duskAmbientSky, nightAmbientSky, phasePosition);
+                lightIntensity = Mathf.Lerp(1.1f, 0.4f, phasePosition);
+            }
+            else
+            {
+                // Night -> Dawn
+                fogColor = Color.Lerp(nightFogColor, dawnFogColor, phasePosition);
+                lightColor = Color.Lerp(nightLightColor, dawnLightColor, phasePosition);
+                ambientColor = Color.Lerp(nightAmbientSky, dawnAmbientSky, phasePosition);
+                lightIntensity = Mathf.Lerp(0.4f, 1.2f, phasePosition);
+            }
+
+            SetAtmosphericTargets(
+                fogCol: fogColor,
+                fogStart: 80.0f, fogEnd: 175.0f,
+                ambientSky: ambientColor,
+                ambientGround: new Color(0.48f, 0.52f, 0.38f),
+                lightCol: lightColor,
+                lightIntensity: lightIntensity
+            );
+        }
+
         private void LerpAtmosphere(float dt)
         {
             float lerpSpeed = dt * 1.2f;
@@ -393,7 +353,7 @@ namespace Runner.Effects
         #region Material Generation for Biomes
         private void InitializeMaterials()
         {
-            // 1. Jungle Canopy Materials (Lush Mossy Stone & Carved Relief Curb)
+            // Jungle Canopy Materials (Lush Mossy Stone & Carved Relief Curb)
             jungleFloorMat = Resources.Load<Material>("Materials/Mat_Track");
             if (jungleFloorMat == null)
             {
@@ -417,93 +377,24 @@ namespace Runner.Effects
                 );
                 jungleCurbMat.name = "Biome_Jungle_Curb";
             }
-
-            // 2. Sunken Temple Materials (Gilded Weathered Sandstone)
-            Texture2D templeFloorTex = Resources.Load<Texture2D>("Textures/Tex_TempleRunway");
-            templeFloorMat = MaterialHelper.CreatePBRMaterial(
-                new Color(0.50f, 0.44f, 0.32f),
-                albedo: templeFloorTex,
-                metallicValue: 0.08f,
-                smoothness: 0.35f,
-                emissionColor: new Color(0.15f, 0.10f, 0.03f) * 0.8f
-            );
-            templeFloorMat.name = "Biome_Temple_Floor";
-
-            Texture2D templeCurbTex = Resources.Load<Texture2D>("Textures/Tex_TempleCurb");
-            templeCurbMat = MaterialHelper.CreatePBRMaterial(
-                new Color(0.32f, 0.28f, 0.20f),
-                albedo: templeCurbTex,
-                metallicValue: 0.05f,
-                smoothness: 0.30f
-            );
-            templeCurbMat.name = "Biome_Temple_Curb";
-
-            // 3. Volcanic Caverns Materials (Dark Obsidian Basalt with Ember Sheen)
-            Texture2D volcanicTex = Resources.Load<Texture2D>("Textures/Tex_Obstacle");
-            volcanicFloorMat = MaterialHelper.CreatePBRMaterial(
-                new Color(0.12f, 0.12f, 0.15f),
-                albedo: volcanicTex,
-                metallicValue: 0.45f,
-                smoothness: 0.65f,
-                emissionColor: new Color(0.40f, 0.08f, 0.02f)
-            );
-            volcanicFloorMat.name = "Biome_Volcanic_Floor";
-
-            volcanicCurbMat = MaterialHelper.CreatePBRMaterial(
-                new Color(0.10f, 0.08f, 0.08f),
-                metallicValue: 0.35f,
-                smoothness: 0.55f,
-                emissionColor: new Color(0.25f, 0.04f, 0.01f)
-            );
-            volcanicCurbMat.name = "Biome_Volcanic_Curb";
-
-            // 4. Frostbite Citadel Materials (Crystalline Glacial Ice & Snowy Curb)
-            frostbiteFloorMat = MaterialHelper.CreatePBRMaterial(
-                new Color(0.68f, 0.85f, 0.95f),
-                metallicValue: 0.15f,
-                smoothness: 0.88f,
-                emissionColor: new Color(0.04f, 0.12f, 0.22f)
-            );
-            frostbiteFloorMat.name = "Biome_Frostbite_Floor";
-
-            frostbiteCurbMat = MaterialHelper.CreatePBRMaterial(
-                new Color(0.85f, 0.92f, 0.98f),
-                metallicValue: 0.05f,
-                smoothness: 0.45f
-            );
-            frostbiteCurbMat.name = "Biome_Frostbite_Curb";
         }
 
         public Material GetFloorMaterialForBiome(BiomeType biome)
         {
-            if (jungleFloorMat == null || volcanicFloorMat == null || frostbiteFloorMat == null)
+            if (jungleFloorMat == null)
             {
                 InitializeMaterials();
             }
-
-            return biome switch
-            {
-                BiomeType.SunkenTemple => templeFloorMat,
-                BiomeType.VolcanicCaverns => volcanicFloorMat,
-                BiomeType.FrostbiteCitadel => frostbiteFloorMat,
-                _ => jungleFloorMat
-            };
+            return jungleFloorMat;
         }
 
         public Material GetCurbMaterialForBiome(BiomeType biome)
         {
-            if (jungleCurbMat == null || volcanicCurbMat == null || frostbiteCurbMat == null)
+            if (jungleCurbMat == null)
             {
                 InitializeMaterials();
             }
-
-            return biome switch
-            {
-                BiomeType.SunkenTemple => templeCurbMat,
-                BiomeType.VolcanicCaverns => volcanicCurbMat,
-                BiomeType.FrostbiteCitadel => frostbiteCurbMat,
-                _ => jungleCurbMat
-            };
+            return jungleCurbMat;
         }
         #endregion
 
@@ -793,66 +684,6 @@ namespace Runner.Effects
             groundMistParticles.Stop();
         }
 
-        private void InitializeEmberParticles()
-        {
-            GameObject emberObj = new GameObject("EmberParticles");
-            emberObj.transform.SetParent(transform, false);
-
-            emberParticles = emberObj.AddComponent<ParticleSystem>();
-            PrepareParticleSystemForSetup(emberParticles);
-            var main = emberParticles.main;
-            main.maxParticles = 30;
-            main.duration = 1f;
-            main.loop = true;
-            main.startLifetime = 2.5f;
-            main.startSpeed = 1.4f;
-            main.startSize = 0.07f;
-            main.startColor = new Color(1f, 0.55f, 0.10f, 0.8f);
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-
-            var emission = emberParticles.emission;
-            emission.rateOverTime = 0;
-
-            var shape = emberParticles.shape;
-            shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(12f, 1f, 12f);
-
-            var renderer = emberObj.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Billboard;
-
-            // Dedicated soft fiery ember material — zero solid white squares!
-            renderer.sharedMaterial = CreateParticleMaterial(new Color(1f, 0.55f, 0.12f, 0.85f), GetSoftCircleTexture(), isAdditive: true);
-        }
-
-        private void InitializeSnowParticles()
-        {
-            GameObject snowObj = new GameObject("SnowParticles");
-            snowObj.transform.SetParent(transform, false);
-
-            snowParticles = snowObj.AddComponent<ParticleSystem>();
-            PrepareParticleSystemForSetup(snowParticles);
-            var main = snowParticles.main;
-            main.maxParticles = 50;
-            main.duration = 1f;
-            main.loop = true;
-            main.startLifetime = 3.2f;
-            main.startSpeed = 3.5f;
-            main.startSize = 0.09f;
-            main.startColor = new Color(0.92f, 0.96f, 1.0f, 0.85f);
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-
-            var emission = snowParticles.emission;
-            emission.rateOverTime = 0;
-
-            var shape = snowParticles.shape;
-            shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(14f, 1f, 14f);
-
-            var renderer = snowObj.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Billboard;
-            renderer.sharedMaterial = CreateParticleMaterial(new Color(0.92f, 0.96f, 1.0f, 0.85f), GetSoftCircleTexture(), isAdditive: true);
-        }
-
         private void UpdateAmbientParticles(float speed, BiomeType biome)
         {
             if (ambientMotesParticles == null || groundMistParticles == null || PlayerController.Instance == null) return;
@@ -862,40 +693,6 @@ namespace Runner.Effects
             // Keep ambient motes near the player
             ambientMotesParticles.transform.position = playerT.position + Vector3.up * 2.5f;
             groundMistParticles.transform.position = playerT.position + Vector3.up * 0.3f;
-
-            // Ember particles follow in volcanic biome only
-            if (emberParticles != null)
-            {
-                emberParticles.transform.position = playerT.position + Vector3.up * 0.5f;
-                if (biome == BiomeType.VolcanicCaverns && speed > 8f)
-                {
-                    var emberEmission = emberParticles.emission;
-                    emberEmission.rateOverTime = 14f;
-                    if (!emberParticles.isPlaying) emberParticles.Play();
-                }
-                else
-                {
-                    var emberEmission = emberParticles.emission;
-                    emberEmission.rateOverTime = 0f;
-                }
-            }
-
-            // Snow particles follow in Frostbite Citadel only
-            if (snowParticles != null)
-            {
-                snowParticles.transform.position = playerT.position + Vector3.up * 5.0f + playerT.forward * 3.0f;
-                if (biome == BiomeType.FrostbiteCitadel && speed > 5f)
-                {
-                    var snowEmission = snowParticles.emission;
-                    snowEmission.rateOverTime = 25f;
-                    if (!snowParticles.isPlaying) snowParticles.Play();
-                }
-                else
-                {
-                    var snowEmission = snowParticles.emission;
-                    snowEmission.rateOverTime = 0f;
-                }
-            }
 
             // Ambient motes only when playing
             if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Playing)
@@ -909,8 +706,6 @@ namespace Runner.Effects
             {
                 if (ambientMotesParticles.isPlaying) ambientMotesParticles.Stop();
                 if (groundMistParticles.isPlaying) groundMistParticles.Stop();
-                if (emberParticles != null && emberParticles.isPlaying) emberParticles.Stop();
-                if (snowParticles != null && snowParticles.isPlaying) snowParticles.Stop();
                 if (dustTrailParticles != null && dustTrailParticles.isPlaying) dustTrailParticles.Stop();
                 if (speedStreakTrail != null && speedStreakTrail.isPlaying) speedStreakTrail.Stop();
             }

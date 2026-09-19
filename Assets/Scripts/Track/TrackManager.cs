@@ -468,8 +468,6 @@ namespace Runner.Track
         private GameObject treeBranchSlidePrefab;
         private GameObject lowPolyRoadPrefab;
         private GameObject stoneGatePrefab;
-        private GameObject volcanoPathwayPrefab;
-        private Material volcanoPathwayMatCache;
         private GameObject torchBrazierPrefab;
 
         // New obstacle models
@@ -498,20 +496,6 @@ namespace Runner.Track
                 if (lowPolyRoadPrefab != null)
                 {
                     Debug.Log("[TrackManager] 3D Low-Poly Road Model Loaded Successfully: " + lowPolyRoadPrefab.name);
-                }
-            }
-            if (volcanoPathwayPrefab == null)
-            {
-                volcanoPathwayPrefab = Resources.Load<GameObject>("Path/pathway");
-                #if UNITY_EDITOR
-                if (volcanoPathwayPrefab == null)
-                    volcanoPathwayPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/pathway.obj");
-                if (volcanoPathwayPrefab == null)
-                    volcanoPathwayPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Path/pathway.glb");
-                #endif
-                if (volcanoPathwayPrefab != null)
-                {
-                    Debug.Log("[TrackManager] 3D Volcano Pathway Model Loaded Successfully: " + volcanoPathwayPrefab.name);
                 }
             }
             if (stoneGatePrefab == null)
@@ -1073,36 +1057,6 @@ namespace Runner.Track
                 lowPolyRoadMatCache = MaterialHelper.CreateSafeMaterial(Color.white, diff);
             }
 
-            if (volcanoPathwayMatCache == null)
-            {
-                Texture2D pathTex = Resources.Load<Texture2D>("Path/pathway_tex_0");
-                #if UNITY_EDITOR
-                if (pathTex == null)
-                    pathTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/pathway_tex_0.png");
-                #endif
-
-                Texture2D pathNorm = Resources.Load<Texture2D>("Path/pathway_norm_0");
-                #if UNITY_EDITOR
-                if (pathNorm == null)
-                    pathNorm = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/Path/pathway_norm_0.png");
-                #endif
-
-                volcanoPathwayMatCache = MaterialHelper.CreatePBRMaterial(
-                    new Color(0.85f, 0.82f, 0.80f),
-                    albedo: pathTex,
-                    metallicValue: 0.25f,
-                    smoothness: 0.55f,
-                    emissionColor: new Color(0.40f, 0.12f, 0.02f)
-                );
-                volcanoPathwayMatCache.name = "Mat_VolcanoPathway";
-
-                if (volcanoPathwayMatCache != null && pathNorm != null && volcanoPathwayMatCache.HasProperty("_BumpMap"))
-                {
-                    volcanoPathwayMatCache.SetTexture("_BumpMap", pathNorm);
-                    volcanoPathwayMatCache.EnableKeyword("_NORMALMAP");
-                }
-            }
-
             if (stoneGateMatCache == null)
             {
                 Texture2D diff = Resources.Load<Texture2D>("Environment/stone_gate_tex_0");
@@ -1199,11 +1153,17 @@ namespace Runner.Track
 
             if (spinningBladeMatCache == null)
             {
+                Texture2D bladeTex = Resources.Load<Texture2D>("Textures/Tex_Obstacle");
+                #if UNITY_EDITOR
+                if (bladeTex == null)
+                    bladeTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Tex_Obstacle.png");
+                #endif
                 spinningBladeMatCache = MaterialHelper.CreatePBRMaterial(
-                    new Color(0.35f, 0.35f, 0.40f),
+                    new Color(0.45f, 0.45f, 0.50f),
+                    albedo: bladeTex,
                     metallicValue: 0.85f,
                     smoothness: 0.75f,
-                    emissionColor: new Color(0.15f, 0.20f, 0.35f) * 1.2f
+                    emissionColor: new Color(0.20f, 0.25f, 0.40f) * 1.5f
                 );
             }
 
@@ -2580,7 +2540,7 @@ namespace Runner.Track
 
         /// <summary>
         /// Spinning blade obstacle - rotating hazard that must be jumped over
-        /// Uses the spinning_blade_model.glb 3D model
+        /// Uses the spinning_blade_model.glb 3D model with its own textures preserved.
         /// </summary>
         private GameObject SpawnSpinningBladeObstacle(Transform parent, Vector3 localPos)
         {
@@ -2593,19 +2553,50 @@ namespace Runner.Track
 
             if (spinningBladeModelPrefab != null)
             {
-                // Use the actual GLB model
+                // Instantiate the full GLB model (preserves hierarchy & embedded textures)
                 GameObject bladeVisual = Instantiate(spinningBladeModelPrefab, bladeRoot.transform);
                 bladeVisual.name = "SpinningBlade_Visual";
                 bladeVisual.transform.localPosition = Vector3.zero;
                 bladeVisual.transform.localRotation = Quaternion.identity;
-                bladeVisual.transform.localScale = Vector3.one * 1.5f;
 
+                // Remove colliders from imported model (we add our own)
                 foreach (var col in bladeVisual.GetComponentsInChildren<Collider>())
                     Destroy(col);
 
-                // Apply dedicated spinning blade material
-                if (spinningBladeMatCache != null)
+                // Measure bounds to auto-scale to a visible size
+                Renderer[] rList = bladeVisual.GetComponentsInChildren<Renderer>();
+                if (rList.Length > 0)
                 {
+                    Bounds b = rList[0].bounds;
+                    for (int i = 1; i < rList.Length; i++) b.Encapsulate(rList[i].bounds);
+
+                    // Target: blade assembly ~1.2m tall, ~2.4m wide
+                    float targetH = 1.2f;
+                    float targetW = 2.4f;
+                    if (b.size.y > 0.01f && b.size.x > 0.01f)
+                    {
+                        float sH = targetH / b.size.y;
+                        float sW = targetW / b.size.x;
+                        float s = Mathf.Min(sH, sW);
+                        s = Mathf.Clamp(s, 0.3f, 5.0f);
+                        bladeVisual.transform.localScale = Vector3.one * s;
+                    }
+                }
+
+                // Check if the GLB already has textured materials, otherwise apply fallback
+                bool hasTextures = false;
+                foreach (var r in rList)
+                {
+                    if (r != null && r.sharedMaterial != null && r.sharedMaterial.mainTexture != null)
+                    {
+                        hasTextures = true;
+                        break;
+                    }
+                }
+
+                if (!hasTextures && spinningBladeMatCache != null)
+                {
+                    // GLB models often load with default white materials - apply our textured PBR material
                     foreach (var r in bladeVisual.GetComponentsInChildren<Renderer>())
                     {
                         Material[] mats = new Material[r.sharedMaterials.Length];
@@ -2616,7 +2607,7 @@ namespace Runner.Track
             }
             else
             {
-                // Fallback: spinning blade from primitives
+                // Fallback: procedural spinning blade from primitives
                 GameObject blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 blade.name = "BladeMesh";
                 blade.transform.SetParent(bladeRoot.transform, false);
@@ -2624,7 +2615,7 @@ namespace Runner.Track
                 blade.transform.localScale = new Vector3(2.0f, 0.1f, 0.3f);
                 Destroy(blade.GetComponent<Collider>());
 
-                Material bladeMat = MaterialHelper.CreatePBRMaterial(
+                Material bladeMat = spinningBladeMatCache ?? MaterialHelper.CreatePBRMaterial(
                     new Color(0.7f, 0.7f, 0.75f),
                     metallicValue: 0.80f,
                     smoothness: 0.85f,
@@ -2642,10 +2633,10 @@ namespace Runner.Track
                 if (obstacleMatCache != null) pillar.GetComponent<MeshRenderer>().sharedMaterial = obstacleMatCache;
             }
 
-            // BoxCollider for collision
+            // BoxCollider for collision (player must jump over it)
             BoxCollider bc = bladeRoot.AddComponent<BoxCollider>();
-            bc.center = new Vector3(0, 0.8f, 0);
-            bc.size = new Vector3(2.2f, 0.6f, 0.8f);
+            bc.center = new Vector3(0, 0.7f, 0);
+            bc.size = new Vector3(2.6f, 0.8f, 0.8f);
 
             var obs = bladeRoot.AddComponent<Obstacle>();
             obs.SetObstacleType(ObstacleType.SpinningBlade);
@@ -2766,99 +2757,43 @@ namespace Runner.Track
             {
                 Transform r2 = chunk != null ? chunk.transform.Find("Road3D_Tier2") : null;
                 if (r2 != null) r2.gameObject.SetActive(false);
-                Transform rv = chunk != null ? chunk.transform.Find("Road3D_Volcano") : null;
-                if (rv != null) rv.gameObject.SetActive(false);
                 return;
             }
 
             Ensure3DModels();
             EnsureMaterials();
 
-            var curBiome = Runner.Effects.BiomeManager.Instance != null
-                ? Runner.Effects.BiomeManager.Instance.CurrentBiome
-                : Runner.Effects.BiomeType.JungleCanopy;
-
             Transform t2 = chunk.transform.Find("Road3D_Tier2");
-            Transform tv = chunk.transform.Find("Road3D_Volcano");
 
-            // 1. Volcanic Inferno Map: Use custom pathway.glb
-            if (curBiome == Runner.Effects.BiomeType.VolcanicCaverns && volcanoPathwayPrefab != null)
+            if (t2 == null && lowPolyRoadPrefab != null)
             {
-                if (tv == null)
-                {
-                    GameObject vObj = Instantiate(volcanoPathwayPrefab, chunk.transform);
-                    vObj.name = "Road3D_Volcano";
-                    vObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
-                    vObj.transform.localRotation = Quaternion.identity;
+                GameObject rObj = Instantiate(lowPolyRoadPrefab, chunk.transform);
+                rObj.name = "Road3D_Tier2";
+                rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
+                rObj.transform.localRotation = Quaternion.identity;
+                rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
 
-                    foreach (var col in vObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
-
-                    // Normalise scale to 4.2m width and 10.0m chunk length
-                    Renderer[] rList = vObj.GetComponentsInChildren<Renderer>();
-                    if (rList.Length > 0)
-                    {
-                        Bounds b = rList[0].bounds;
-                        for (int i = 1; i < rList.Length; i++) b.Encapsulate(rList[i].bounds);
-
-                        float curX = Mathf.Max(0.1f, b.size.x);
-                        float curZ = Mathf.Max(0.1f, b.size.z);
-                        float sx = 4.2f / curX;
-                        float sz = 10.0f / curZ;
-                        float sy = Mathf.Clamp(Mathf.Min(sx, sz), 0.4f, 2.0f);
-                        vObj.transform.localScale = new Vector3(sx, sy, sz);
-                    }
-
-                    if (volcanoPathwayMatCache != null)
-                    {
-                        foreach (var r in vObj.GetComponentsInChildren<Renderer>())
-                        {
-                            Material[] mats = new Material[r.sharedMaterials.Length];
-                            for (int m = 0; m < mats.Length; m++) mats[m] = volcanoPathwayMatCache;
-                            r.sharedMaterials = mats;
-                        }
-                    }
-                    tv = vObj.transform;
-                }
-
-                if (tv != null) tv.gameObject.SetActive(true);
-                if (t2 != null) t2.gameObject.SetActive(false);
+                foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
+                t2 = rObj.transform;
             }
-            else
+
+            if (t2 != null)
             {
-                // Non-volcanic biomes: Hide volcano road, show low-poly road
-                if (tv != null) tv.gameObject.SetActive(false);
+                t2.gameObject.SetActive(true);
 
-                if (t2 == null && lowPolyRoadPrefab != null)
+                Material activeFloorMat = Runner.Effects.BiomeManager.Instance != null
+                    ? Runner.Effects.BiomeManager.Instance.GetFloorMaterialForBiome(Runner.Effects.BiomeType.JungleCanopy)
+                    : lowPolyRoadMatCache;
+
+                if (activeFloorMat == null) activeFloorMat = lowPolyRoadMatCache;
+
+                if (activeFloorMat != null)
                 {
-                    GameObject rObj = Instantiate(lowPolyRoadPrefab, chunk.transform);
-                    rObj.name = "Road3D_Tier2";
-                    rObj.transform.localPosition = new Vector3(0, 0.02f, 5.0f);
-                    rObj.transform.localRotation = Quaternion.identity;
-                    rObj.transform.localScale = new Vector3(2.533f, 1.0f, 3.336f);
-
-                    foreach (var col in rObj.GetComponentsInChildren<Collider>()) SafeDestroy(col);
-                    t2 = rObj.transform;
-                }
-
-                if (t2 != null)
-                {
-                    t2.gameObject.SetActive(true);
-
-                    // Apply biome-appropriate material (e.g., crystalline ice in Frostbite Citadel)
-                    Material activeFloorMat = Runner.Effects.BiomeManager.Instance != null
-                        ? Runner.Effects.BiomeManager.Instance.GetFloorMaterialForBiome(curBiome)
-                        : lowPolyRoadMatCache;
-
-                    if (activeFloorMat == null) activeFloorMat = lowPolyRoadMatCache;
-
-                    if (activeFloorMat != null)
+                    foreach (var r in t2.GetComponentsInChildren<Renderer>())
                     {
-                        foreach (var r in t2.GetComponentsInChildren<Renderer>())
-                        {
-                            Material[] mats = new Material[r.sharedMaterials.Length];
-                            for (int m = 0; m < mats.Length; m++) mats[m] = activeFloorMat;
-                            r.sharedMaterials = mats;
-                        }
+                        Material[] mats = new Material[r.sharedMaterials.Length];
+                        for (int m = 0; m < mats.Length; m++) mats[m] = activeFloorMat;
+                        r.sharedMaterials = mats;
                     }
                 }
             }

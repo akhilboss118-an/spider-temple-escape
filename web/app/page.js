@@ -119,84 +119,25 @@ const CHARACTERS = [
 // ──────────────────────────────────────────────
 const MAPS = [
   {
-    id: 'volcano',
-    name: 'Volcanic Inferno',
-    badge: '🔥 Custom 3D Pathway & Magma Golem',
-    icon: '🌋',
-    tagline: 'Molten Brimstone & Magma Titan Pursuit',
-    color: '#ff5722',
-    bg: 'linear-gradient(135deg, rgba(255,87,34,0.18) 0%, rgba(183,28,28,0.28) 100%)',
-    border: 'rgba(255,87,34,0.45)',
-    glow: 'rgba(255,87,34,0.3)',
-    desc: 'Sprint across scorched obsidian rock pathways above bubbling magma lakes. The ground trembles beneath the crushing footsteps of the colossal Magma Stone Golem!',
-    features: [
-      'Authentic 3D Pathway (meteo-rock modular track chunks with PBR textures)',
-      'Pursued by the colossal Magma Stone Golem with glowing lava veins',
-      'Dynamic heat shimmer, floating fire embers, and volcanic smoke fog',
-      'High-stakes turns and leaping over molten hazards'
-    ],
-    monster: 'Magma Stone Golem (Titan Class)',
-    monsterDesc: 'A towering monstrosity of volcanic brimstone and molten magma. Charges with blazing trails and earthquake stomps.'
-  },
-  {
-    id: 'frostbite',
-    name: 'Frostbite Citadel',
-    badge: '❄️ Crystalline Ice & Blizzard Storms',
-    icon: '🏔️',
-    tagline: 'Glacial Slabs & Freezing Alpine Winds',
-    color: '#00e5ff',
-    bg: 'linear-gradient(135deg, rgba(0,229,255,0.14) 0%, rgba(21,101,192,0.28) 100%)',
-    border: 'rgba(0,229,255,0.45)',
-    glow: 'rgba(0,229,255,0.3)',
-    desc: 'Brave freezing alpine winds and slick glacial tracks across the ruined sky citadel. Dynamic blizzard particles swirl as frosty obstacles test your reflexes.',
-    features: [
-      'Crystalline glacial ice running surface with high-specular sheen',
-      'Snow-dusted stone curbs, frozen pillars, and frosty ruinstones',
-      'Live dynamic snowfall and blizzard storm particle system',
-      'Chilling alpine atmosphere with cyan-eyed frost beast stalker'
-    ],
-    monster: 'Glacial Beast Stalker',
-    monsterDesc: 'The ancient temple beast infused with permafrost energy, stalking through the blinding snow with glowing cyan predator eyes.'
-  },
-  {
     id: 'jungle',
     name: 'Jungle Canopy',
-    badge: '🌿 Classic Ancient Rainforest',
+    badge: '🌿 Ancient Rainforest with Day/Night Cycle',
     icon: '🌴',
-    tagline: 'Mossy Ruins & Dense Tropical Wilderness',
+    tagline: 'Mossy Ruins & Dynamic Daylight Transitions',
     color: '#4caf50',
     bg: 'linear-gradient(135deg, rgba(76,175,80,0.14) 0%, rgba(27,94,32,0.28) 100%)',
     border: 'rgba(76,175,80,0.45)',
     glow: 'rgba(76,175,80,0.3)',
-    desc: 'The original sacred temple expedition through emerald canopies, mossy flagstones, and overgrown ancient causeways.',
+    desc: 'The sacred temple expedition through emerald canopies, mossy flagstones, and overgrown ancient causeways. Now with dynamic day/night cycle, smooth lane switching, and immersive zombie proximity audio!',
     features: [
       'Classic temple stone pathway with lush mossy flagstones',
-      'Undergrowth turf, giant monstera ferns, and canopy branches',
-      'Fallen timber jump hurdles and ancient slide archways',
-      'The original ravenous Temple Relic Beast guardian'
+      'Dynamic day/night cycle — sunrise, noon, sunset, and moonlit night transition as you run',
+      'Smooth lane-switch with visual lean/tilt animation',
+      'Background music fades when the zombie guardian closes in',
+      'The relentless Temple Relic Zombie pursues through ancient ruins'
     ],
-    monster: 'Ancient Relic Beast',
-    monsterDesc: 'The original guardian of the golden idol, relentless and savage across the ancient temple ruins.'
-  },
-  {
-    id: 'endless',
-    name: 'Endless Voyage',
-    badge: '♾️ Dynamic Cross-Biome Marathon',
-    icon: '✨',
-    tagline: 'Seamless Transitions Across All Realms',
-    color: '#e040fb',
-    bg: 'linear-gradient(135deg, rgba(224,64,251,0.14) 0%, rgba(106,27,154,0.28) 100%)',
-    border: 'rgba(224,64,251,0.45)',
-    glow: 'rgba(224,64,251,0.3)',
-    desc: 'The ultimate endurance test! Sprint through ancient stone gates every 1,000m to seamlessly transition between Jungle, Frostbite, and Volcanic realms.',
-    features: [
-      'Dynamic biome gates triggering real-time skybox and track swaps',
-      'Continuously ramping speed and hazard complexity',
-      'Global leaderboard marathon scoring',
-      'Adapting pursuing beast morphing to match each biome'
-    ],
-    monster: 'Adaptive Shifting Guardian',
-    monsterDesc: 'A terrifying shape-shifting predator that evolves its appearance and fury as you cross each mystical portal gate.'
+    monster: 'Temple Zombie Guardian',
+    monsterDesc: 'The ancient guardian of the golden idol, a relentless zombie that stalks through the jungle ruins. When it gets close, the music fades to build tension!'
   }
 ];
 
@@ -210,24 +151,24 @@ const FEATURES = [
     desc: 'Sprint as Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, or Sasuke — each fine-tuned with custom Speed, Shield, and Agility multipliers!',
   },
   {
-    icon: '🎵',
-    name: 'Dynamic Adaptive Audio',
-    desc: 'Speed-scaled adrenaline jungle soundtrack, 5-note ascending chime arpeggios on heart pickups, and punchy movement SFX.',
+    icon: '🌅',
+    name: 'Dynamic Day/Night Cycle',
+    desc: 'Watch the jungle transform from golden dawn to blazing noon, warm sunset, and moonlit night as you run further — dynamic lighting and fog shift in real-time!',
   },
   {
-    icon: '🛡️',
-    name: 'Relic Upgrades Shop',
-    desc: 'Spend collected hearts to power up your Shield durability, Speedrun boost duration, Magnet pull radius, and Max Lives.',
+    icon: '🔄',
+    name: 'Smooth Lane Switching',
+    desc: 'Fluid lane transitions with visual lean/tilt animation. Your character tilts naturally when switching lanes for an immersive arcade feel!',
+  },
+  {
+    icon: '🎵',
+    name: 'Proximity Music Fade',
+    desc: 'Background music fades as the zombie guardian closes in, building tension. The closer it gets, the quieter the music — letting the monster sounds dominate!',
   },
   {
     icon: '🧟',
-    name: 'Relentless Beast Guardian',
-    desc: 'A terrifying jungle monster pursues closely behind. One stumble brings it to your neck; two stumbles trigger its strike!',
-  },
-  {
-    icon: '🗺️',
-    name: 'Multi-Map Selection & Custom Biomes',
-    desc: 'Pick your expedition: 🔥 Volcanic Inferno with custom 3D pathway & Magma Golem titan, ❄️ Frostbite Citadel with crystalline ice & blizzard snowfall, 🌿 Jungle Canopy, or ♾️ Endless Voyage cross-realm marathon!',
+    name: 'Relentless Zombie Pursuer',
+    desc: 'An ancient temple zombie stalks you through the jungle. One stumble brings it to your neck; two stumbles trigger its devastating strike!',
   },
   {
     icon: '🎮',
@@ -505,7 +446,7 @@ export default function Home() {
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
           <Link className="nav-cta" href="/download">
-            ↓ Download APK v1.8
+              ↓ Download APK v1.9
           </Link>
         </div>
       </nav>
@@ -534,7 +475,7 @@ export default function Home() {
         </div>
 
         <div className="container hero-content">
-          <div className="hero-badge">v1.8 Release · Multi-Map Expansion · Magma Golem · Blizzard Snowfall · 60 FPS Native APK</div>
+          <div className="hero-badge">v1.9 Release · Day/Night Cycle · Smooth Lane Switch · Music Fade · 60 FPS Native APK</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -542,8 +483,9 @@ export default function Home() {
           </h1>
 
           <p className="hero-subtitle">
-            Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke across diverse realms! Sprint across custom 3D volcanic pathways, brave icy blizzard citadels,
-            master individual hero stats, and outrun the relentless beast guardians on Android with locked 60 FPS native physics.
+            Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke through a living jungle that transitions from dawn to night!
+            Smooth lane switching with lean animation, dynamic day/night cycles, and immersive music fade when the zombie guardian closes in.
+            All on Android with locked 60 FPS native physics.
           </p>
 
           <div className="hero-actions">
@@ -551,7 +493,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.8
+               Download APK v1.9
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -747,10 +689,10 @@ export default function Home() {
       <section className="maps-section" id="maps">
         <div className="container">
           <div className="maps-header">
-            <p className="section-label">Expedition Realms</p>
-            <h2 className="section-title">Explore Distinct Temple Maps</h2>
+            <p className="section-label">Expedition Realm</p>
+            <h2 className="section-title">Jungle Canopy — Dynamic Day/Night</h2>
             <p className="roster-sub">
-              Choose your terrain before each expedition! Sprint through customized 3D pathways, dynamic weather phenomena, and unique pursuing monsters crafted for high-octane evasion.
+              Sprint through a living jungle with dynamic day/night transitions, smooth lane switching, and immersive zombie proximity audio — the deeper you run, the more the environment transforms!
             </p>
           </div>
 
@@ -938,10 +880,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v1.8 · Multi-Map Selection · Magma Golem · 60 FPS</div>
+          <div className="download-badge">Native Android APK v1.9 · Day/Night Cycle · Smooth Lane Switch · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v1.8 directly to your Android device with new Volcanic Inferno and Frostbite Citadel maps, custom 3D track models, pursuing Magma Stone Golem, blizzard particle snowfall, and locked 60 FPS gameplay with all 8 heroes unlocked.
+            Download the native APK v1.9 directly to your Android device with dynamic day/night cycle, smooth lane-switching with lean animation, zombie proximity music fade, and locked 60 FPS gameplay with all 8 heroes unlocked.
           </p>
 
           <div className="download-buttons">
@@ -949,7 +891,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-              Download APK v1.8 — Free (~114 MB)
+               Download APK v1.9 — Free (~132 MB)
             </Link>
             <a
               className="download-github"

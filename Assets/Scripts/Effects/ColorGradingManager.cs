@@ -178,15 +178,6 @@ namespace Runner.Effects
             gradingMaterial.SetFloat(PropVignetteSmoothness, vignetteSmoothness);
 
             Color biomeTint = jungleTint;
-            switch (currentBiome)
-            {
-                case BiomeType.SunkenTemple:
-                    biomeTint = templeTint;
-                    break;
-                case BiomeType.VolcanicCaverns:
-                    biomeTint = volcanicTint;
-                    break;
-            }
             gradingMaterial.SetColor(PropBiomeTint, biomeTint);
 
             // Speed effects

@@ -321,11 +321,20 @@ namespace Runner.Audio
                 musicLayerSource.volume = currentMusicIntensity * 0.4f;
             }
 
-            // Increase BGM urgency based on intensity
+            // BGM volume fades DOWN when zombie is close (inverse relationship)
+            // This creates tension: music gets quieter, allowing monster sounds to dominate
+            float masterVol = GameManager.Instance != null ? GameManager.Instance.AudioVolume : 1f;
+            float bgmFadeMultiplier = Mathf.Lerp(1.0f, 0.25f, currentMusicIntensity);
             if (bgmSource != null)
             {
-                float intensityBoost = currentMusicIntensity * 0.15f;
-                bgmSource.volume = (0.55f + intensityBoost) * (GameManager.Instance != null ? GameManager.Instance.AudioVolume : 1f);
+                bgmSource.volume = 0.55f * masterVol * bgmFadeMultiplier;
+            }
+
+            // Also slightly reduce ambient volume when zombie is close for extra tension
+            if (ambientSource != null)
+            {
+                float ambientFade = Mathf.Lerp(1.0f, 0.3f, currentMusicIntensity);
+                ambientSource.volume = 0.30f * masterVol * ambientFade;
             }
         }
 
@@ -379,12 +388,6 @@ namespace Runner.Audio
             {
                 case Runner.Effects.BiomeType.JungleCanopy:
                     ambientClip = ambientJungleClip;
-                    break;
-                case Runner.Effects.BiomeType.SunkenTemple:
-                    ambientClip = ambientTempleClip;
-                    break;
-                case Runner.Effects.BiomeType.VolcanicCaverns:
-                    ambientClip = ambientVolcanicClip;
                     break;
             }
 
@@ -579,8 +582,6 @@ namespace Runner.Audio
             AudioClip targetClip = biome switch
             {
                 Runner.Effects.BiomeType.JungleCanopy => jungleMusicClip ?? proceduralBgmClip,
-                Runner.Effects.BiomeType.SunkenTemple => templeMusicClip ?? proceduralBgmClip,
-                Runner.Effects.BiomeType.VolcanicCaverns => volcanicMusicClip ?? proceduralBgmVolcanicClip,
                 _ => proceduralBgmClip
             };
 

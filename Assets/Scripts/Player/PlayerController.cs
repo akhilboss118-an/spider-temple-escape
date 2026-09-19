@@ -34,6 +34,12 @@ namespace Runner.Player
         [Tooltip("Speed of lane transitions")]
         [SerializeField] private float laneChangeSpeed = 15.0f;
 
+        [Header("Lane Switch Lean Animation")]
+        [Tooltip("Maximum visual tilt angle in degrees when switching lanes")]
+        [SerializeField] private float laneLeanAngle = 12.0f;
+        [Tooltip("Speed of lean interpolation")]
+        [SerializeField] private float laneLeanSpeed = 8.0f;
+
         [Tooltip("Subtle horizontal lean offset from accelerometer tilt")]
         [SerializeField] private float tiltLeanMaxOffset = 0.45f;
 
@@ -97,6 +103,10 @@ namespace Runner.Player
         private Vector3 corridorRight = Vector3.right;
         private float queuedTurnAngle = 0.0f;
         private float queuedTurnTimer = 0.0f;
+
+        // Lane Switch Lean Animation
+        private float currentLeanAngle = 0.0f;
+        private int previousLane = 0;
 
         private void Awake()
         {
@@ -365,6 +375,28 @@ namespace Runner.Player
 
             currentLaneOffset = currentLateral + lateralStep;
             Vector3 lateralMove = corridorRight * lateralStep;
+
+            // Lane Switch Lean Animation: tilt visual model toward the lane direction
+            float targetLean = 0f;
+            if (CurrentLane != previousLane)
+            {
+                targetLean = CurrentLane > previousLane ? -laneLeanAngle : laneLeanAngle;
+            }
+            currentLeanAngle = Mathf.Lerp(currentLeanAngle, targetLean, dt * laneLeanSpeed);
+            if (Mathf.Abs(currentLeanAngle) < 0.1f && CurrentLane == previousLane)
+            {
+                currentLeanAngle = 0f;
+            }
+            if (CurrentLane != previousLane)
+            {
+                previousLane = CurrentLane;
+            }
+
+            // Apply lean to visual transform
+            if (visualTransform != null)
+            {
+                visualTransform.localRotation = Quaternion.Euler(0f, 0f, currentLeanAngle);
+            }
 
             // Vertical displacement
             Vector3 verticalMove = Vector3.up * (verticalVelocity * dt);
