@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Runner.Pickups;
 using Runner.Player;
@@ -120,8 +121,46 @@ namespace Runner.Core
         public const string AUDIO_VOL_KEY = "Runner_AudioVol";
         public const string CONTROLS_KEY = "Runner_ControlScheme";
         public const string HAPTICS_KEY = "Runner_Haptics";
+        public const string HUD_STYLE_KEY = "Runner_HUDStyle";
+        private const string TOTAL_XP_KEY = "Runner_TotalXP";
+        private const string LEADERBOARD_KEY = "Runner_Leaderboard";
 
         public int SelectedSuitIndex { get; private set; }
+
+        // Player progression (XP / Level / Rank)
+        public int TotalXP { get; private set; }
+        public int PlayerLevel { get; private set; } = 1;
+        public int XPIntoLevel { get; private set; }
+        public int XPForNextLevel { get; private set; } = XPNeededForLevel(1);
+        public string RankTitle => GetRankTitle(PlayerLevel);
+        public event Action<int> OnLevelUp; // (newLevel)
+        public event Action<int> OnXPChanged; // (totalXP)
+
+        [Serializable]
+        public class LeaderboardEntry
+        {
+            public int score;
+            public float distance;
+            public int level;
+            public long timestamp;
+        }
+
+        private readonly List<LeaderboardEntry> leaderboard = new List<LeaderboardEntry>();
+        public IReadOnlyList<LeaderboardEntry> Leaderboard => leaderboard;
+
+        /// <summary>XP required to advance out of the given level.</summary>
+        public static int XPNeededForLevel(int level) => 400 + 150 * Mathf.Max(0, level - 1);
+
+        public static string GetRankTitle(int level)
+        {
+            if (level >= 25) return "TEMPLE LEGEND";
+            if (level >= 18) return "SHADOW BREAKER";
+            if (level >= 13) return "JUNGLE VANGUARD";
+            if (level >= 9) return "RELIC HUNTER";
+            if (level >= 6) return "RUIN DELVER";
+            if (level >= 3) return "TEMPLE SCOUT";
+            return "NOVICE RUNNER";
+        }
         public float BestDistance { get; private set; }
         public int TotalBankedCoins { get; private set; }
         public int TotalBankedHearts => TotalBankedCoins;
@@ -133,6 +172,12 @@ namespace Runner.Core
         public float AudioVolume { get; private set; } = 1.0f;
         public int ControlScheme { get; private set; } = 0; // 0 = Swipe/Keys, 1 = Tilt
         public bool IsHapticsEnabled { get; private set; } = true;
+
+        /// <summary>
+        /// true  -> native uGUI canvas HUD (InGameCanvasHUD), the default.
+        /// false -> legacy IMGUI HUD for players who prefer the classic layout.
+        /// </summary>
+        public bool UseCanvasHud { get; private set; } = true;
         private float lastHapticTime = -1f;
         private const float hapticCooldown = 0.15f;
 
@@ -144,6 +189,95 @@ namespace Runner.Core
             PlayerPrefs.Save();
             return true;
         }
+
+        #region Progression (XP / Levels / Local Leaderboard)
+        private void RecomputeProgression()
+        {
+            int level = 1;
+            int consumed = 0;
+            while (level < 99)
+            {
+                int needed = XPNeededForLevel(level);
+                if (TotalXP < consumed + needed) break;
+                consumed += needed;
+                level++;
+            }
+
+            PlayerLevel = level;
+            XPIntoLevel = TotalXP - consumed;
+            XPForNextLevel = XPNeededForLevel(level);
+        }
+
+        public void AddXP(int amount)
+        {
+            if (amount <= 0) return;
+
+            int previousLevel = PlayerLevel;
+            TotalXP += amount;
+            PlayerPrefs.SetInt(TOTAL_XP_KEY, TotalXP);
+            PlayerPrefs.Save();
+            RecomputeProgression();
+            OnXPChanged?.Invoke(TotalXP);
+
+            if (PlayerLevel > previousLevel)
+            {
+                OnLevelUp?.Invoke(PlayerLevel);
+                if (Runner.UI.UIManager.Instance != null)
+                {
+                    Runner.UI.UIManager.Instance.ShowToast("⬆️", $"LEVEL UP!  Level {PlayerLevel} • {RankTitle}", 3.0f);
+                }
+                TriggerHapticHeavy();
+            }
+        }
+
+        private void LoadLeaderboard()
+        {
+            leaderboard.Clear();
+            string json = PlayerPrefs.GetString(LEADERBOARD_KEY, string.Empty);
+            if (!string.IsNullOrEmpty(json))
+            {
+                try
+                {
+                    var wrapper = JsonUtility.FromJson<LeaderboardWrapper>(json);
+                    if (wrapper != null && wrapper.entries != null)
+                    {
+                        leaderboard.AddRange(wrapper.entries);
+                    }
+                }
+                catch (Exception)
+                {
+                    leaderboard.Clear();
+                }
+            }
+        }
+
+        [Serializable]
+        private class LeaderboardWrapper
+        {
+            public List<LeaderboardEntry> entries = new List<LeaderboardEntry>();
+        }
+
+        private void RecordLeaderboardRun()
+        {
+            leaderboard.Add(new LeaderboardEntry
+            {
+                score = Score,
+                distance = DistanceTraveled,
+                level = PlayerLevel,
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            });
+
+            leaderboard.Sort((a, b) => b.score.CompareTo(a.score));
+            while (leaderboard.Count > 5)
+            {
+                leaderboard.RemoveAt(leaderboard.Count - 1);
+            }
+
+            var wrapper = new LeaderboardWrapper { entries = new List<LeaderboardEntry>(leaderboard) };
+            PlayerPrefs.SetString(LEADERBOARD_KEY, JsonUtility.ToJson(wrapper));
+            PlayerPrefs.Save();
+        }
+        #endregion
 
         private float scoreProgress = 0.0f;
 
@@ -174,8 +308,13 @@ namespace Runner.Core
             AudioVolume = PlayerPrefs.GetFloat(AUDIO_VOL_KEY, 1.0f);
             ControlScheme = PlayerPrefs.GetInt(CONTROLS_KEY, 0);
             IsHapticsEnabled = PlayerPrefs.GetInt(HAPTICS_KEY, 1) == 1;
+            UseCanvasHud = PlayerPrefs.GetInt(HUD_STYLE_KEY, 1) == 1;
             AudioListener.volume = IsAudioEnabled ? AudioVolume : 0.0f;
             CurrentSpeed = baseSpeed;
+
+            TotalXP = PlayerPrefs.GetInt(TOTAL_XP_KEY, 0);
+            RecomputeProgression();
+            LoadLeaderboard();
 
             // Enforce smooth, stable 60 FPS on mobile with optimized rendering for smaller GPUs
             Application.targetFrameRate = 60;
@@ -280,6 +419,8 @@ namespace Runner.Core
         private void Start()
         {
             CleanDuplicateLightsAndAtmosphere();
+            EnsureRuntimeSystems();
+            Runner.UI.InGameCanvasHUD.Instance?.BindToGameManager(this);
             if (stayInMenuOnLoad)
             {
                 stayInMenuOnLoad = false;
@@ -310,6 +451,18 @@ namespace Runner.Core
                 else
                     PlayerController.Instance?.ApplySuit(SelectedSuitIndex);
             }
+        }
+
+        /// <summary>
+        /// Creates the optional runtime systems that self-instantiate through lazy
+        /// singletons (performance scaling, color grading, boss encounters) so they are
+        /// active for the very first session instead of only after a menu return.
+        /// </summary>
+        private static void EnsureRuntimeSystems()
+        {
+            Runner.Effects.PerformanceOptimizer.EnsureExists();
+            Runner.Effects.ColorGradingManager.EnsureExists();
+            Runner.Obstacles.BossFightManager.EnsureExists();
         }
 
         private void Update()
@@ -436,6 +589,7 @@ namespace Runner.Core
             }
 
             SetState(GameState.Playing);
+            Runner.Obstacles.BossFightManager.Instance?.ResetBossTracking();
             OnLivesChanged?.Invoke(CurrentLives, MaxLives);
             if (Runner.Characters.CharacterManager.Instance != null && PlayerController.Instance != null)
                 Runner.Characters.CharacterManager.Instance.ApplyCharacterModelToPlayer(PlayerController.Instance.gameObject);
@@ -609,6 +763,13 @@ namespace Runner.Core
                 PlayerPrefs.SetFloat(BEST_DISTANCE_KEY, BestDistance);
                 PlayerPrefs.Save();
             }
+
+            // Award XP for the run and record it on the local leaderboard
+            int runXP = Mathf.RoundToInt(DistanceTraveled * 0.5f)
+                      + Mathf.RoundToInt(Score * 0.05f)
+                      + CoinsCollected * 5;
+            RecordLeaderboardRun();
+            AddXP(runXP);
 
             // Death animation: slow-mo freeze frame
             StartCoroutine(DeathSequence());
@@ -796,6 +957,13 @@ namespace Runner.Core
         {
             IsHapticsEnabled = enabled;
             PlayerPrefs.SetInt(HAPTICS_KEY, IsHapticsEnabled ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        public void SetHudStyle(bool useCanvasHud)
+        {
+            UseCanvasHud = useCanvasHud;
+            PlayerPrefs.SetInt(HUD_STYLE_KEY, UseCanvasHud ? 1 : 0);
             PlayerPrefs.Save();
         }
 

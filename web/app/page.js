@@ -449,7 +449,7 @@ export default function Home() {
             <li><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={closeMobileMenu}>GitHub</a></li>
           </ul>
           <Link className="nav-cta nav-cta-desktop" href="/download">
-              ↓ Download APK v3.0
+              ↓ Download APK v3.1
           </Link>
           <button
             className={`nav-hamburger ${mobileMenuOpen ? 'active' : ''}`}
@@ -490,7 +490,7 @@ export default function Home() {
         </div>
 
         <div className="container hero-content">
-          <div className="hero-badge">v3.0 Release · Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share · 60 FPS</div>
+          <div className="hero-badge">v3.1 Release · Heart Collection Meter · XP &amp; Ranks · Color Grading · Biome Worlds</div>
 
           <h1 className="hero-title">
             <span className="gold">Spider</span>
@@ -499,7 +499,7 @@ export default function Home() {
 
           <p className="hero-subtitle">
             Take control of Spider-Man, Naruto, Nezuko, Hinata, Zoro, Zenitsu, Anya, and Sasuke through a living jungle that transitions from dawn to night!
-            NEW in v3.0: Photo mode orbits around your character, screenshots save to gallery, share to WhatsApp/any app, gender-specific audio, smooth 60 FPS.
+            NEW in v3.1: animated heart collection meter, XP, ranks and a local leaderboard, cinematic color grading, and seamless mid-run biome transitions.
             Smooth lane switching with lean animation, dynamic day/night cycles, and immersive music fade. All on Android at 60 FPS.
           </p>
 
@@ -508,7 +508,7 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-               Download APK v3.0
+               Download APK v3.1
             </Link>
             <a className="btn-primary" href="#roster">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -551,19 +551,20 @@ export default function Home() {
         <div className="container">
           <div className="v3-announcement-card">
             <div className="v3-announcement-badge">
-              What's New in v3.0
+              What's New in v3.1
             </div>
             <h2 className="v3-announcement-title">
-              Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share
+              Heart Collection Meter · XP &amp; Ranks · Color Grading · Biome Worlds
             </h2>
             <p className="v3-announcement-text">
-              <b className="c-green">📸 Photo Mode</b> — Pause gameplay, orbit around your character, pinch to zoom, capture cinematic screenshots.<br/>
-              <b className="c-gold">📤 Screenshot Sharing</b> — Screenshots save directly to your gallery (Pictures/SpiderTempleEscape). Share to WhatsApp, Telegram, Instagram, or any app via native share chooser.<br/>
-              <b className="c-red">🎵 Gender-Specific Audio</b> — Female characters (Nezuko, Hinata, Anya) get unique higher-pitched jump, slide, and lane-change sounds.<br/>
-              <b className="c-blue">🔧 Performance Fixes</b> — Fixed menu black boxes, frame drops, smooth 60 FPS on all devices.
+              <b className="c-red">💖 Heart Collection Meter</b> — A brand-new animated gradient bar with a shimmer sweep, leading-edge glow, heartbeat pulse and a live <b>n/10</b> tier counter. The <b>+1 💖</b> pops every time you collect, in both the modern and classic HUD layouts.<br/>
+              <b className="c-gold">🏆 XP, Ranks &amp; Leaderboard</b> — Every run now earns XP. Level up, unlock rank titles and chase your personal best on the local leaderboard.<br/>
+              <b className="c-green">🎨 Cinematic Color Grading</b> — A new grading pass retunes colour per biome for richer jungle greens, volcanic reds and frostbite blues.<br/>
+              <b className="c-blue">🌍 Seamless Biome Worlds</b> — Biomes now transition mid-run: road, curb, fog and lighting re-skin live without a reload.<br/>
+              <b className="c-purple">⚙️ HUD Style Switcher</b> — Pick the modern canvas HUD or the classic layout — your choice is remembered on your device.
             </p>
             <Link href="/download" className="v3-announcement-btn">
-              Download v3.0 Now
+              Download v3.1 Now
             </Link>
           </div>
         </div>
@@ -918,10 +919,10 @@ export default function Home() {
       <section className="download" id="download">
         <div className="download-glow" />
         <div className="container download-inner">
-          <div className="download-badge">Native Android APK v3.0 · Photo Mode · Gallery Save · WhatsApp Share · 60 FPS</div>
+          <div className="download-badge">Native Android APK v3.1 · Heart Collection Meter · XP &amp; Ranks · Color Grading · 60 FPS</div>
           <h2 className="download-title">Ready for maximum performance?</h2>
           <p className="download-sub">
-            Download the native APK v3.0 directly to your Android device. Photo mode orbits around your character, screenshots save to your gallery, share to WhatsApp/Telegram/Instagram via native chooser. Gender-specific audio for female characters, dynamic resolution scaling, swipe tutorial, and all 8 heroes unlocked.
+            Download the native APK v3.1 directly to your Android device. An animated heart collection meter tracks your progress to the next heart, XP and ranks reward every run, cinematic color grading retunes each biome, and worlds now transition mid-run with no reload. Photo mode, gallery save, WhatsApp share and all 8 heroes are still here.
           </p>
 
           <div className="download-buttons">
@@ -929,7 +930,7 @@ export default function Home() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/>
               </svg>
-               Download APK v3.0 — Free (~132 MB)
+               Download APK v3.1 — Free (~133 MB)
             </Link>
             <a
               className="download-github"
@@ -1002,7 +1003,7 @@ export default function Home() {
         <div className="mobile-download-inner">
           <div className="mobile-download-text">
             <span className="mobile-download-title">Spider Temple Escape</span>
-            <span className="mobile-download-sub">v3.0 APK · Free · 60 FPS</span>
+            <span className="mobile-download-sub">v3.1 APK · Free · 60 FPS</span>
           </div>
           <Link href="/download" className="mobile-download-btn">
             ⚡ Download APK

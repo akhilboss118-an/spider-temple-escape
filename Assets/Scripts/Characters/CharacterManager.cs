@@ -99,13 +99,13 @@ namespace Runner.Characters
             LoadCharacterPrefabs();
             SelectedCharacterIndex = Mathf.Clamp(PlayerPrefs.GetInt(SELECTED_CHAR_KEY, 0), 0, Mathf.Max(0, characters.Count - 1));
 
-            // Ensure all character slots are marked unlocked in PlayerPrefs
-            foreach (var slot in characters)
+            // Never leave the player on a locked character
+            if (!IsCharacterUnlocked(SelectedCharacterIndex))
             {
-                slot.isDefaultUnlocked = true;
-                PlayerPrefs.SetInt("Runner_CharUnlocked_" + slot.characterId, 1);
+                SelectedCharacterIndex = 0;
+                PlayerPrefs.SetInt(SELECTED_CHAR_KEY, SelectedCharacterIndex);
+                PlayerPrefs.Save();
             }
-            PlayerPrefs.Save();
         }
 
         private void Start()
@@ -140,11 +140,11 @@ namespace Runner.Characters
                     characterTitle = "Hokage Runner",
                     assetFolder = "Akhilboss",
                     description = "Legendary shinobi runner with lightning reflexes, high speed, and fearless agility through ancient ruins.",
-                    heartUnlockCost = 0,
+                    heartUnlockCost = 200,
                     speedRating = 1.25f,
                     shieldRating = 1.10f,
                     agilityRating = 1.20f,
-                    isDefaultUnlocked = true
+                    isDefaultUnlocked = false
                 },
                 new CharacterSlot
                 {
@@ -153,11 +153,11 @@ namespace Runner.Characters
                     characterTitle = "Demon Voyager",
                     assetFolder = "Harika",
                     description = "Agile demon voyager capable of supernatural recovery, fluid obstacle evasion, and balanced endurance.",
-                    heartUnlockCost = 0,
+                    heartUnlockCost = 350,
                     speedRating = 1.15f,
                     shieldRating = 1.05f,
                     agilityRating = 1.30f,
-                    isDefaultUnlocked = true,
+                    isDefaultUnlocked = false,
                     isFemale = true
                 },
                 new CharacterSlot
@@ -167,11 +167,11 @@ namespace Runner.Characters
                     characterTitle = "Byakugan Scout",
                     assetFolder = "Nandini",
                     description = "Fleet-footed Byakugan scout with sharp reflexes and supernatural recovery navigating treacherous paths.",
-                    heartUnlockCost = 0,
+                    heartUnlockCost = 500,
                     speedRating = 1.20f,
                     shieldRating = 0.95f,
                     agilityRating = 1.35f,
-                    isDefaultUnlocked = true,
+                    isDefaultUnlocked = false,
                     isFemale = true
                 },
                 new CharacterSlot
@@ -181,11 +181,11 @@ namespace Runner.Characters
                     characterTitle = "Ruin Swordsman",
                     assetFolder = "Navaneeth",
                     description = "Stalwart warrior with rock-solid stability to withstand rough collisions and power through obstacles.",
-                    heartUnlockCost = 0,
+                    heartUnlockCost = 700,
                     speedRating = 1.10f,
                     shieldRating = 1.30f,
                     agilityRating = 1.00f,
-                    isDefaultUnlocked = true
+                    isDefaultUnlocked = false
                 },
                 new CharacterSlot
                 {
@@ -194,11 +194,11 @@ namespace Runner.Characters
                     characterTitle = "Thunder Striker",
                     assetFolder = "Pavan",
                     description = "High-velocity thunder runner possessing explosive speed bursts and aerial maneuvers.",
-                    heartUnlockCost = 0,
+                    heartUnlockCost = 950,
                     speedRating = 1.35f,
                     shieldRating = 1.00f,
                     agilityRating = 1.25f,
-                    isDefaultUnlocked = true
+                    isDefaultUnlocked = false
                 },
                 new CharacterSlot
                 {
@@ -207,11 +207,11 @@ namespace Runner.Characters
                     characterTitle = "Secret Telepath",
                     assetFolder = "Pravalika",
                     description = "Clever acrobatic athlete specialized in swift low slides, secret instinct, and obstacle clearance.",
-                    heartUnlockCost = 0,
+                    heartUnlockCost = 1250,
                     speedRating = 1.20f,
                     shieldRating = 1.15f,
                     agilityRating = 1.30f,
-                    isDefaultUnlocked = true,
+                    isDefaultUnlocked = false,
                     isFemale = true
                 },
                 new CharacterSlot
@@ -221,11 +221,11 @@ namespace Runner.Characters
                     characterTitle = "Shadow Avenger",
                     assetFolder = "Srikar",
                     description = "Master shinobi explorer with masterclass attributes across speed, shield defense, and obstacle agility.",
-                    heartUnlockCost = 0,
+                    heartUnlockCost = 1600,
                     speedRating = 1.30f,
                     shieldRating = 1.20f,
                     agilityRating = 1.15f,
-                    isDefaultUnlocked = true
+                    isDefaultUnlocked = false
                 }
             };
 
@@ -250,18 +250,17 @@ namespace Runner.Characters
                         slot.speedRating = def.speedRating;
                         slot.shieldRating = def.shieldRating;
                         slot.agilityRating = def.agilityRating;
-                        slot.isDefaultUnlocked = true;
-                        slot.heartUnlockCost = 0;
+                        slot.isDefaultUnlocked = def.isDefaultUnlocked;
+                        slot.heartUnlockCost = def.heartUnlockCost;
+                        if (slot.isDefaultUnlocked)
+                        {
+                            slot.SetUnlocked();
+                        }
                     }
                     else
                     {
                         characters.Add(def);
                     }
-                }
-                foreach (var slot in characters)
-                {
-                    slot.isDefaultUnlocked = true;
-                    slot.heartUnlockCost = 0;
                 }
             }
         }
@@ -367,12 +366,21 @@ namespace Runner.Characters
 
         public bool IsCharacterUnlocked(int index)
         {
-            return true; // All characters unlocked for gameplay
+            var slot = GetCharacter(index);
+            return slot != null && slot.IsUnlocked();
+        }
+
+        public int GetCharacterUnlockCost(int index)
+        {
+            var slot = GetCharacter(index);
+            if (slot == null || slot.IsUnlocked()) return 0;
+            return Mathf.Max(0, slot.heartUnlockCost);
         }
 
         public bool SelectCharacter(int index)
         {
             if (index < 0 || index >= characters.Count) return false;
+            if (!IsCharacterUnlocked(index)) return false;
 
             SelectedCharacterIndex = index;
             PlayerPrefs.SetInt(SELECTED_CHAR_KEY, SelectedCharacterIndex);
@@ -391,6 +399,18 @@ namespace Runner.Characters
         {
             if (index < 0 || index >= characters.Count) return false;
             var slot = characters[index];
+            if (slot.IsUnlocked())
+            {
+                SelectCharacter(index);
+                return true;
+            }
+
+            int cost = Mathf.Max(0, slot.heartUnlockCost);
+            if (cost > 0 && (GameManager.Instance == null || !GameManager.Instance.SpendBankedHearts(cost)))
+            {
+                return false;
+            }
+
             slot.SetUnlocked();
             SelectCharacter(index);
             OnCharacterUnlocked?.Invoke(index);

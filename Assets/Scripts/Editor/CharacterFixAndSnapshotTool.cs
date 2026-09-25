@@ -431,13 +431,15 @@ namespace Runner.EditorTools
                 GameObject distPill = CreateUIBox(canvasObj.transform, new Vector2(490, 320), new Vector2(250, 34), new Color(0.06f, 0.10f, 0.08f, 0.90f), new Color(0.30f, 0.85f, 0.55f));
                 CreateUIText(distPill.transform, "📍 340m       ⭐ 1,850", 14, new Color(0.35f, 0.95f, 0.65f), TextAnchor.MiddleCenter);
 
-                // 4. Top-Right Restored Heart Collection Meter (Segmented gauge, heart pulse, health pool)
+                // 4. Top-Right Heart Collection Meter (text header + gradient collection bar)
                 GameObject heartPill = CreateUIBox(canvasObj.transform, new Vector2(490, 260), new Vector2(250, 60), new Color(0.12f, 0.04f, 0.08f, 0.92f), new Color(1.0f, 0.30f, 0.65f));
-                CreateUIText(heartPill.transform, "💖 HEARTS: 24        HP 10/10 ❤️", 13, new Color(1.0f, 0.45f, 0.75f), TextAnchor.UpperCenter, new Vector2(0, -6));
-
-                // Segmented Progress bar inside heart meter
-                GameObject barBg = CreateUIBox(heartPill.transform, new Vector2(0, -15), new Vector2(230, 16), new Color(0.03f, 0.02f, 0.04f, 0.95f), new Color(1f, 1f, 1f, 0.2f));
-                CreateUIBox(barBg.transform, new Vector2(-50, 0), new Vector2(130, 12), new Color(1.0f, 0.35f, 0.65f, 0.95f), Color.clear);
+                CreateUIText(heartPill.transform, "💖 HEARTS: 24        HP 10/10 ❤️", 13, new Color(1.0f, 0.45f, 0.75f), TextAnchor.MiddleCenter, new Vector2(0f, 12f));
+                GameObject barBg = CreateUIBox(heartPill.transform, new Vector2(-17, -14), new Vector2(210, 14), new Color(0.03f, 0.02f, 0.04f, 0.95f), Color.clear);
+                GameObject barFill = CreateUIBox(barBg.transform, new Vector2(-45f, 0f), new Vector2(110, 10), Color.white, Color.clear);
+                UnityEngine.UI.Image fillImg = barFill.GetComponent<UnityEngine.UI.Image>();
+                if (fillImg != null) fillImg.sprite = Runner.UI.HeartMeterVisuals.Fill;
+                GameObject barCount = CreateUIBox(heartPill.transform, new Vector2(100, -14), new Vector2(24, 14), new Color(0.03f, 0.02f, 0.04f, 0.95f), Color.clear);
+                CreateUIText(barCount.transform, "5/10", 11, new Color(1.0f, 0.55f, 0.80f), TextAnchor.MiddleCenter);
 
                 // Render to RT
                 rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);

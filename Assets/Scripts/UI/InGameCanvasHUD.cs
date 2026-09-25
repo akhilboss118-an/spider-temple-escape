@@ -33,7 +33,6 @@ namespace Runner.UI
         [SerializeField] private Text scoreText;
         [SerializeField] private Text heartsText;
         [SerializeField] private Text healthText;
-        [SerializeField] private Image heartProgressBar;
         [SerializeField] private GameObject newBestBadge;
 
         [Header("Center Alerts")]
@@ -45,14 +44,43 @@ namespace Runner.UI
         [SerializeField] private Text beastWarningText;
 
         // Caching for zero-allocation updates
+        private GameManager boundManager;
         private int lastDistance = -1;
         private int lastScore = -1;
         private int lastCoins = -1;
         private int lastLives = -1;
         private int lastMaxLives = -1;
-        private float animatedHeartFill = 0f;
         private float milestoneTimer = 0f;
         private const float MILESTONE_DURATION = 2.8f;
+
+        // Heart collection meter (animated gradient bar)
+        private const int HEART_TIER_GOAL = 10;
+        private const float HEART_BLOOM_DURATION = 0.9f;
+        private const float HEART_BURST_DURATION = 1.1f;
+        private const float HEART_POP_DURATION = 1.2f;
+
+        private RectTransform heartBarFillRect;
+        private Image heartBarFill;
+        private RectTransform heartBarSheenRect;
+        private Image heartBarSheen;
+        private Image heartBarGlow;
+        private readonly List<Image> heartBarTicks = new List<Image>();
+        private Image[] heartBorder;
+        private Text heartBarCounter;
+        private RectTransform heartPopRect;
+        private Text heartPopText;
+
+        private float heartFill = 0f;
+        private float heartBloomTimer = 0f;
+        private float heartTierBurstTimer = 0f;
+        private float heartPopTimer = 0f;
+        private int heartFilledShown = -1;
+
+        private static readonly Color HeartRose = new Color(1f, 0.30f, 0.65f, 0.60f);
+        private static readonly Color HeartBloomColor = new Color(1f, 0.86f, 1f, 1f);
+        private static readonly Color HeartGold = new Color(1f, 0.86f, 0.35f, 1f);
+        private static readonly Color HeartPopColor = new Color(1f, 0.78f, 0.92f, 1f);
+        private static readonly Color HeartTick = new Color(0f, 0f, 0f, 0.62f);
 
         private static Sprite cachedWhiteSprite;
         private static Font cachedFont;
@@ -100,29 +128,46 @@ namespace Runner.UI
 
         private void Start()
         {
-            if (GameManager.Instance != null)
+            BindToGameManager(GameManager.Instance);
+        }
+
+        /// <summary>
+        /// The HUD survives scene reloads (DontDestroyOnLoad) while GameManager does not,
+        /// so it has to re-bind to the freshly created manager on every load.
+        /// </summary>
+        public void BindToGameManager(GameManager manager)
+        {
+            if (boundManager != null)
             {
-                GameManager.Instance.OnGameStateChanged += HandleGameStateChanged;
-                SetVisible(false);
+                boundManager.OnGameStateChanged -= HandleGameStateChanged;
             }
-            else
+
+            boundManager = manager;
+
+            if (boundManager != null)
             {
-                SetVisible(false);
+                boundManager.OnGameStateChanged += HandleGameStateChanged;
             }
+
+            RefreshVisibility();
         }
 
         private void OnDestroy()
         {
-            if (GameManager.Instance != null)
+            if (boundManager != null)
             {
-                GameManager.Instance.OnGameStateChanged -= HandleGameStateChanged;
+                boundManager.OnGameStateChanged -= HandleGameStateChanged;
+                boundManager = null;
             }
             if (Instance == this) Instance = null;
         }
 
         private void HandleGameStateChanged(GameState state)
         {
-            SetVisible(false);
+            bool showForPlay = state == GameState.Playing &&
+                               (GameManager.Instance == null || GameManager.Instance.UseCanvasHud);
+            SetVisible(showForPlay);
+
             if (state == GameState.Playing)
             {
                 // Reset cached stats to force instant refresh
@@ -131,7 +176,23 @@ namespace Runner.UI
                 lastCoins = -1;
                 lastLives = -1;
                 lastMaxLives = -1;
+
+                heartFill = 0f;
+                heartBloomTimer = 0f;
+                heartTierBurstTimer = 0f;
+                heartPopTimer = 0f;
+                heartFilledShown = -1;
+                if (heartPopText != null) heartPopText.gameObject.SetActive(false);
             }
+        }
+
+        /// <summary>Re-applies visibility after the player toggles the HUD style mid-run.</summary>
+        public void RefreshVisibility()
+        {
+            bool showForPlay = GameManager.Instance != null &&
+                               GameManager.Instance.CurrentState == GameState.Playing &&
+                               GameManager.Instance.UseCanvasHud;
+            SetVisible(showForPlay);
         }
 
         public void SetVisible(bool visible)
@@ -198,12 +259,26 @@ namespace Runner.UI
         private void UpdateHeartsMeter()
         {
             int coins = GameManager.Instance.CoinsCollected;
+            int prevCoins = lastCoins;
             if (coins != lastCoins)
             {
                 lastCoins = coins;
                 if (heartsText != null)
                 {
                     heartsText.text = $"💖 HEARTS: {coins}";
+                }
+
+                if (prevCoins >= 0 && coins > prevCoins)
+                {
+                    heartBloomTimer = HEART_BLOOM_DURATION;
+                    heartPopTimer = HEART_POP_DURATION;
+                    if (heartPopText != null) heartPopText.gameObject.SetActive(true);
+
+                    int prevTier = prevCoins % HEART_TIER_GOAL;
+                    if (prevTier != 0 && coins % HEART_TIER_GOAL == 0)
+                    {
+                        heartTierBurstTimer = HEART_BURST_DURATION;
+                    }
                 }
             }
 
@@ -220,16 +295,168 @@ namespace Runner.UI
                 }
             }
 
-            // Smooth animated heart meter fill
-            int tierGoal = 10;
-            int currentInTier = coins % tierGoal;
-            float targetFill = (coins == 0) ? 0f : ((currentInTier == 0) ? 1f : (float)currentInTier / tierGoal);
-            animatedHeartFill = Mathf.Lerp(animatedHeartFill, targetFill, Time.unscaledDeltaTime * 10f);
+            UpdateHeartBar(lives);
+        }
 
-            if (heartProgressBar != null)
+        private void UpdateHeartBar(int lives)
+        {
+            float dt = Time.unscaledDeltaTime;
+
+            int coins = GameManager.Instance.CoinsCollected;
+            int inTier = coins % HEART_TIER_GOAL;
+            int filled = (coins > 0 && inTier == 0) ? HEART_TIER_GOAL : inTier;
+            float target = filled / (float)HEART_TIER_GOAL;
+
+            heartFill = Mathf.Lerp(heartFill, target, dt * 9f);
+            if (Mathf.Abs(heartFill - target) < 0.0015f) heartFill = target;
+
+            if (heartBloomTimer > 0f) heartBloomTimer -= dt;
+            if (heartTierBurstTimer > 0f) heartTierBurstTimer -= dt;
+            if (heartPopTimer > 0f) heartPopTimer -= dt;
+
+            float bloom = Mathf.Clamp01(heartBloomTimer / HEART_BLOOM_DURATION);
+            float burst = Mathf.Clamp01(heartTierBurstTimer / HEART_BURST_DURATION);
+            float beat = HeartBeat();
+
+            // Fill width tracks progress through the current 10-heart tier
+            if (heartBarFillRect != null)
             {
-                heartProgressBar.fillAmount = animatedHeartFill;
+                Vector2 fillAnchor = heartBarFillRect.anchorMax;
+                fillAnchor.x = heartFill;
+                heartBarFillRect.anchorMax = fillAnchor;
             }
+
+            if (heartBarFill != null)
+            {
+                Color c = Color.white;
+                if (burst > 0f)
+                {
+                    c = Color.Lerp(Color.white, HeartGold, Mathf.Abs(Mathf.Sin(burst * Mathf.PI * 3f)));
+                }
+                else if (bloom > 0f)
+                {
+                    c = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.97f), bloom * 0.7f);
+                }
+                heartBarFill.color = c;
+            }
+
+            // Sweeping sheen across the filled portion
+            if (heartBarSheenRect != null)
+            {
+                float sweep = Mathf.Repeat(Time.unscaledTime * 0.62f, 1.9f);
+                bool showSheen = sweep <= 1f && heartFill > 0.06f;
+                if (heartBarSheen != null) heartBarSheen.enabled = showSheen;
+                if (showSheen)
+                {
+                    Vector2 sheenAnchor = new Vector2(sweep, 0f);
+                    heartBarSheenRect.anchorMin = sheenAnchor;
+                    sheenAnchor.y = 1f;
+                    heartBarSheenRect.anchorMax = sheenAnchor;
+
+                    Color sc = Color.white;
+                    sc.a = 0.85f - burst * 0.35f;
+                    heartBarSheen.color = sc;
+                }
+            }
+
+            // Leading edge bloom
+            if (heartBarGlow != null)
+            {
+                bool showGlow = heartFill > 0.01f;
+                heartBarGlow.enabled = showGlow;
+                if (showGlow)
+                {
+                    RectTransform glowRect = heartBarGlow.rectTransform;
+                    Vector2 glowAnchor = new Vector2(heartFill, 0f);
+                    glowRect.anchorMin = glowAnchor;
+                    glowAnchor.y = 1f;
+                    glowRect.anchorMax = glowAnchor;
+
+                    float glowAlpha = Mathf.Clamp01(0.55f + beat * 0.35f + bloom * 0.30f);
+                    Color gc = Color.Lerp(new Color(1f, 0.75f, 0.90f), Color.white, Mathf.Max(bloom, burst));
+                    gc.a = glowAlpha;
+                    heartBarGlow.color = gc;
+                }
+            }
+
+            // Tier dividers light up gold during the completion burst
+            for (int i = 0; i < heartBarTicks.Count; i++)
+            {
+                Image tick = heartBarTicks[i];
+                if (tick == null) continue;
+                tick.color = Color.Lerp(HeartTick, HeartGold, burst);
+            }
+
+            if (heartBarCounter != null)
+            {
+                if (filled != heartFilledShown)
+                {
+                    heartFilledShown = filled;
+                    heartBarCounter.text = $"{filled}/{HEART_TIER_GOAL}";
+                }
+                heartBarCounter.color = Color.Lerp(new Color(1f, 0.55f, 0.80f, 0.95f), HeartGold, burst);
+            }
+
+            UpdateHeartBorder(lives, bloom, beat);
+            UpdateHeartPop();
+        }
+
+        private void UpdateHeartBorder(int lives, float bloom, float beat)
+        {
+            if (heartBorder == null) return;
+
+            Color c;
+            if (lives <= 2)
+            {
+                float strobe = (Mathf.Sin(Time.unscaledTime * 9f) + 1f) * 0.5f;
+                c = Color.Lerp(new Color(1f, 0.22f, 0.30f, 0.95f), new Color(1f, 0.62f, 0.18f, 1f), strobe);
+            }
+            else if (bloom > 0f)
+            {
+                c = Color.Lerp(HeartRose, HeartBloomColor, bloom);
+            }
+            else
+            {
+                c = HeartRose;
+                c.a = 0.55f + beat * 0.30f;
+            }
+
+            for (int i = 0; i < heartBorder.Length; i++)
+            {
+                if (heartBorder[i] != null) heartBorder[i].color = c;
+            }
+        }
+
+        private void UpdateHeartPop()
+        {
+            if (heartPopText == null) return;
+
+            if (heartPopTimer > 0f)
+            {
+                if (!heartPopText.gameObject.activeSelf) heartPopText.gameObject.SetActive(true);
+
+                float ratio = Mathf.Clamp01(heartPopTimer / HEART_POP_DURATION);
+                float rise = 1f - ratio;
+
+                Color c = HeartPopColor;
+                c.a = Mathf.Clamp01(ratio * 1.5f);
+                heartPopText.color = c;
+                heartPopRect.anchoredPosition = new Vector2(0f, 8f + rise * 42f);
+                heartPopText.transform.localScale = Vector3.one * (0.88f + rise * 0.30f);
+            }
+            else if (heartPopText.gameObject.activeSelf)
+            {
+                heartPopText.gameObject.SetActive(false);
+            }
+        }
+
+        /// <summary>Two quick spikes per cycle, mimicking a lub-dub heartbeat.</summary>
+        private static float HeartBeat()
+        {
+            float phase = Mathf.Repeat(Time.unscaledTime, 1.15f);
+            float lub = Mathf.Clamp01(1f - phase / 0.13f);
+            float dub = Mathf.Clamp01(1f - Mathf.Abs(phase - 0.24f) / 0.11f);
+            return Mathf.Max(lub, dub * 0.72f);
         }
 
         private void UpdateActivePowerUps()
@@ -474,7 +701,7 @@ namespace Runner.UI
             scoreText.color = new Color(1.0f, 0.85f, 0.25f);
             scoreText.raycastTarget = false;
 
-            // 6. Top-Right: Heart Meter Pill (Obsidian rose container with animated fill)
+            // 6. Top-Right: Heart Collection Meter (text header + animated gradient bar)
             GameObject heartPillObj = CreateUIElement("Pill_HeartMeter", safeRect);
             RectTransform heartPillRect = heartPillObj.GetComponent<RectTransform>();
             heartPillRect.anchorMin = new Vector2(1, 1);
@@ -488,13 +715,20 @@ namespace Runner.UI
             heartBg.color = new Color(0.08f, 0.04f, 0.06f, 0.90f);
             heartBg.raycastTarget = false;
 
-            // Hearts Count (Top-Left of pill)
+            // Animated border: rose at rest, white bloom on pickup, red strobe at low HP
+            heartBorder = new Image[4];
+            heartBorder[0] = CreateBorderStrip("Brdr_Top", heartPillRect, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -2), Vector2.zero);
+            heartBorder[1] = CreateBorderStrip("Brdr_Bottom", heartPillRect, new Vector2(0, 0), new Vector2(1, 0), Vector2.zero, new Vector2(0, 2));
+            heartBorder[2] = CreateBorderStrip("Brdr_Left", heartPillRect, new Vector2(0, 0), new Vector2(0, 1), Vector2.zero, new Vector2(2, 0));
+            heartBorder[3] = CreateBorderStrip("Brdr_Right", heartPillRect, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-2, 0), Vector2.zero);
+
+            // Hearts Count (Left side of header)
             GameObject hTxtObj = CreateUIElement("Txt_Hearts", heartPillRect);
             RectTransform hTxtRect = hTxtObj.GetComponent<RectTransform>();
-            hTxtRect.anchorMin = new Vector2(0, 0.5f);
+            hTxtRect.anchorMin = new Vector2(0, 0.55f);
             hTxtRect.anchorMax = new Vector2(0.65f, 1);
             hTxtRect.offsetMin = new Vector2(18, 0);
-            hTxtRect.offsetMax = new Vector2(0, -6);
+            hTxtRect.offsetMax = new Vector2(-8, 0);
 
             heartsText = hTxtObj.AddComponent<Text>();
             heartsText.font = cachedFont;
@@ -505,13 +739,13 @@ namespace Runner.UI
             heartsText.color = new Color(1f, 0.45f, 0.75f);
             heartsText.raycastTarget = false;
 
-            // Health Count (Top-Right of pill)
+            // Health Count (Right side of header)
             GameObject hpTxtObj = CreateUIElement("Txt_HP", heartPillRect);
             RectTransform hpTxtRect = hpTxtObj.GetComponent<RectTransform>();
-            hpTxtRect.anchorMin = new Vector2(0.65f, 0.5f);
+            hpTxtRect.anchorMin = new Vector2(0.65f, 0.55f);
             hpTxtRect.anchorMax = new Vector2(1, 1);
-            hpTxtRect.offsetMin = Vector2.zero;
-            hpTxtRect.offsetMax = new Vector2(-18, -6);
+            hpTxtRect.offsetMin = new Vector2(8, 0);
+            hpTxtRect.offsetMax = new Vector2(-18, 0);
 
             healthText = hpTxtObj.AddComponent<Text>();
             healthText.font = cachedFont;
@@ -522,34 +756,122 @@ namespace Runner.UI
             healthText.color = new Color(0.85f, 0.90f, 0.95f);
             healthText.raycastTarget = false;
 
-            // Progress Bar Track
-            GameObject progTrackObj = CreateUIElement("HeartProgress_Track", heartPillRect);
-            RectTransform progTrackRect = progTrackObj.GetComponent<RectTransform>();
-            progTrackRect.anchorMin = new Vector2(0, 0);
-            progTrackRect.anchorMax = new Vector2(1, 0.5f);
-            progTrackRect.offsetMin = new Vector2(18, 12);
-            progTrackRect.offsetMax = new Vector2(-18, -4);
+            // Collection bar track
+            GameObject trackObj = CreateUIElement("HeartBar_Track", heartPillRect);
+            RectTransform trackRect = trackObj.GetComponent<RectTransform>();
+            trackRect.anchorMin = new Vector2(0, 0);
+            trackRect.anchorMax = new Vector2(1, 0.55f);
+            trackRect.offsetMin = new Vector2(18, 20);
+            trackRect.offsetMax = new Vector2(-80, -14);
 
-            Image trackImg = progTrackObj.AddComponent<Image>();
-            trackImg.sprite = cachedWhiteSprite;
-            trackImg.color = new Color(0.02f, 0.02f, 0.03f, 0.95f);
+            Image trackImg = trackObj.AddComponent<Image>();
+            trackImg.sprite = HeartMeterVisuals.Bar;
+            trackImg.color = new Color(0.03f, 0.02f, 0.04f, 0.94f);
             trackImg.raycastTarget = false;
 
-            // Progress Bar Fill
-            GameObject progFillObj = CreateUIElement("HeartProgress_Fill", progTrackRect);
-            RectTransform progFillRect = progFillObj.GetComponent<RectTransform>();
-            progFillRect.anchorMin = Vector2.zero;
-            progFillRect.anchorMax = Vector2.one;
-            progFillRect.offsetMin = new Vector2(2, 2);
-            progFillRect.offsetMax = new Vector2(-2, -2);
+            // Inset the fill so the track rim stays visible behind it
+            GameObject innerObj = CreateUIElement("HeartBar_Inner", trackRect);
+            RectTransform innerRect = innerObj.GetComponent<RectTransform>();
+            innerRect.anchorMin = Vector2.zero;
+            innerRect.anchorMax = Vector2.one;
+            innerRect.offsetMin = new Vector2(3, 3);
+            innerRect.offsetMax = new Vector2(-3, -3);
 
-            heartProgressBar = progFillObj.AddComponent<Image>();
-            heartProgressBar.sprite = cachedWhiteSprite;
-            heartProgressBar.type = Image.Type.Filled;
-            heartProgressBar.fillMethod = Image.FillMethod.Horizontal;
-            heartProgressBar.fillAmount = 0f;
-            heartProgressBar.color = new Color(1f, 0.20f, 0.60f, 0.95f);
-            heartProgressBar.raycastTarget = false;
+            // Fill root: width is driven by anchorMax.x == collection progress
+            GameObject fillObj = CreateUIElement("HeartBar_FillRoot", innerRect);
+            heartBarFillRect = fillObj.GetComponent<RectTransform>();
+            heartBarFillRect.anchorMin = Vector2.zero;
+            heartBarFillRect.anchorMax = new Vector2(0f, 1f);
+            heartBarFillRect.offsetMin = Vector2.zero;
+            heartBarFillRect.offsetMax = Vector2.zero;
+            fillObj.AddComponent<RectMask2D>();
+
+            heartBarFill = fillObj.AddComponent<Image>();
+            heartBarFill.sprite = HeartMeterVisuals.Fill;
+            heartBarFill.color = Color.white;
+            heartBarFill.raycastTarget = false;
+
+            // Sheen sweep (clipped to the filled portion by the RectMask2D)
+            GameObject sheenObj = CreateUIElement("HeartBar_Sheen", heartBarFillRect);
+            heartBarSheenRect = sheenObj.GetComponent<RectTransform>();
+            heartBarSheenRect.anchorMin = new Vector2(0f, 0f);
+            heartBarSheenRect.anchorMax = new Vector2(0f, 1f);
+            heartBarSheenRect.offsetMin = new Vector2(-23f, 0f);
+            heartBarSheenRect.offsetMax = new Vector2(23f, 0f);
+
+            heartBarSheen = sheenObj.AddComponent<Image>();
+            heartBarSheen.sprite = HeartMeterVisuals.Sheen;
+            heartBarSheen.color = Color.white;
+            heartBarSheen.raycastTarget = false;
+            heartBarSheen.enabled = false;
+
+            // Leading edge bloom
+            GameObject glowObj = CreateUIElement("HeartBar_Glow", trackRect);
+            RectTransform glowRect = glowObj.GetComponent<RectTransform>();
+            glowRect.anchorMin = new Vector2(0f, 0f);
+            glowRect.anchorMax = new Vector2(0f, 1f);
+            glowRect.offsetMin = new Vector2(-10f, -5f);
+            glowRect.offsetMax = new Vector2(10f, 5f);
+
+            heartBarGlow = glowObj.AddComponent<Image>();
+            heartBarGlow.sprite = HeartMeterVisuals.Glow;
+            heartBarGlow.color = new Color(1f, 0.75f, 0.90f, 0.7f);
+            heartBarGlow.raycastTarget = false;
+            heartBarGlow.enabled = false;
+
+            // 9 dividers => 10 visible collection steps
+            for (int i = 1; i < HEART_TIER_GOAL; i++)
+            {
+                GameObject tickObj = CreateUIElement($"HeartBar_Tick_{i}", trackRect);
+                RectTransform tickRect = tickObj.GetComponent<RectTransform>();
+                float s = i / (float)HEART_TIER_GOAL;
+                tickRect.anchorMin = new Vector2(s, 0f);
+                tickRect.anchorMax = new Vector2(s, 1f);
+                tickRect.offsetMin = new Vector2(-1f, 3f);
+                tickRect.offsetMax = new Vector2(1f, -3f);
+
+                Image tick = tickObj.AddComponent<Image>();
+                tick.sprite = cachedWhiteSprite;
+                tick.color = HeartTick;
+                tick.raycastTarget = false;
+                heartBarTicks.Add(tick);
+            }
+
+            // Tier counter (n/10)
+            GameObject counterObj = CreateUIElement("Txt_HeartCounter", heartPillRect);
+            RectTransform counterRect = counterObj.GetComponent<RectTransform>();
+            counterRect.anchorMin = new Vector2(1, 0);
+            counterRect.anchorMax = new Vector2(1, 0.55f);
+            counterRect.offsetMin = new Vector2(-74, 20);
+            counterRect.offsetMax = new Vector2(-14, -14);
+
+            heartBarCounter = counterObj.AddComponent<Text>();
+            heartBarCounter.font = cachedFont;
+            heartBarCounter.text = $"0/{HEART_TIER_GOAL}";
+            heartBarCounter.fontSize = 22;
+            heartBarCounter.fontStyle = FontStyle.Bold;
+            heartBarCounter.alignment = TextAnchor.MiddleCenter;
+            heartBarCounter.color = new Color(1f, 0.55f, 0.80f, 0.95f);
+            heartBarCounter.raycastTarget = false;
+
+            // Floating "+1" pickup popup (rises over the meter)
+            GameObject popObj = CreateUIElement("Txt_HeartPop", heartPillRect);
+            heartPopRect = popObj.GetComponent<RectTransform>();
+            heartPopRect.anchorMin = new Vector2(0.5f, 0f);
+            heartPopRect.anchorMax = new Vector2(0.5f, 0f);
+            heartPopRect.pivot = new Vector2(0.5f, 0f);
+            heartPopRect.sizeDelta = new Vector2(340f, 40f);
+            heartPopRect.anchoredPosition = new Vector2(0f, 8f);
+
+            heartPopText = popObj.AddComponent<Text>();
+            heartPopText.font = cachedFont;
+            heartPopText.text = "+1 💖 HEART!";
+            heartPopText.fontSize = 26;
+            heartPopText.fontStyle = FontStyle.Bold;
+            heartPopText.alignment = TextAnchor.MiddleCenter;
+            heartPopText.color = HeartPopColor;
+            heartPopText.raycastTarget = false;
+            heartPopText.gameObject.SetActive(false);
 
             // 7. Top-Right: New Best Record Badge (pulsing gold pill)
             GameObject bestObj = CreateUIElement("Badge_NewBest", safeRect);
@@ -762,6 +1084,22 @@ namespace Runner.UI
             GameObject obj = new GameObject(name, typeof(RectTransform));
             obj.transform.SetParent(parent, false);
             return obj;
+        }
+
+        private Image CreateBorderStrip(string name, RectTransform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+        {
+            GameObject obj = CreateUIElement(name, parent);
+            RectTransform rt = obj.GetComponent<RectTransform>();
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
+            rt.offsetMin = offsetMin;
+            rt.offsetMax = offsetMax;
+
+            Image img = obj.AddComponent<Image>();
+            img.sprite = cachedWhiteSprite;
+            img.color = HeartRose;
+            img.raycastTarget = false;
+            return img;
         }
 
         private static void EnsureResources()

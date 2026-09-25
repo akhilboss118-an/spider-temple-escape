@@ -281,6 +281,41 @@ namespace Runner.Track
             return candidate;
         }
 
+        /// <summary>
+        /// Re-applies the active biome's road and curb materials to every chunk that is
+        /// currently in play, so a mid-run biome change is visible immediately instead
+        /// of only on the next pooled spawn.
+        /// </summary>
+        public void RefreshBiomeMaterials()
+        {
+            var biomeMgr = Runner.Effects.BiomeManager.Instance;
+            if (biomeMgr == null) return;
+
+            Material curbMat = biomeMgr.GetCurbMaterialForBiome(biomeMgr.CurrentBiome);
+            int idx = 0;
+            foreach (var chunk in activeChunks)
+            {
+                if (chunk != null)
+                {
+                    Material floorMat = biomeMgr.GetFloorVariant(idx);
+                    chunk.ApplyBiome(floorMat, curbMat);
+
+                    Transform t2 = chunk.transform.Find("Road3D_Tier2");
+                    if (t2 != null)
+                    {
+                        foreach (var r in t2.GetComponentsInChildren<Renderer>())
+                        {
+                            if (r == null) continue;
+                            Material[] mats = new Material[r.sharedMaterials.Length];
+                            for (int m = 0; m < mats.Length; m++) mats[m] = floorMat;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+                }
+                idx++;
+            }
+        }
+
         private TrackChunk SpawnChunkOfType(ChunkType type)
         {
             TrackChunk chunk = GetOrCreateChunk(type);

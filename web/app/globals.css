@@ -1826,6 +1826,7 @@ body {
 .c-gold  { color: var(--gold); }
 .c-red   { color: #ff5555; }
 .c-blue  { color: #7eb8ff; }
+.c-purple { color: #c39bff; }
 
 /* ─── HAMBURGER MENU & NAV OVERLAY ─── */
 .nav-hamburger {

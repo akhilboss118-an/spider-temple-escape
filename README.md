@@ -3,7 +3,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://github.com/akhilboss118-an/spider-temple-escape/releases)
 [![Unity](https://img.shields.io/badge/Unity-6000.6.0f1%20LTS-blue.svg)](https://unity.com/)
 [![Architecture](https://img.shields.io/badge/Architecture-ARM64%20%7C%20ARMv7-orange.svg)](https://github.com/akhilboss118-an/spider-temple-escape/releases)
-[![Release](https://img.shields.io/badge/Release-v1.0.0-brightgreen.svg)](https://github.com/akhilboss118-an/spider-temple-escape/releases/tag/v1.0.0)
+[![Release](https://img.shields.io/badge/Release-v3.1.0-brightgreen.svg)](https://github.com/akhilboss118-an/spider-temple-escape/releases/tag/v3.1.0)
 [![Website](https://img.shields.io/badge/Website-spider--temple--escape.vercel.app-black?logo=vercel)](https://spider-temple-escape.vercel.app)
 
 🌐 **Official Website:** [https://spider-temple-escape.vercel.app](https://spider-temple-escape.vercel.app)
@@ -18,7 +18,7 @@ Escape from the ancient beast through a ruined jungle temple filled with crumbli
 
 You can download and play the latest standalone Android `.apk` directly:
 
-👉 **[Download SpiderTempleEscape.apk (v1.0.0)](https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v1.0.0/SpiderTempleEscape.apk)** *(~68.3 MB)*
+👉 **[Download SpiderTempleEscape.apk (v3.1.0)](https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v3.1.0/SpiderTempleEscape.apk)** *(~133 MB)*
 
 ### 📱 How to Install on Android:
 1. Download the `.apk` file above on your Android phone (or transfer it via USB / Google Drive).

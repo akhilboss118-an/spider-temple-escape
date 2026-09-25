@@ -29,6 +29,15 @@ namespace Runner.Obstacles
             private set => _instance = value;
         }
 
+        /// <summary>
+        /// Creates the boss scheduler if it does not exist yet. Safe to call on every scene load.
+        /// </summary>
+        public static BossFightManager EnsureExists()
+        {
+            if (_instance != null) return _instance;
+            return Instance;
+        }
+
         [Header("Boss Spawn Settings")]
         [Tooltip("Distance interval between boss fights (meters)")]
         [SerializeField] private float bossInterval = 5000.0f;

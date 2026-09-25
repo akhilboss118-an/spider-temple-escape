@@ -58,6 +58,8 @@ namespace Runner.UI
         private Texture2D deathBgTexture;
         private Texture2D relicTexture;
         private Texture2D suitPreviewTexture;
+        private Texture2D loadingBackgroundTexture;
+        private Texture2D appLogoTexture;
         private Texture2D whiteTexture;
 
         // AAA Cinematic Overlay Textures
@@ -84,7 +86,8 @@ namespace Runner.UI
         private float heartBloomTimer = 0f;
 
         // Real Heart Collection Meter & Special Effects State
-        private float animatedHeartFill = 1.0f;
+        private float heartBarFill = 0f;
+        private float heartTierBurstTimer = 0f;
         private float heartCollectFloatTimer = 0f;
         private int lastRecordedCoins = -1;
         private int lastRecordedLives = -1;
@@ -99,7 +102,7 @@ namespace Runner.UI
         // Loading Screen System (Starting Boot & Death -> Main Menu)
         private bool isLoading = true; // Starts TRUE for initial boot loading screen!
         private float loadingTimer = 0f;
-        private float loadingDuration = 2.2f;
+        private float loadingDuration = 2.8f;
         private float loadingProgress = 0f;
         private float loadingFadeAlpha = 1f;
         private bool isLoadingFadingOut = false;
@@ -171,13 +174,9 @@ namespace Runner.UI
             InGameCanvasHUD.EnsureInstance();
             Runner.Characters.CharacterManager.EnsureInstance();
 
-            // Initial Game Launch Loading Screen (skip in Editor for instant play)
-#if !UNITY_EDITOR
-            StartLoading(0.5f, "INITIALIZING EXPEDITION...", null, "SPIDER TEMPLE ESCAPE", "ENDLESS 3D JUNGLE RUNNER");
-#else
-            isLoading = false;
-            loadingFadeAlpha = 0f;
-#endif
+            // Keep the boot sequence visible in the Editor too, so the startup experience
+            // can be tested before making a device build.
+            StartLoading(2.8f, "INITIALIZING EXPEDITION...", null, "SPIDER TEMPLE ESCAPE", "ENDLESS 3D JUNGLE RUNNER");
         }
 
         private void OnDestroy()
@@ -197,6 +196,10 @@ namespace Runner.UI
             {
                 heartBloomTimer = 0.9f;
                 heartCollectFloatTimer = 1.2f;
+                if (lastRecordedCoins % 10 != 0 && newCoins % 10 == 0)
+                {
+                    heartTierBurstTimer = 1.1f;
+                }
             }
             lastRecordedCoins = newCoins;
         }
@@ -273,7 +276,8 @@ namespace Runner.UI
             }
             if (InGameCanvasHUD.Instance != null)
             {
-                InGameCanvasHUD.Instance.SetVisible(false);
+                // Let the canvas HUD decide for itself based on state + HUD style
+                InGameCanvasHUD.Instance.RefreshVisibility();
             }
         }
 
@@ -344,6 +348,24 @@ namespace Runner.UI
                 {
                     suitPreviewTexture = Resources.Load<Texture2D>("Textures/hero_suit_preview");
                 }
+            }
+
+            if (loadingBackgroundTexture == null)
+            {
+#if UNITY_EDITOR
+                loadingBackgroundTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/UI/jungle_escape_bg.png");
+#endif
+                if (loadingBackgroundTexture == null)
+                    loadingBackgroundTexture = Resources.Load<Texture2D>("Textures/jungle_escape_bg");
+            }
+
+            if (appLogoTexture == null)
+            {
+#if UNITY_EDITOR
+                appLogoTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/UI/app_logo.png");
+#endif
+                if (appLogoTexture == null)
+                    appLogoTexture = Resources.Load<Texture2D>("Textures/app_logo");
             }
 
             // Create AAA cinematic vignette textures
@@ -622,6 +644,156 @@ namespace Runner.UI
         }
         #endregion
 
+        #region GUI State Safety & Text Helpers
+        // ─────────────────────────────────────────────────────────────────────────────
+        // GUI.skin.label is a SINGLE SHARED OBJECT mutated by every label call.
+        // Any missed reset causes alignment / font-size / style LEAKAGE into the next
+        // draw call. Always pair a style-changing label with ResetGUIStyle() after.
+        // ─────────────────────────────────────────────────────────────────────────────
+        private void ResetGUIStyle()
+        {
+            if (GUI.skin == null || GUI.skin.label == null) return;
+            GUI.skin.label.alignment = TextAnchor.UpperLeft;
+            GUI.skin.label.fontSize = 0;        // 0 = inherit from skin
+            GUI.skin.label.fontStyle = FontStyle.Normal;
+            GUI.skin.label.wordWrap = false;
+            GUI.skin.label.font = null;         // skin default
+        }
+
+        // Wraps GUI.Label with overflow protection — text is truncated with "…" if it
+        // would exceed the rect width. Also auto-resets style afterward.
+        private void SafeLabel(Rect rect, string text, int maxFontSize, bool wordWrap = false)
+        {
+            if (string.IsNullOrEmpty(text)) { ResetGUIStyle(); return; }
+
+            // Truncate if needed (avoids ugly overflow)
+            string display = wordWrap ? text : TruncateText(text, rect.width, maxFontSize);
+            GUI.Label(rect, display);
+            ResetGUIStyle();
+        }
+
+        private string TruncateText(string text, float maxWidth, int fontSize)
+        {
+            // Approximate char width at given font size (average for proportional fonts)
+            float charWidth = fontSize * 0.55f;
+            int maxChars = Mathf.FloorToInt(maxWidth / charWidth);
+            if (maxChars <= 3) return "...";
+            if (text.Length <= maxChars) return text;
+            return text.Substring(0, Mathf.Max(0, maxChars - 2)) + "…";
+        }
+
+        // Convenience overload that also applies common style then resets
+        private void StyledLabel(Rect rect, string text, TextAnchor align, int fontSize,
+                                FontStyle style, Color color, bool wrap = false)
+        {
+            GUI.skin.label.alignment = align;
+            GUI.skin.label.fontSize = fontSize;
+            GUI.skin.label.fontStyle = style;
+            GUI.skin.label.wordWrap = wrap;
+            GUI.color = color;
+            SafeLabel(rect, text, fontSize, wrap);
+            ResetGUIStyle();
+        }
+
+        // Draw a button card with press-feedback (scales down slightly when held)
+        private bool DrawPressButton(Rect rect, Color baseColor, Color textColor,
+                                    string label, int fontSize, float uiScale)
+        {
+            bool hovered = rect.Contains(pointerGUIPosition);
+            bool pressed = hovered && isPointerHeld;
+
+            // Scale-down on press
+            Rect drawRect = rect;
+            if (pressed)
+            {
+                float shrink = 4f * uiScale;
+                drawRect = new Rect(rect.x + shrink, rect.y + shrink,
+                                    rect.width - shrink * 2, rect.height - shrink * 2);
+            }
+
+            Color cardColor = pressed
+                ? new Color(baseColor.r * 0.75f, baseColor.g * 0.75f, baseColor.b * 0.75f, baseColor.a)
+                : (hovered
+                    ? new Color(
+                        Mathf.Min(1f, baseColor.r + 0.08f),
+                        Mathf.Min(1f, baseColor.g + 0.08f),
+                        Mathf.Min(1f, baseColor.b + 0.08f),
+                        baseColor.a)
+                    : baseColor);
+
+            DrawCard(drawRect, cardColor);
+
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = fontSize;
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.wordWrap = false;
+            GUI.color = textColor;
+            GUI.Label(drawRect, label);
+            ResetGUIStyle();
+
+            return IsCardClicked(rect.GetHashCode(), rect);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Draws a glass-card style button with icon + label + press feedback in one call.
+        // Returns true if clicked. Keeps card, icon, and label visually clean (no double-draw).
+        // ─────────────────────────────────────────────────────────────────────────────
+        private bool DrawGlassCardButton(Rect rect, Color bgColor, Color borderColor,
+                                       string icon, string label, Color iconColor, float uiScale)
+        {
+            bool hovered = rect.Contains(pointerGUIPosition);
+            bool pressed = hovered && isPointerHeld;
+
+            // Scale-down on press
+            Rect drawRect = rect;
+            if (pressed)
+            {
+                float shrink = 3f * uiScale;
+                drawRect = new Rect(rect.x + shrink, rect.y + shrink,
+                                   rect.width - shrink * 2, rect.height - shrink * 2);
+            }
+
+            Color cardBg = pressed
+                ? new Color(bgColor.r * 0.75f, bgColor.g * 0.75f, bgColor.b * 0.75f, bgColor.a)
+                : bgColor;
+
+            DrawGlassCard(drawRect, cardBg, borderColor);
+
+            float tileW = rect.width;
+
+            // Icon
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.color = iconColor;
+            GUI.Label(new Rect(drawRect.x, drawRect.y + (4f * uiScale), tileW, 20f * uiScale), icon);
+            ResetGUIStyle();
+
+            // Label
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(drawRect.x, drawRect.y + (26f * uiScale), tileW, 16f * uiScale), label);
+            ResetGUIStyle();
+
+            return IsCardClicked(rect.GetHashCode(), rect);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Responsive uiScale that properly covers ultra-wide and foldable screens.
+        // Uses matchWidthOrHeight=0.5 (average) with a wider clamp than before.
+        // ─────────────────────────────────────────────────────────────────────────────
+        private float GetResponsiveScale()
+        {
+            float baseW = 390f;
+            float baseH = 844f;  // ~9:20 ratio for modern tall phones
+            float scaleW = Screen.width / baseW;
+            float scaleH = Screen.height / baseH;
+            float avg = (scaleW + scaleH) * 0.5f;
+            return Mathf.Clamp(avg, 0.7f, 2.8f);
+        }
+        #endregion
+
         private void DrawBorder(Rect rect, Color color, float thickness)
         {
             GUI.color = color;
@@ -760,6 +932,11 @@ namespace Runner.UI
             if (heartBloomTimer > 0f)
             {
                 heartBloomTimer -= Time.unscaledDeltaTime;
+            }
+
+            if (heartTierBurstTimer > 0f)
+            {
+                heartTierBurstTimer -= Time.unscaledDeltaTime;
             }
 
             if (heartCollectFloatTimer > 0f)
@@ -931,22 +1108,21 @@ namespace Runner.UI
                 case GameState.Paused:
                     RenderInGameHUD();
                     RenderTutorialOverlay();
-                    float pauseScale = Mathf.Clamp(Mathf.Min(Screen.width / 420.0f, Screen.height / 640.0f), 0.75f, 2.2f);
                     if (photoModeState == PhotoModeState.Active)
                     {
                         RenderPhotoModeUI();
                     }
                     else if (resumeCountdownTimer > 0f)
                     {
-                        RenderResumeCountdown(pauseScale);
+                        RenderResumeCountdown(GetResponsiveScale());
                     }
                     else if (isMidGameSettingsOpen)
                     {
-                        RenderSettingsModal(pauseScale, true);
+                        RenderSettingsModal(GetResponsiveScale(), true);
                     }
                     else
                     {
-                        RenderPauseModal(pauseScale);
+                        RenderPauseModal(GetResponsiveScale());
                     }
                     break;
             }
@@ -965,7 +1141,7 @@ namespace Runner.UI
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
 
-            float uiScale = Mathf.Clamp(Screen.width / 390.0f, 0.80f, 2.2f);
+            float uiScale = GetResponsiveScale();
 
             // Menu entrance animation (0.4s ease-out for bottom elements)
             float menuEntranceProgress = Mathf.Clamp01(menuEntranceTimer / 0.4f);
@@ -1085,14 +1261,20 @@ namespace Runner.UI
             GUI.color = new Color(0.02f, 0.02f, 0.02f, 0.90f);
             GUI.skin.label.fontSize = animatedFontSize;
             GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.alignment = TextAnchor.UpperCenter;
             GUI.Label(new Rect(2f, mainTitleY + shadowOffset, Screen.width, 34f * uiScale), "SPIDER TEMPLE ESCAPE");
+            ResetGUIStyle();
 
             // Radiant Gold with glow
             float goldR = 1.0f;
             float goldG = 0.88f + glowPulse * 0.08f;
             float goldB = 0.40f + glowPulse * 0.15f;
             GUI.color = new Color(goldR, goldG, goldB);
+            GUI.skin.label.fontSize = animatedFontSize;
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.alignment = TextAnchor.UpperCenter;
             GUI.Label(new Rect(0, mainTitleY, Screen.width, 34f * uiScale), "SPIDER TEMPLE ESCAPE");
+            ResetGUIStyle();
 
             // Thin Golden Filigree Line with animated shimmer
             float divW = 140f * uiScale;
@@ -1103,7 +1285,10 @@ namespace Runner.UI
             GUI.DrawTexture(new Rect(divX, divY + (3f * uiScale), divW * 0.42f, 1f), whiteTexture);
             GUI.DrawTexture(new Rect(divX + (divW * 0.58f), divY + (3f * uiScale), divW * 0.42f, 1f), whiteTexture);
             GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(divX + (divW * 0.42f), divY - (4f * uiScale), divW * 0.16f, 14f * uiScale), "◆");
+            ResetGUIStyle();
 
             // 5. Center 3D Play Space Tap Area & Pulsing Hint
             float dockW = Mathf.Min(Screen.width - (safeSide * 2f), 390f * uiScale);
@@ -1194,44 +1379,32 @@ namespace Runner.UI
 
             // Tile 1: HERO ROSTER / CHARACTERS
             Rect suitTile = new Rect(dockX, tileY, tileW, dockTileH);
-            DrawGlassCard(suitTile, new Color(0.06f, 0.09f, 0.11f, 0.88f), new Color(0.20f, 0.85f, 0.95f, 0.65f));
-            GUI.color = new Color(0.25f, 0.95f, 1.0f);
-            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(suitTile.x, suitTile.y + (4f * uiScale), tileW, 20f * uiScale), "🦸");
-            GUI.color = Color.white;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(9f * uiScale);
-            GUI.Label(new Rect(suitTile.x, suitTile.y + (25f * uiScale), tileW, 16f * uiScale), "HEROES");
-            if (IsCardClicked(102, suitTile))
+            if (DrawGlassCardButton(suitTile, new Color(0.06f, 0.09f, 0.11f, 0.88f),
+                new Color(0.20f, 0.85f, 0.95f, 0.65f), "🦸", "HEROES",
+                new Color(0.25f, 0.95f, 1.0f), uiScale))
             {
                 activeModal = MenuModal.HeroSuits;
             }
 
             // Tile 2: UPGRADES / BOOSTS
             Rect upgTile = new Rect(dockX + tileW + tileGap, tileY, tileW, dockTileH);
-            DrawGlassCard(upgTile, new Color(0.06f, 0.09f, 0.11f, 0.88f), new Color(1.0f, 0.80f, 0.25f, 0.65f));
-            GUI.color = new Color(1.0f, 0.85f, 0.25f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
-            GUI.Label(new Rect(upgTile.x, upgTile.y + (6f * uiScale), tileW, 20f * uiScale), "⚡");
-            GUI.color = Color.white;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
-            GUI.Label(new Rect(upgTile.x, upgTile.y + (28f * uiScale), tileW, 18f * uiScale), "BOOSTS");
-            if (IsCardClicked(103, upgTile))
+            if (DrawGlassCardButton(upgTile, new Color(0.06f, 0.09f, 0.11f, 0.88f),
+                new Color(1.0f, 0.80f, 0.25f, 0.65f), "⚡", "BOOSTS",
+                new Color(1.0f, 0.85f, 0.25f), uiScale))
             {
                 activeModal = MenuModal.Upgrades;
             }
 
             // Tile 3: MISSIONS / QUESTS
             Rect misTile = new Rect(dockX + (tileW + tileGap) * 2f, tileY, tileW, dockTileH);
-            DrawGlassCard(misTile, new Color(0.06f, 0.09f, 0.11f, 0.88f), new Color(0.25f, 0.95f, 0.55f, 0.65f));
-            GUI.color = new Color(0.35f, 0.95f, 0.65f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
-            GUI.Label(new Rect(misTile.x, misTile.y + (6f * uiScale), tileW, 20f * uiScale), "📜");
-            GUI.color = Color.white;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
-            GUI.Label(new Rect(misTile.x, misTile.y + (28f * uiScale), tileW, 18f * uiScale), "QUESTS");
-            // Badge if unclaimed missions
+            if (DrawGlassCardButton(misTile, new Color(0.06f, 0.09f, 0.11f, 0.88f),
+                new Color(0.25f, 0.95f, 0.55f, 0.65f), "📜", "QUESTS",
+                new Color(0.35f, 0.95f, 0.65f), uiScale))
+            {
+                activeModal = MenuModal.Missions;
+            }
+
+            // Badge if unclaimed missions (drawn after so it sits on top)
             int unclaimedCount = MissionManager.Instance != null ? MissionManager.Instance.GetUnclaimedRewardsCount() : 0;
             if (unclaimedCount > 0)
             {
@@ -1240,21 +1413,12 @@ namespace Runner.UI
                 GUI.color = new Color(1.0f, 0.85f, 0.20f);
                 GUI.DrawTexture(badgeRect, whiteTexture);
             }
-            if (IsCardClicked(108, misTile))
-            {
-                activeModal = MenuModal.Missions;
-            }
 
             // Tile 4: SETTINGS / OPTIONS
             Rect setTile = new Rect(dockX + (tileW + tileGap) * 3f, tileY, tileW, dockTileH);
-            DrawGlassCard(setTile, new Color(0.06f, 0.09f, 0.11f, 0.88f), new Color(0.65f, 0.78f, 0.92f, 0.65f));
-            GUI.color = new Color(0.75f, 0.88f, 0.98f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
-            GUI.Label(new Rect(setTile.x, setTile.y + (6f * uiScale), tileW, 20f * uiScale), "⚙️");
-            GUI.color = Color.white;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
-            GUI.Label(new Rect(setTile.x, setTile.y + (28f * uiScale), tileW, 18f * uiScale), "OPTIONS");
-            if (IsCardClicked(104, setTile))
+            if (DrawGlassCardButton(setTile, new Color(0.06f, 0.09f, 0.11f, 0.88f),
+                new Color(0.65f, 0.78f, 0.92f, 0.65f), "⚙️", "OPTIONS",
+                new Color(0.75f, 0.88f, 0.98f), uiScale))
             {
                 activeModal = MenuModal.Settings;
             }
@@ -1290,6 +1454,7 @@ namespace Runner.UI
                 GUI.skin.label.fontSize = Mathf.RoundToInt(14 * uiScale);
                 GUI.skin.label.fontStyle = FontStyle.Bold;
                 GUI.Label(leftArrowRect, "‹");
+                ResetGUIStyle();
 
                 if (canScrollLeft && IsCardClicked(240, leftArrowRect))
                 {
@@ -1327,13 +1492,13 @@ namespace Runner.UI
 
                     // Subtle vertical bounce on icon
                     float bounce = Mathf.Sin(animTime * 2.5f) * 2.0f * uiScale;
-                    // Icon: Spider for Slot 0 (Spider-Man), Custom icon for unlocked heroes
                     string iconSel = (i == 0) ? "🕷️" : (isUnlocked ? "🦸" : "🔒");
                     GUI.color = new Color(1.0f, 0.88f, 0.35f, 1.0f);
                     GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                     GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
                     GUI.skin.label.fontStyle = FontStyle.Bold;
                     GUI.Label(new Rect(cardX, y + (4f * uiScale) + bounce, cardW, 20f * uiScale), iconSel);
+                    ResetGUIStyle();
                 }
                 else
                 {
@@ -1342,13 +1507,13 @@ namespace Runner.UI
                                                  new Color(0.40f, 0.40f, 0.48f, 0.35f);
                     DrawBorder(cardRect, borderCol, 1.0f);
 
-                    // Icon: Spider for Slot 0 (Spider-Man), Custom icon for unlocked heroes
                     string icon = (i == 0) ? "🕷️" : (isUnlocked ? "🦸" : "🔒");
                     GUI.color = isUnlocked ? Color.white : new Color(0.65f, 0.65f, 0.70f);
                     GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                     GUI.skin.label.fontSize = Mathf.RoundToInt(15 * uiScale);
                     GUI.skin.label.fontStyle = FontStyle.Bold;
                     GUI.Label(new Rect(cardX, y + (4f * uiScale), cardW, 20f * uiScale), icon);
+                    ResetGUIStyle();
                 }
 
                 // Top highlight line for equipped hero
@@ -1363,9 +1528,11 @@ namespace Runner.UI
                 string nameText = (i == 0) ? "SPIDER" : (slot != null ? slot.characterName.ToUpperInvariant() : $"HERO {i + 1}");
                 if (nameText.Length > 8) nameText = nameText.Substring(0, 8); // compact fit
                 GUI.color = isSelected ? Color.white : (isUnlocked ? new Color(0.85f, 0.90f, 0.95f) : new Color(0.60f, 0.60f, 0.65f));
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                 GUI.skin.label.fontSize = Mathf.RoundToInt(8.5f * uiScale);
                 GUI.skin.label.fontStyle = FontStyle.Bold;
                 GUI.Label(new Rect(cardX, y + (25f * uiScale), cardW, 15f * uiScale), nameText);
+                ResetGUIStyle();
 
                 // Bottom Status Pill (EQUIPPED / SELECT / X Hearts)
                 float badgeH = 18f * uiScale;
@@ -1375,17 +1542,21 @@ namespace Runner.UI
                 {
                     DrawCard(badgeRect, new Color(0.12f, 0.45f, 0.25f, 0.95f));
                     GUI.color = new Color(0.35f, 0.98f, 0.65f);
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                     GUI.skin.label.fontSize = Mathf.RoundToInt(8f * uiScale);
                     GUI.skin.label.fontStyle = FontStyle.Bold;
                     GUI.Label(badgeRect, "EQUIPPED");
+                    ResetGUIStyle();
                 }
                 else if (isUnlocked)
                 {
                     DrawCard(badgeRect, new Color(0.12f, 0.24f, 0.35f, 0.90f));
                     GUI.color = Color.white;
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                     GUI.skin.label.fontSize = Mathf.RoundToInt(8f * uiScale);
                     GUI.skin.label.fontStyle = FontStyle.Bold;
                     GUI.Label(badgeRect, "SELECT");
+                    ResetGUIStyle();
                 }
                 else
                 {
@@ -1393,9 +1564,11 @@ namespace Runner.UI
                     DrawCard(badgeRect, new Color(0.25f, 0.12f, 0.05f, 0.90f));
                     DrawBorder(badgeRect, new Color(1.0f, 0.75f, 0.20f, 0.45f), 0.8f);
                     GUI.color = new Color(1.0f, 0.80f, 0.30f);
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                     GUI.skin.label.fontSize = Mathf.RoundToInt(8f * uiScale);
                     GUI.skin.label.fontStyle = FontStyle.Bold;
                     GUI.Label(badgeRect, $"{cost} 💖");
+                    ResetGUIStyle();
                 }
 
                 // Click Handling
@@ -1422,6 +1595,7 @@ namespace Runner.UI
                 GUI.skin.label.fontSize = Mathf.RoundToInt(14 * uiScale);
                 GUI.skin.label.fontStyle = FontStyle.Bold;
                 GUI.Label(rightArrowRect, "›");
+                ResetGUIStyle();
 
                 if (canScrollRight && IsCardClicked(241, rightArrowRect))
                 {
@@ -1463,7 +1637,7 @@ namespace Runner.UI
                 case MenuModal.Upgrades: title = "⚡ RELIC UPGRADES"; break;
                 case MenuModal.Missions: title = "📜 EXPEDITION MISSIONS"; break;
                 case MenuModal.Settings: title = "⚙️ GAME SETTINGS"; break;
-                case MenuModal.Leaderboard: title = "🏆 GLOBAL STATS"; break;
+                case MenuModal.Leaderboard: title = "🏆 STATS & LEADERBOARD"; break;
                 case MenuModal.QuitConfirm: title = "🚪 QUIT EXPEDITION"; break;
                 case MenuModal.MapSelect: title = "🗺️ SELECT EXPEDITION MAP"; break;
             }
@@ -1534,52 +1708,92 @@ namespace Runner.UI
         {
             float startX = x + (16f * scale);
             float cardW = w - (32f * scale);
-            float cardH = 68f * scale;
+            float cardH = 62f * scale;
+            float gap = 6f * scale;
 
-            // Only Jungle Canopy map
-            Rect r = new Rect(startX, y, cardW, cardH);
-            DrawCard(r, new Color(0.10f, 0.20f, 0.14f, 0.95f));
-            DrawBorder(r, new Color(0.25f, 0.95f, 0.55f, 0.90f), 1.8f * scale);
+            var currentMode = Runner.Effects.BiomeManager.CurrentMapMode;
+            int mapCount = System.Enum.GetNames(typeof(Runner.Effects.SelectedMapMode)).Length;
 
-            // Icon
-            GUI.color = new Color(0.25f, 0.95f, 0.55f);
-            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(20 * scale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(startX + (4f * scale), y + (10f * scale), 36f * scale, 36f * scale), "🌿");
+            for (int modeIndex = 0; modeIndex < mapCount; modeIndex++)
+            {
+                var mode = (Runner.Effects.SelectedMapMode)modeIndex;
+                float cardY = y + (modeIndex * (cardH + gap));
+                Rect r = new Rect(startX, cardY, cardW, cardH);
 
-            // Title & Tag
-            float textX = startX + (42f * scale);
-            float textW = cardW - (125f * scale);
-            GUI.color = Color.white;
-            GUI.skin.label.alignment = TextAnchor.UpperLeft;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(11f * scale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(textX, y + (5f * scale), textW, 16f * scale), "JUNGLE CANOPY");
+                Color accent;
+                string icon, title, tag, desc;
+                switch (mode)
+                {
+                    default:
+                        accent = new Color(0.25f, 0.95f, 0.55f);
+                        icon = "🌿";
+                        title = "JUNGLE CANOPY";
+                        tag = "• CLASSIC TEMPLE •";
+                        desc = "Ancient overgrown Aztec ruins, lush foliage, golden sun & falling leaves.";
+                        break;
+                }
 
-            GUI.color = new Color(0.25f, 0.95f, 0.55f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(8.5f * scale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(textX, y + (20f * scale), textW, 14f * scale), "• CLASSIC TEMPLE •");
+                bool isSelected = currentMode == mode;
+                DrawCard(r, isSelected ? new Color(0.10f, 0.22f, 0.18f, 0.96f) : new Color(0.08f, 0.11f, 0.12f, 0.92f));
+                DrawBorder(r, isSelected ? accent : new Color(accent.r, accent.g, accent.b, 0.35f),
+                    (isSelected ? 2.2f : 1.2f) * scale);
 
-            GUI.color = new Color(0.70f, 0.75f, 0.80f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(7.5f * scale);
-            GUI.skin.label.fontStyle = FontStyle.Normal;
-            GUI.Label(new Rect(textX, y + (34f * scale), textW, 30f * scale),
-                "Ancient overgrown Aztec ruins, lush foliage, golden sun & falling leaves.");
+                // Icon
+                GUI.color = accent;
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(18f * scale);
+                GUI.skin.label.fontStyle = FontStyle.Bold;
+                GUI.Label(new Rect(startX + (4f * scale), cardY + (8f * scale), 34f * scale, 34f * scale), icon);
 
-            // Always active badge
-            float btnW = 72f * scale;
-            float btnH = 28f * scale;
-            float btnX = startX + cardW - btnW - (8f * scale);
-            float btnY = y + ((cardH - btnH) * 0.5f);
-            Rect btnRect = new Rect(btnX, btnY, btnW, btnH);
-            DrawGlassPill(btnRect, new Color(0.04f, 0.18f, 0.10f, 0.90f), new Color(0.25f, 0.95f, 0.55f, 0.80f));
-            GUI.color = new Color(0.35f, 0.98f, 0.65f);
-            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(btnRect, "✓ ACTIVE");
+                // Title & Tag
+                float textX = startX + (40f * scale);
+                float textW = cardW - (135f * scale);
+                GUI.color = Color.white;
+                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(10.5f * scale);
+                GUI.skin.label.fontStyle = FontStyle.Bold;
+                GUI.Label(new Rect(textX, cardY + (4f * scale), textW, 15f * scale), title);
+
+                GUI.color = accent;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(8f * scale);
+                GUI.Label(new Rect(textX, cardY + (18f * scale), textW, 13f * scale), tag);
+
+                GUI.color = new Color(0.70f, 0.75f, 0.80f);
+                GUI.skin.label.fontSize = Mathf.RoundToInt(7.5f * scale);
+                GUI.skin.label.fontStyle = FontStyle.Normal;
+                GUI.Label(new Rect(textX, cardY + (31f * scale), textW, 28f * scale), desc);
+
+                // State button (SELECT / ✓ ACTIVE)
+                float btnW = 74f * scale;
+                float btnH = 26f * scale;
+                float btnX = startX + cardW - btnW - (8f * scale);
+                float btnY = cardY + ((cardH - btnH) * 0.5f);
+                Rect btnRect = new Rect(btnX, btnY, btnW, btnH);
+
+                if (isSelected)
+                {
+                    DrawGlassPill(btnRect, new Color(0.04f, 0.16f, 0.12f, 0.92f), accent);
+                    GUI.color = accent;
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                    GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
+                    GUI.skin.label.fontStyle = FontStyle.Bold;
+                    GUI.Label(btnRect, "✓ ACTIVE");
+                }
+                else
+                {
+                    DrawGlassPill(btnRect, new Color(0.10f, 0.14f, 0.18f, 0.92f), new Color(accent.r, accent.g, accent.b, 0.75f));
+                    GUI.color = Color.white;
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                    GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
+                    GUI.skin.label.fontStyle = FontStyle.Bold;
+                    GUI.Label(btnRect, "SELECT");
+                    if (IsCardClicked(500 + modeIndex, btnRect) || IsCardClicked(510 + modeIndex, r))
+                    {
+                        Runner.Effects.BiomeManager.Instance?.SetSelectedMap(mode);
+                        ShowToast(icon, $"{title} Selected!", 2.0f);
+                    }
+                }
+            }
         }
 
         private void RenderHeroSuitsBody(float x, float y, float w, float scale)
@@ -1677,17 +1891,26 @@ namespace Runner.UI
                 }
                 else
                 {
-                    DrawCard(btnRect, new Color(0.15f, 0.55f, 0.85f, 0.90f));
-                    GUI.color = Color.white;
+                    int unlockCost = (cm != null) ? cm.GetCharacterUnlockCost(i) : 0;
+                    bool canAfford = GameManager.Instance != null && GameManager.Instance.TotalBankedHearts >= unlockCost;
+                    DrawCard(btnRect, canAfford ? new Color(0.55f, 0.40f, 0.12f, 0.95f) : new Color(0.26f, 0.22f, 0.14f, 0.92f));
+                    GUI.color = canAfford ? new Color(1f, 0.92f, 0.55f) : new Color(0.72f, 0.66f, 0.55f);
                     GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                     GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * scale);
                     GUI.skin.label.fontStyle = FontStyle.Bold;
-                    GUI.Label(btnRect, "SELECT");
+                    GUI.Label(btnRect, $"🔒 {unlockCost} ❤");
                     if (IsCardClicked(300 + i, btnRect))
                     {
-                        cm?.SelectCharacter(i);
-                        GameManager.Instance.SelectSuit(i);
-                        ShowToast((i == 0) ? "🕷️" : "🦸", $"{charName} Equipped!");
+                        if (cm != null && cm.UnlockCharacter(i))
+                        {
+                            GameManager.Instance?.SelectSuit(i);
+                            ShowToast("🔓", $"{charName} Unlocked!");
+                        }
+                        else
+                        {
+                            int held = (GameManager.Instance != null) ? GameManager.Instance.TotalBankedHearts : 0;
+                            ShowToast("💔", $"Need {unlockCost} Hearts — you have {held}");
+                        }
                     }
                 }
             }
@@ -2108,7 +2331,28 @@ namespace Runner.UI
                 ShowToast("📳", GameManager.Instance.IsHapticsEnabled ? "Haptic Vibration: ON" : "Haptic Vibration: OFF");
             }
 
-            // 5. Controls Help Guide
+            // 5. HUD Style: Canvas (uGUI) vs Classic (IMGUI)
+            curY += rowH + (6f * scale);
+            Rect hudRow = new Rect(startX, curY, contentW, rowH);
+            DrawCard(hudRow, new Color(0.10f, 0.14f, 0.12f, 0.90f));
+
+            GUI.color = Color.white;
+            GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+            GUI.Label(new Rect(startX + (8f * scale), curY, contentW * 0.45f, rowH), "IN-GAME HUD");
+
+            Rect hudBtn = new Rect(startX + contentW - btnW - (6f * scale), curY + (5f * scale), btnW, btnH);
+            GUI.color = GameManager.Instance.UseCanvasHud ? new Color(0.20f, 0.85f, 0.75f) : new Color(0.6f, 0.6f, 0.6f);
+            string hudName = GameManager.Instance.UseCanvasHud ? "CANVAS" : "CLASSIC";
+            if (IsCardClicked(505, hudBtn) || GUI.Button(hudBtn, hudName))
+            {
+                GameManager.Instance.SetHudStyle(!GameManager.Instance.UseCanvasHud);
+                InGameCanvasHUD.Instance?.RefreshVisibility();
+                ShowToast("🖥️", GameManager.Instance.UseCanvasHud
+                    ? "HUD Style: Canvas (native)"
+                    : "HUD Style: Classic (legacy)");
+            }
+
+            // 6. Controls Help Guide
             curY += rowH + (10f * scale);
             Rect ctrlBox = new Rect(startX, curY, contentW, 110f * scale);
             DrawCard(ctrlBox, new Color(0.08f, 0.11f, 0.10f, 0.95f));
@@ -2234,50 +2478,132 @@ namespace Runner.UI
 
         private void RenderLeaderboardBody(float x, float y, float w, float scale)
         {
+            var gm = GameManager.Instance;
+            if (gm == null) return;
+
             float startX = x + (16f * scale);
             float contentW = w - (32f * scale);
+            float lineY = y;
 
-            // Stats Card
-            Rect statsBox = new Rect(startX, y, contentW, 220f * scale);
-            DrawCard(statsBox, new Color(0.10f, 0.14f, 0.12f, 0.90f));
+            // 1. Level card with XP progress
+            Rect levelBox = new Rect(startX, lineY, contentW, 74f * scale);
+            DrawCard(levelBox, new Color(0.10f, 0.14f, 0.12f, 0.92f));
+            DrawBorder(levelBox, new Color(0.30f, 0.90f, 0.75f, 0.55f), 1.4f * scale);
 
-            float lineY = y + (12f * scale);
-            float lineH = 34f * scale;
+            GUI.color = new Color(0.35f, 0.95f, 0.80f);
+            GUI.skin.label.alignment = TextAnchor.UpperLeft;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(startX + (10f * scale), lineY + (6f * scale), contentW * 0.55f, 15f * scale),
+                $"LEVEL {gm.PlayerLevel}");
 
-            // Stat 1: Best Distance
+            GUI.color = new Color(1.0f, 0.85f, 0.35f);
+            GUI.skin.label.alignment = TextAnchor.UpperRight;
+            GUI.Label(new Rect(startX + contentW * 0.40f, lineY + (6f * scale), contentW * 0.60f - (10f * scale), 15f * scale),
+                gm.RankTitle);
+
+            GUI.color = new Color(0.85f, 0.90f, 0.92f);
+            GUI.skin.label.alignment = TextAnchor.UpperLeft;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Normal;
+            GUI.Label(new Rect(startX + (10f * scale), lineY + (23f * scale), contentW - (20f * scale), 14f * scale),
+                $"{gm.XPIntoLevel:N0} / {gm.XPForNextLevel:N0} XP  •  {gm.TotalXP:N0} total XP");
+
+            // XP progress bar
+            float barX = startX + (10f * scale);
+            float barW = contentW - (20f * scale);
+            float barY = lineY + (42f * scale);
+            Rect barBg = new Rect(barX, barY, barW, 14f * scale);
+            DrawCard(barBg, new Color(0.05f, 0.08f, 0.07f, 0.95f));
+            float fill = (gm.XPForNextLevel > 0) ? Mathf.Clamp01((float)gm.XPIntoLevel / gm.XPForNextLevel) : 0f;
+            Rect barFill = new Rect(barX + (2f * scale), barY + (2f * scale), (barW - (4f * scale)) * fill, 10f * scale);
+            GUI.color = new Color(0.30f, 0.92f, 0.70f);
+            GUI.DrawTexture(barFill, whiteTexture);
+            GUI.color = new Color(1f, 1f, 1f, 0.85f);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(8 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(barBg, $"{Mathf.RoundToInt(fill * 100f)}%");
+
+            // 2. Key stats row
+            lineY += 74f * scale + (8f * scale);
+            float statH = 44f * scale;
+            float statW = (contentW - (6f * scale)) * 0.5f;
+
+            Rect stat1 = new Rect(startX, lineY, statW, statH);
+            DrawCard(stat1, new Color(0.10f, 0.14f, 0.12f, 0.90f));
             GUI.color = new Color(0.35f, 0.90f, 0.55f);
             GUI.skin.label.alignment = TextAnchor.UpperCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(stat1.x, lineY + (5f * scale), statW, 14f * scale), "BEST DISTANCE");
+            GUI.color = Color.white;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(14 * scale);
+            GUI.Label(new Rect(stat1.x, lineY + (21f * scale), statW, 20f * scale), $"{gm.BestDistance:N0} m");
+
+            Rect stat2 = new Rect(startX + statW + (6f * scale), lineY, statW, statH);
+            DrawCard(stat2, new Color(0.10f, 0.14f, 0.12f, 0.90f));
+            GUI.color = new Color(1.0f, 0.85f, 0.35f);
+            GUI.skin.label.alignment = TextAnchor.UpperCenter;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9 * scale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.Label(new Rect(stat2.x, lineY + (5f * scale), statW, 14f * scale), "HIGH SCORE");
+            GUI.color = Color.white;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(14 * scale);
+            GUI.Label(new Rect(stat2.x, lineY + (21f * scale), statW, 20f * scale), $"{gm.HighScore:N0}");
+
+            // 3. Local leaderboard
+            lineY += statH + (8f * scale);
+            GUI.color = new Color(1.0f, 0.35f, 0.70f);
+            GUI.skin.label.alignment = TextAnchor.MiddleLeft;
             GUI.skin.label.fontSize = Mathf.RoundToInt(11 * scale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(startX, lineY, contentW, 16f * scale), "BEST RUN DISTANCE");
-            GUI.color = Color.white;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(18 * scale);
-            GUI.Label(new Rect(startX, lineY + (16f * scale), contentW, 24f * scale), $"{GameManager.Instance.HighScore:N0} METERS");
+            GUI.Label(new Rect(startX, lineY, contentW, 16f * scale),
+                $"💖 {gm.TotalBankedHearts:N0} Hearts Banked");
+            lineY += 16f * scale + (4f * scale);
 
-            // Stat 2: Total Hearts
-            lineY += lineH + (16f * scale);
-            GUI.color = new Color(1.0f, 0.35f, 0.70f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * scale);
-            GUI.Label(new Rect(startX, lineY, contentW, 16f * scale), "TOTAL HEARTS BANKED");
-            GUI.color = Color.white;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(18 * scale);
-            GUI.Label(new Rect(startX, lineY + (16f * scale), contentW, 24f * scale), $"{GameManager.Instance.TotalBankedHearts} HEARTS");
+            GUI.color = new Color(0.75f, 0.80f, 0.82f);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(9 * scale);
+            GUI.Label(new Rect(startX, lineY, contentW, 14f * scale), "TOP RUNS (THIS DEVICE)");
+            lineY += 15f * scale;
 
-            // Stat 3: Player Rank
-            lineY += lineH + (16f * scale);
-            GUI.color = new Color(1.0f, 0.85f, 0.35f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(11 * scale);
-            GUI.Label(new Rect(startX, lineY, contentW, 16f * scale), "EXPEDITION RANK");
-            GUI.color = new Color(0.25f, 0.95f, 0.85f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(16 * scale);
-            GUI.Label(new Rect(startX, lineY + (16f * scale), contentW, 24f * scale), "LEVEL 32 • HERO RUNNER");
+            var board = gm.Leaderboard;
+            if (board == null || board.Count == 0)
+            {
+                GUI.color = new Color(0.55f, 0.60f, 0.62f);
+                GUI.skin.label.fontSize = Mathf.RoundToInt(9 * scale);
+                GUI.skin.label.fontStyle = FontStyle.Normal;
+                GUI.Label(new Rect(startX, lineY, contentW, 30f * scale),
+                    "No runs recorded yet — hit the temple and set your first record!");
+                return;
+            }
 
-            // Stat 4: World Standing
-            lineY += lineH + (16f * scale);
-            GUI.color = new Color(0.7f, 0.75f, 0.75f);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(10 * scale);
-            GUI.skin.label.fontStyle = FontStyle.Normal;
-            GUI.Label(new Rect(startX, lineY, contentW, 20f * scale), "🏆 Global Ranking: Top 1% Temple Survivors");
+            for (int i = 0; i < board.Count; i++)
+            {
+                var entry = board[i];
+                float rowY = lineY + (i * 20f * scale);
+                Rect row = new Rect(startX, rowY, contentW, 18f * scale);
+                DrawCard(row, (i == 0)
+                    ? new Color(0.16f, 0.14f, 0.06f, 0.92f)
+                    : new Color(0.08f, 0.11f, 0.12f, 0.85f));
+
+                GUI.color = (i == 0) ? new Color(1.0f, 0.85f, 0.30f) : new Color(0.70f, 0.76f, 0.78f);
+                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(8.5f * scale);
+                GUI.skin.label.fontStyle = FontStyle.Bold;
+                GUI.Label(new Rect(row.x + (6f * scale), rowY, 40f * scale, 18f * scale), $"#{i + 1}");
+
+                GUI.color = Color.white;
+                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                GUI.Label(new Rect(row.x + (44f * scale), rowY, contentW * 0.5f, 18f * scale),
+                    $"{entry.score:N0} pts");
+
+                GUI.color = new Color(0.65f, 0.85f, 0.95f);
+                GUI.skin.label.alignment = TextAnchor.MiddleRight;
+                GUI.skin.label.fontStyle = FontStyle.Normal;
+                GUI.Label(new Rect(row.x + contentW * 0.5f, rowY, contentW * 0.5f - (6f * scale), 18f * scale),
+                    $"{entry.distance:N0} m  •  Lv{entry.level}");
+            }
         }
         #endregion
 
@@ -2286,7 +2612,10 @@ namespace Runner.UI
         {
             if (GameManager.Instance == null) return;
 
-            float uiScale = Mathf.Clamp(Screen.width / 420.0f, 0.85f, 2.4f);
+            // Native uGUI canvas HUD takes over in-game rendering when enabled
+            if (GameManager.Instance.UseCanvasHud) return;
+
+            float uiScale = GetResponsiveScale();
 
             // AAA: Draw cinematic vignette overlay for depth and immersion
             DrawCinematicVignette();
@@ -2310,6 +2639,7 @@ namespace Runner.UI
             GUI.skin.label.fontSize = Mathf.RoundToInt(18 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(pauseRect, "⏸");
+            ResetGUIStyle();
             if (IsCardClicked(901, pauseRect))
             {
                 isMidGameSettingsOpen = false;
@@ -2339,7 +2669,7 @@ namespace Runner.UI
             GUI.color = new Color(1.0f, 0.85f, 0.25f);
             GUI.Label(new Rect(pillX, safeTop, pillW - (8f * uiScale), distH), $"⭐ {GameManager.Instance.Score:N0}");
 
-            // Pill 2: Real Heart Collection Meter (Segmented gauge, heartbeat pulse, shimmer sheen, and floating +1 popup)
+            // Pill 2: Heart Collection Meter (text header + animated gradient bar, heartbeat pulse, floating +1 popup)
             float heartY = safeTop + distH + (6f * uiScale);
             RenderHeartMeter(pillX, heartY, pillW, uiScale);
 
@@ -2357,19 +2687,13 @@ namespace Runner.UI
             int curLives = GameManager.Instance.CurrentLives;
             int maxLives = Mathf.Max(1, GameManager.Instance.MaxLives);
 
-            // Heart Collection Progress: fills towards every 10-heart collection streak
-            int tierGoal = 10;
-            int currentInTier = coins % tierGoal;
-            float targetFill = (coins == 0) ? 0f : ((currentInTier == 0) ? 1f : (float)currentInTier / tierGoal);
-
-            // Smooth animated fill
-            animatedHeartFill = Mathf.Lerp(animatedHeartFill, targetFill, Time.unscaledDeltaTime * 10f);
-
             float meterH = 46f * uiScale;
             Rect meterRect = new Rect(x, y, width, meterH);
 
             // 1. Obsidian Glass Card Container
             float bloomAlpha = Mathf.Clamp01(heartBloomTimer / 0.9f);
+            float burstAlpha = Mathf.Clamp01(heartTierBurstTimer / 1.1f);
+            float flashAlpha = Mathf.Max(bloomAlpha, burstAlpha);
             DrawCard(meterRect, new Color(0.08f, 0.04f, 0.06f, 0.88f));
 
             // Dynamic border: Low-health danger strobe, collection bloom, or neon rose
@@ -2379,19 +2703,19 @@ namespace Runner.UI
                 float dangerPulse = (Mathf.Sin(Time.unscaledTime * 10f) + 1f) * 0.5f;
                 borderColor = Color.Lerp(new Color(1f, 0.20f, 0.30f, 0.95f), new Color(1f, 0.65f, 0.15f, 1f), dangerPulse);
             }
-            else if (bloomAlpha > 0f)
+            else if (flashAlpha > 0f)
             {
-                borderColor = Color.Lerp(new Color(1f, 0.35f, 0.75f, 0.65f), new Color(1f, 0.85f, 1f, 1f), bloomAlpha);
+                borderColor = Color.Lerp(new Color(1f, 0.35f, 0.75f, 0.65f), new Color(1f, 0.85f, 1f, 1f), flashAlpha);
             }
             else
             {
                 borderColor = new Color(1f, 0.30f, 0.65f, 0.55f);
             }
-            DrawBorder(meterRect, borderColor, (curLives <= 2 || bloomAlpha > 0f) ? 1.8f : 1.2f);
+            DrawBorder(meterRect, borderColor, (curLives <= 2 || flashAlpha > 0f) ? 1.8f : 1.2f);
 
             // 2. Header Row: Beating Heart Icon + Hearts Collected (Coin System) & HP
             // Realistic Lub-Dub Heartbeat Pulse
-            float beat = Mathf.Sin(Time.unscaledTime * 5.0f);
+            float beat = HeartBeatPulse();
             float pulseScale = 1.0f;
             if (beat > 0.6f) pulseScale += (beat - 0.6f) * 0.35f;
             if (bloomAlpha > 0f) pulseScale += bloomAlpha * 0.25f;
@@ -2412,59 +2736,75 @@ namespace Runner.UI
             GUI.color = (curLives <= 2) ? new Color(1f, 0.4f, 0.4f) : new Color(0.85f, 0.90f, 0.95f);
             GUI.Label(new Rect(x, topY, width - padX, 18f * uiScale), $"HP {curLives}/{maxLives} ❤️");
 
-            // 3. Segmented Glowing Fill Gauge for Heart Collection
+            // 3. Heart Collection Bar: rounded gradient fill, sheen sweep, edge bloom, 10 steps
+            int tierGoal = 10;
+            int inTier = coins % tierGoal;
+            int filled = (coins > 0 && inTier == 0) ? tierGoal : inTier;
+            heartBarFill = Mathf.Lerp(heartBarFill, filled / (float)tierGoal, Time.unscaledDeltaTime * 9f);
+
+            float counterW = 34f * uiScale;
             float gaugeX = x + padX;
-            float gaugeY = y + (23f * uiScale);
-            float gaugeW = width - (padX * 2f);
+            float gaugeY = y + (26f * uiScale);
+            float gaugeW = width - (padX * 2f) - counterW;
             float gaugeH = 14f * uiScale;
 
-            // Gauge Backplate
-            GUI.color = new Color(0.03f, 0.02f, 0.04f, 0.92f);
-            GUI.DrawTexture(new Rect(gaugeX, gaugeY, gaugeW, gaugeH), whiteTexture);
-            DrawBorder(new Rect(gaugeX, gaugeY, gaugeW, gaugeH), new Color(1f, 1f, 1f, 0.15f), 1f);
+            // Track
+            GUI.color = new Color(0.03f, 0.02f, 0.04f, 0.94f);
+            GUI.DrawTexture(new Rect(gaugeX, gaugeY, gaugeW, gaugeH), HeartMeterVisuals.Bar.texture);
 
-            // Filled Bar
-            float fillW = gaugeW * animatedHeartFill;
-            if (fillW > 0.5f)
+            float fillW = gaugeW * heartBarFill;
+            if (fillW > 1.5f)
             {
-                // Radiant Gradient Fill: Hot Pink to Coral
-                Color fillColor = Color.Lerp(new Color(1f, 0.15f, 0.55f, 0.95f), new Color(1f, 0.65f, 0.85f, 0.95f), bloomAlpha);
-                GUI.color = fillColor;
-                GUI.DrawTexture(new Rect(gaugeX + 1, gaugeY + 1, fillW - 2, gaugeH - 2), whiteTexture);
+                Rect fillRect = new Rect(gaugeX + 1.5f, gaugeY + 1.5f, fillW - 3f, gaugeH - 3f);
 
-                // Top Sheen Line
-                GUI.color = new Color(1f, 1f, 1f, 0.35f);
-                GUI.DrawTexture(new Rect(gaugeX + 1, gaugeY + 1, fillW - 2, 2f), whiteTexture);
-
-                // Sweeping Shimmer Beam Effect
-                float sweepPhase = Mathf.Repeat(Time.unscaledTime * 0.75f, 1.3f);
-                if (sweepPhase <= 1.0f)
+                // Fill: sprite is squeezed into the live width so the leading edge stays rounded
+                if (burstAlpha > 0f)
                 {
-                    float sweepX = gaugeX + (sweepPhase * fillW);
-                    float sweepW = Mathf.Min(18f * uiScale, gaugeX + fillW - sweepX);
-                    if (sweepW > 0)
-                    {
-                        GUI.color = new Color(1f, 1f, 1f, 0.45f);
-                        GUI.DrawTexture(new Rect(sweepX, gaugeY + 1, sweepW, gaugeH - 2), whiteTexture);
-                    }
+                    GUI.color = Color.Lerp(Color.white, new Color(1f, 0.86f, 0.35f), Mathf.Abs(Mathf.Sin(burstAlpha * Mathf.PI * 3f)));
                 }
+                else
+                {
+                    GUI.color = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.97f), flashAlpha * 0.7f);
+                }
+                GUI.DrawTexture(fillRect, HeartMeterVisuals.Fill.texture);
+
+                // Sheen sweep, clipped to the filled portion
+                float sweep = Mathf.Repeat(Time.unscaledTime * 0.62f, 1.9f);
+                if (sweep <= 1f)
+                {
+                    float bandW = gaugeH * 2.6f;
+                    GUI.BeginGroup(fillRect);
+                    GUI.color = new Color(1f, 1f, 1f, 0.85f - burstAlpha * 0.35f);
+                    GUI.DrawTexture(new Rect((sweep * fillRect.width) - (bandW * 0.5f), -2f, bandW, fillRect.height + 4f), HeartMeterVisuals.Sheen.texture);
+                    GUI.EndGroup();
+                }
+
+                // Leading edge bloom
+                float glowW = gaugeH * 1.7f;
+                GUI.color = new Color(1f, 0.78f, 0.92f, Mathf.Clamp01(0.55f + beat * 0.35f + flashAlpha * 0.30f));
+                GUI.DrawTexture(new Rect(fillRect.xMax - (glowW * 0.5f), gaugeY - (3f * uiScale), glowW, gaugeH + (6f * uiScale)), HeartMeterVisuals.Glow.texture);
             }
 
-            // 10-Segment Dividers (Pips)
-            int segments = tierGoal;
-            float segW = gaugeW / segments;
-            GUI.color = new Color(0f, 0f, 0f, 0.65f);
-            for (int i = 1; i < segments; i++)
+            // 10 collection steps
+            float stepW = gaugeW / tierGoal;
+            GUI.color = Color.Lerp(new Color(0f, 0f, 0f, 0.62f), new Color(1f, 0.86f, 0.35f, 0.9f), burstAlpha);
+            for (int i = 1; i < tierGoal; i++)
             {
-                float tickX = gaugeX + (i * segW);
-                GUI.DrawTexture(new Rect(tickX, gaugeY, 1.5f, gaugeH), whiteTexture);
+                GUI.DrawTexture(new Rect(gaugeX + (i * stepW) - 1f, gaugeY + 3f, 2f, gaugeH - 6f), whiteTexture);
             }
+
+            // Tier counter (n/10)
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(10f * uiScale);
+            GUI.color = Color.Lerp(new Color(1f, 0.55f, 0.80f, 0.95f), new Color(1f, 0.86f, 0.35f, 1f), burstAlpha);
+            GUI.Label(new Rect(x + width - padX - counterW, gaugeY - 1f, counterW, gaugeH + 2f), $"{filled}/{tierGoal}");
 
             // 4. Floating +1 💖 Pickup Popup
             if (heartCollectFloatTimer > 0f)
             {
                 float floatRatio = heartCollectFloatTimer / 1.2f;
-                float floatY = y - (16f * uiScale) - ((1f - floatRatio) * 18f * uiScale);
+                float floatY = y + (26f * uiScale) - ((1f - floatRatio) * 16f * uiScale);
                 GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                 GUI.skin.label.fontSize = Mathf.RoundToInt(12 * uiScale);
                 GUI.skin.label.fontStyle = FontStyle.Bold;
@@ -2477,6 +2817,15 @@ namespace Runner.UI
                 GUI.color = new Color(1f, 0.45f, 0.85f, floatRatio);
                 GUI.Label(new Rect(x, floatY, width, 18f * uiScale), "+1 💖 HEART!");
             }
+        }
+
+        /// <summary>Two quick spikes per cycle, mimicking a lub-dub heartbeat (0..1).</summary>
+        private static float HeartBeatPulse()
+        {
+            float phase = Mathf.Repeat(Time.unscaledTime, 1.15f);
+            float lub = Mathf.Clamp01(1f - phase / 0.13f);
+            float dub = Mathf.Clamp01(1f - Mathf.Abs(phase - 0.24f) / 0.11f);
+            return Mathf.Max(lub, dub * 0.72f);
         }
 
         private void RenderActivePowerUpsTray(float x, float y, float uiScale)
@@ -2577,11 +2926,14 @@ namespace Runner.UI
             GUI.skin.label.fontSize = Mathf.RoundToInt(17 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(modalX, modalY + (18f * uiScale), modalW, 26f * uiScale), "⏸ GAME PAUSED");
+            ResetGUIStyle();
 
             GUI.color = new Color(0.65f, 0.75f, 0.70f);
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(9 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Italic;
             GUI.Label(new Rect(modalX, modalY + (44f * uiScale), modalW, 18f * uiScale), "EXPEDITION SUSPENDED");
+            ResetGUIStyle();
 
             float btnW = modalW - (44f * uiScale);
             float btnH = 46f * uiScale;
@@ -2589,28 +2941,20 @@ namespace Runner.UI
             float curY = modalY + (74f * uiScale);
             float gap = 12f * uiScale;
 
-            // 1. RESUME (3-second countdown)
+            // 1. RESUME — reduced from 3.6s to 1.5s for snappier UX
             Rect resumeRect = new Rect(btnX, curY, btnW, btnH);
-            DrawCard(resumeRect, new Color(0.95f, 0.75f, 0.15f, 0.95f));
-            DrawBorder(resumeRect, new Color(1.0f, 0.95f, 0.60f), 1.5f);
-            GUI.color = new Color(0.10f, 0.08f, 0.02f);
-            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(13 * uiScale);
-            GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(resumeRect, "▶  RESUME EXPEDITION");
-            if (IsCardClicked(801, resumeRect))
+            if (DrawPressButton(resumeRect, new Color(0.95f, 0.75f, 0.15f, 0.95f),
+                                new Color(0.10f, 0.08f, 0.02f), "▶  RESUME EXPEDITION",
+                                Mathf.RoundToInt(13 * uiScale), uiScale))
             {
-                resumeCountdownTimer = 3.6f;
+                resumeCountdownTimer = 1.5f;
             }
 
             // 2. SETTINGS
             curY += btnH + gap;
             Rect settingsRect = new Rect(btnX, curY, btnW, btnH);
-            DrawCard(settingsRect, new Color(0.12f, 0.18f, 0.16f, 0.90f));
-            DrawBorder(settingsRect, new Color(0.25f, 0.85f, 0.65f, 0.50f), 1.2f);
-            GUI.color = Color.white;
-            GUI.Label(settingsRect, "⚙️  SETTINGS");
-            if (IsCardClicked(802, settingsRect))
+            if (DrawPressButton(settingsRect, new Color(0.12f, 0.18f, 0.16f, 0.90f),
+                                Color.white, "⚙️  SETTINGS", Mathf.RoundToInt(13 * uiScale), uiScale))
             {
                 isMidGameSettingsOpen = true;
             }
@@ -2618,11 +2962,9 @@ namespace Runner.UI
             // 2.5 PHOTO MODE
             curY += btnH + gap;
             Rect photoRect = new Rect(btnX, curY, btnW, btnH);
-            DrawCard(photoRect, new Color(0.10f, 0.14f, 0.20f, 0.90f));
-            DrawBorder(photoRect, new Color(0.30f, 0.80f, 1.0f, 0.50f), 1.2f);
-            GUI.color = new Color(0.40f, 0.85f, 1.0f);
-            GUI.Label(photoRect, "📸  PHOTO MODE");
-            if (IsCardClicked(805, photoRect))
+            if (DrawPressButton(photoRect, new Color(0.10f, 0.14f, 0.20f, 0.90f),
+                                new Color(0.40f, 0.85f, 1.0f), "📸  PHOTO MODE",
+                                Mathf.RoundToInt(13 * uiScale), uiScale))
             {
                 EnterPhotoMode();
             }
@@ -2630,11 +2972,8 @@ namespace Runner.UI
             // 3. RESTART (Fresh 0m)
             curY += btnH + gap;
             Rect restartRect = new Rect(btnX, curY, btnW, btnH);
-            DrawCard(restartRect, new Color(0.12f, 0.18f, 0.16f, 0.90f));
-            DrawBorder(restartRect, new Color(0.25f, 0.75f, 0.95f, 0.50f), 1.2f);
-            GUI.color = Color.white;
-            GUI.Label(restartRect, "🔄  RESTART (0m)");
-            if (IsCardClicked(803, restartRect))
+            if (DrawPressButton(restartRect, new Color(0.12f, 0.18f, 0.16f, 0.90f),
+                                Color.white, "🔄  RESTART (0m)", Mathf.RoundToInt(13 * uiScale), uiScale))
             {
                 GameManager.Instance.RestartGame();
             }
@@ -2642,11 +2981,9 @@ namespace Runner.UI
             // 4. QUIT TO MENU (Saves relics)
             curY += btnH + gap;
             Rect menuRect = new Rect(btnX, curY, btnW, btnH);
-            DrawCard(menuRect, new Color(0.20f, 0.10f, 0.10f, 0.90f));
-            DrawBorder(menuRect, new Color(0.95f, 0.40f, 0.40f, 0.50f), 1.2f);
-            GUI.color = new Color(1.0f, 0.65f, 0.65f);
-            GUI.Label(menuRect, "🏠  QUIT TO MENU");
-            if (IsCardClicked(804, menuRect))
+            if (DrawPressButton(menuRect, new Color(0.20f, 0.10f, 0.10f, 0.90f),
+                                new Color(1.0f, 0.65f, 0.65f), "🏠  QUIT TO MENU",
+                                Mathf.RoundToInt(13 * uiScale), uiScale))
             {
                 Time.timeScale = 1.0f;
                 StartLoading(1.6f, "RETURNING TO CAMP...", () =>
@@ -3153,18 +3490,24 @@ namespace Runner.UI
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.Label(recRect, isNewRecord ? "★ NEW BEST RECORD! ★" : "★ EXPEDITION SUMMARY ★");
+            ResetGUIStyle();
 
             // Hero Metric: Distance Traveled
             float metricY = cardY + (38f * uiScale);
             GUI.color = new Color(0.80f, 0.85f, 0.92f, entranceAlpha);
             GUI.skin.label.fontSize = Mathf.RoundToInt(10f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Normal;
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(cardX, metricY, cardW, 14f * uiScale), "DISTANCE SURVIVED");
+            ResetGUIStyle();
 
+            // Distance — use overflow-protected SafeLabel (prevents large numbers bleeding off screen)
             GUI.color = new Color(1.0f, 0.88f, 0.25f, entranceAlpha);
-            GUI.skin.label.fontSize = Mathf.RoundToInt(28 * uiScale);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(26 * uiScale); // Slightly reduced from 28 to prevent overflow
             GUI.skin.label.fontStyle = FontStyle.Bold;
-            GUI.Label(new Rect(cardX, metricY + (14f * uiScale), cardW, 34f * uiScale), $"{GameManager.Instance.DistanceTraveled:N0} M");
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+            string distLabel = $"{GameManager.Instance.DistanceTraveled:N0} M";
+            SafeLabel(new Rect(cardX, metricY + (14f * uiScale), cardW, 34f * uiScale), distLabel, Mathf.RoundToInt(26 * uiScale));
 
             // Divider Line
             float divY = metricY + (52f * uiScale);
@@ -3183,29 +3526,40 @@ namespace Runner.UI
             GUI.skin.label.fontStyle = FontStyle.Normal;
             GUI.color = new Color(0.85f, 0.90f, 0.95f, entranceAlpha);
             GUI.Label(new Rect(relicsBox.x, relicsBox.y + (4f * uiScale), colW, 14f * uiScale), "HEARTS COLLECTED");
-
+            ResetGUIStyle();
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(16 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.color = new Color(1.0f, 0.40f, 0.72f, entranceAlpha);
             GUI.Label(new Rect(relicsBox.x, relicsBox.y + (20f * uiScale), colW, 22f * uiScale), $"💖 {GameManager.Instance.CoinsCollected:N0}");
+            ResetGUIStyle();
 
             // Right Col: Expedition Score
             Rect scoreBox = new Rect(cardX + cardW - colW - (10f * uiScale), gridY, colW, 48f * uiScale);
             DrawGlassCard(scoreBox, new Color(0.04f, 0.06f, 0.08f, 0.85f * entranceAlpha), new Color(0.20f, 0.85f, 0.95f, 0.40f * entranceAlpha));
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(9.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Normal;
             GUI.color = new Color(0.85f, 0.90f, 0.95f, entranceAlpha);
             GUI.Label(new Rect(scoreBox.x, scoreBox.y + (4f * uiScale), colW, 14f * uiScale), "FINAL SCORE");
-
+            ResetGUIStyle();
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(16 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.color = new Color(0.25f, 0.92f, 1.0f, entranceAlpha);
             GUI.Label(new Rect(scoreBox.x, scoreBox.y + (20f * uiScale), colW, 22f * uiScale), $"⭐ {lastFinalScore:N0}");
+            ResetGUIStyle();
 
-            // 4. Action Buttons (only appear after entrance animation and safe delay)
+            // 4. Action Buttons — staggered reveal so they cascade in gracefully
             float safeButtonDelay = 0.8f; // Prevent accidental clicks
             bool buttonsReady = gameOverDuration > safeButtonDelay && entranceProgress > 0.9f;
-            float btnAlpha = buttonsReady ? Mathf.Clamp01((gameOverDuration - safeButtonDelay) / 0.3f) : 0f;
+
+            // Stagger: each button reveals 180ms after the previous
+            const float STAGGER_DELAY = 0.18f;
+            float btn1Alpha = buttonsReady ? Mathf.Clamp01((gameOverDuration - safeButtonDelay) / 0.3f) : 0f;
+            float btn2Alpha = buttonsReady ? Mathf.Clamp01((gameOverDuration - safeButtonDelay - STAGGER_DELAY) / 0.3f) : 0f;
+            float btn3Alpha = buttonsReady ? Mathf.Clamp01((gameOverDuration - safeButtonDelay - STAGGER_DELAY * 2f) / 0.3f) : 0f;
+            float hintAlpha = buttonsReady ? Mathf.Clamp01((gameOverDuration - safeButtonDelay - STAGGER_DELAY * 3f) / 0.3f) : 0f;
 
             float footerY = cardY + cardH + (14f * uiScale);
             float btnW = cardW;
@@ -3214,39 +3568,41 @@ namespace Runner.UI
 
             // 1. PLAY AGAIN (Prominent Emerald Radiant Primary CTA)
             Rect playAgainRect = new Rect(btnX, footerY, btnW, btnH);
-            DrawCard(playAgainRect, new Color(0.12f, 0.78f, 0.38f, 0.98f * btnAlpha));
-            GUI.color = new Color(1f, 1f, 1f, 0.30f * btnAlpha);
+            DrawCard(playAgainRect, new Color(0.12f, 0.78f, 0.38f, 0.98f * btn1Alpha));
+            GUI.color = new Color(1f, 1f, 1f, 0.30f * btn1Alpha);
             GUI.DrawTexture(new Rect(btnX + 4, footerY + 2, btnW - 8, 2f), whiteTexture);
-            GUI.color = new Color(0.06f, 0.40f, 0.18f, 0.80f * btnAlpha);
+            GUI.color = new Color(0.06f, 0.40f, 0.18f, 0.80f * btn1Alpha);
             GUI.DrawTexture(new Rect(btnX + 4, footerY + btnH - 3, btnW - 8, 3f), whiteTexture);
-            DrawBorder(playAgainRect, new Color(0.40f, 0.95f, 0.60f, btnAlpha), 1.5f * uiScale);
+            DrawBorder(playAgainRect, new Color(0.40f, 0.95f, 0.60f, btn1Alpha), 1.5f * uiScale);
 
-            GUI.color = new Color(1f, 1f, 1f, btnAlpha);
+            GUI.color = new Color(1f, 1f, 1f, btn1Alpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(16 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(playAgainRect, "▶   PLAY AGAIN");
+            ResetGUIStyle();
 
-            if (buttonsReady && (IsCardClicked(601, playAgainRect) || GUI.Button(playAgainRect, GUIContent.none, GUIStyle.none)))
+            if (btn1Alpha > 0.5f && (IsCardClicked(601, playAgainRect) || GUI.Button(playAgainRect, GUIContent.none, GUIStyle.none)))
             {
                 isGameOver = false;
                 Time.timeScale = 1.0f;
                 GameManager.Instance?.RestartGame();
             }
 
-            // 2. MAIN MENU (Sleek Slate Ghost Button)
+            // 2. MAIN MENU (Sleek Slate Ghost Button) — staggered in
             float menuY = footerY + btnH + (8f * uiScale);
             float menuH = 42f * uiScale;
             Rect mainMenuRect = new Rect(btnX, menuY, btnW, menuH);
-            DrawGlassCard(mainMenuRect, new Color(0.12f, 0.16f, 0.22f, 0.90f * btnAlpha), new Color(1f, 1f, 1f, 0.20f * btnAlpha), 1.2f);
+            DrawGlassCard(mainMenuRect, new Color(0.12f, 0.16f, 0.22f, 0.90f * btn2Alpha), new Color(1f, 1f, 1f, 0.20f * btn2Alpha), 1.2f);
 
-            GUI.color = new Color(0.85f, 0.90f, 0.95f, btnAlpha);
+            GUI.color = new Color(0.85f, 0.90f, 0.95f, btn2Alpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(13.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(mainMenuRect, "🏠   RETURN TO CAMP");
+            ResetGUIStyle();
 
-            if (buttonsReady && (IsCardClicked(602, mainMenuRect) || GUI.Button(mainMenuRect, GUIContent.none, GUIStyle.none)))
+            if (btn2Alpha > 0.5f && (IsCardClicked(602, mainMenuRect) || GUI.Button(mainMenuRect, GUIContent.none, GUIStyle.none)))
             {
                 isGameOver = false;
                 Time.timeScale = 1.0f;
@@ -3256,30 +3612,37 @@ namespace Runner.UI
                 }, "RETURNING TO BASE CAMP", "SAVING EXPEDITION DATA");
             }
 
-            // 3. SHARE RUN STATS (Golden accent button)
+            // 3. SHARE RUN STATS (Golden accent button) — staggered in
             float shareY = menuY + menuH + (8f * uiScale);
             float shareH = 42f * uiScale;
             Rect shareRect = new Rect(btnX, shareY, btnW, shareH);
-            DrawGlassCard(shareRect, new Color(0.18f, 0.14f, 0.04f, 0.92f * btnAlpha), new Color(1.0f, 0.82f, 0.30f, 0.45f * btnAlpha), 1.2f);
+            DrawGlassCard(shareRect, new Color(0.18f, 0.14f, 0.04f, 0.92f * btn3Alpha), new Color(1.0f, 0.82f, 0.30f, 0.45f * btn3Alpha), 1.2f);
 
-            GUI.color = new Color(1.0f, 0.88f, 0.35f, btnAlpha);
+            GUI.color = new Color(1.0f, 0.88f, 0.35f, btn3Alpha);
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.skin.label.fontSize = Mathf.RoundToInt(13.5f * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(shareRect, "📤   SHARE RUN STATS");
+            ResetGUIStyle();
 
-            if (buttonsReady && (IsCardClicked(603, shareRect) || GUI.Button(shareRect, GUIContent.none, GUIStyle.none)))
+            if (btn3Alpha > 0.5f && (IsCardClicked(603, shareRect) || GUI.Button(shareRect, GUIContent.none, GUIStyle.none)))
             {
                 ShareRunStats();
             }
 
-            // Subtle keyboard navigation hint
+            // Subtle keyboard navigation hint — only show on desktop/editor (not mobile)
             float hintY = shareY + shareH + (8f * uiScale);
-            GUI.color = new Color(0.70f, 0.75f, 0.80f, 0.65f * btnAlpha);
-            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-            GUI.skin.label.fontSize = Mathf.RoundToInt(9f * uiScale);
-            GUI.skin.label.fontStyle = FontStyle.Italic;
-            GUI.Label(new Rect(0, hintY, Screen.width, 16f * uiScale), "Press SPACE or R to quick restart");
+            bool isMobile = Application.platform == RuntimePlatform.Android ||
+                            Application.platform == RuntimePlatform.IPhonePlayer;
+            if (!isMobile)
+            {
+                GUI.color = new Color(0.70f, 0.75f, 0.80f, 0.65f * hintAlpha);
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                GUI.skin.label.fontSize = Mathf.RoundToInt(9f * uiScale);
+                GUI.skin.label.fontStyle = FontStyle.Italic;
+                GUI.Label(new Rect(0, hintY, Screen.width, 16f * uiScale), "Press SPACE or R to quick restart");
+                ResetGUIStyle();
+            }
         }
         #endregion
 
@@ -3489,14 +3852,20 @@ namespace Runner.UI
         {
             if (loadingFadeAlpha <= 0f) return;
 
-            float uiScale = Mathf.Clamp(Screen.width / 390.0f, 0.80f, 2.2f);
+            float uiScale = GetResponsiveScale();
 
             // 1. Full Screen Pointer Trap (absorbs clicks to prevent background UI triggers)
             GUI.color = Color.clear;
             GUI.Button(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, GUIStyle.none);
 
-            // 2. Atmospheric Dark Obsidian Base Canvas
-            GUI.color = new Color(0.02f, 0.03f, 0.04f, loadingFadeAlpha);
+            // 2. Temple corridor backdrop, darkened so the UI remains readable.
+            GUI.color = new Color(0.34f, 0.43f, 0.40f, 0.78f * loadingFadeAlpha);
+            if (loadingBackgroundTexture != null)
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), loadingBackgroundTexture, ScaleMode.ScaleAndCrop);
+            else
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
+
+            GUI.color = new Color(0.01f, 0.025f, 0.03f, 0.70f * loadingFadeAlpha);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), whiteTexture);
 
             // 3. Ambient Atmospheric Glow (Warm Gold & Deep Emerald Core Aura)
@@ -3546,21 +3915,26 @@ namespace Runner.UI
             int prevSize = GUI.skin.label.fontSize;
             FontStyle prevStyle = GUI.skin.label.fontStyle;
 
-            // 5. Centered Sacred Spider Seal
-            float crestSize = 58f * uiScale;
+            // 5. Centered game emblem with a restrained glow.
+            float crestSize = Mathf.Min(128f * uiScale, Screen.width * 0.34f);
             float crestX = (Screen.width - crestSize) * 0.5f;
             float crestY = Screen.height * 0.28f;
 
             Rect crestRect = new Rect(crestX, crestY, crestSize, crestSize);
-            DrawCornerBrackets(crestRect, 10f * uiScale, 1.5f, new Color(0.95f, 0.78f, 0.25f, 0.85f * loadingFadeAlpha));
-            DrawGlassCard(crestRect, new Color(0.04f, 0.08f, 0.10f, 0.90f * loadingFadeAlpha), new Color(0.20f, 0.90f, 0.75f, 0.50f * loadingFadeAlpha), 1.2f);
+            DrawCornerBrackets(crestRect, 14f * uiScale, 1.5f, new Color(0.95f, 0.78f, 0.25f, 0.85f * loadingFadeAlpha));
+            DrawGlassCard(crestRect, new Color(0.02f, 0.05f, 0.06f, 0.74f * loadingFadeAlpha), new Color(0.20f, 0.90f, 0.75f, 0.50f * loadingFadeAlpha), 1.2f);
 
             // Glowing Spider Icon with breathing pulse
             float spiderPulse = 0.85f + 0.15f * Mathf.Sin(Time.unscaledTime * 3.5f);
             GUI.color = new Color(1.0f, 0.88f, 0.35f, spiderPulse * loadingFadeAlpha);
-            if (relicTexture != null)
+            if (appLogoTexture != null)
             {
-                Rect innerRelic = new Rect(crestRect.x + 4, crestRect.y + 4, crestRect.width - 8, crestRect.height - 8);
+                Rect innerLogo = new Rect(crestRect.x + 5, crestRect.y + 5, crestRect.width - 10, crestRect.height - 10);
+                GUI.DrawTexture(innerLogo, appLogoTexture, ScaleMode.ScaleToFit);
+            }
+            else if (relicTexture != null)
+            {
+                Rect innerRelic = new Rect(crestRect.x + 8, crestRect.y + 8, crestRect.width - 16, crestRect.height - 16);
                 GUI.DrawTexture(innerRelic, relicTexture, ScaleMode.ScaleToFit);
             }
             else
@@ -3587,16 +3961,23 @@ namespace Runner.UI
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(0, titleY, Screen.width, 18f * uiScale), "—  A N C I E N T   T E M P L E   E X P E D I T I O N  —");
+            ResetGUIStyle();
 
             // Title Shadow
             GUI.color = new Color(0.02f, 0.05f, 0.04f, 0.90f * loadingFadeAlpha);
             GUI.skin.label.fontSize = Mathf.RoundToInt(24 * uiScale);
             GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.alignment = TextAnchor.UpperCenter;
             GUI.Label(new Rect(2f, titleY + (20f * uiScale) + 2f, Screen.width, 36f * uiScale), loadingHeader);
+            ResetGUIStyle();
 
             // Title Radiant Gold
             GUI.color = new Color(1.0f, 0.90f, 0.45f, 1.0f * loadingFadeAlpha);
+            GUI.skin.label.fontSize = Mathf.RoundToInt(24 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.alignment = TextAnchor.UpperCenter;
             GUI.Label(new Rect(0, titleY + (20f * uiScale), Screen.width, 36f * uiScale), loadingHeader);
+            ResetGUIStyle();
 
             // Golden Divider Flare Line
             float divW = 160f * uiScale;
@@ -3606,7 +3987,10 @@ namespace Runner.UI
             GUI.DrawTexture(new Rect(divX, divY + (3f * uiScale), divW * 0.42f, 1.2f), whiteTexture);
             GUI.DrawTexture(new Rect(divX + (divW * 0.58f), divY + (3f * uiScale), divW * 0.42f, 1.2f), whiteTexture);
             GUI.skin.label.fontSize = Mathf.RoundToInt(10 * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
+            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(divX + (divW * 0.42f), divY - (4f * uiScale), divW * 0.16f, 14f * uiScale), "◆");
+            ResetGUIStyle();
 
             // 7. Sleek Hairline Progress Rail (3px-4px)
             float barW = Mathf.Min(Screen.width - (48f * uiScale), 320f * uiScale);
@@ -3633,31 +4017,40 @@ namespace Runner.UI
             GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.skin.label.alignment = TextAnchor.MiddleLeft;
             GUI.Label(new Rect(barX, barY - (22f * uiScale), barW * 0.70f, 18f * uiScale), animatedStatus);
+            ResetGUIStyle();
 
             // Percentage Readout on Right
             int pct = Mathf.RoundToInt(Mathf.Clamp01(loadingProgress) * 100f);
             GUI.color = new Color(1.0f, 0.88f, 0.35f, loadingFadeAlpha);
             GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            GUI.skin.label.fontSize = Mathf.RoundToInt(10f * uiScale);
+            GUI.skin.label.fontStyle = FontStyle.Bold;
             GUI.Label(new Rect(barX + (barW * 0.70f), barY - (22f * uiScale), barW * 0.30f, 18f * uiScale), $"[ {pct:D2}% ]");
+            ResetGUIStyle();
 
             // Progress Bar Rail Track
             GUI.color = new Color(0.08f, 0.12f, 0.14f, 0.90f * loadingFadeAlpha);
             GUI.DrawTexture(new Rect(barX, barY, barW, barH), whiteTexture);
             DrawBorder(new Rect(barX - 1f, barY - 1f, barW + 2f, barH + 2f), new Color(1f, 1f, 1f, 0.12f * loadingFadeAlpha), 1f);
 
-            // Progress Bar Radiant Fill
+            // Progress Bar Radiant Fill — smooth trailing glow
             float fillW = barW * Mathf.Clamp01(loadingProgress);
             if (fillW > 0f)
             {
+                // Trailing glow (2px gradient fade behind fill)
+                GUI.color = new Color(1.0f, 0.82f, 0.20f, 0.55f * loadingFadeAlpha);
+                GUI.DrawTexture(new Rect(Mathf.Max(barX, barX + fillW - barH * 2f), barY, barH * 2f, barH), whiteTexture);
+
+                // Main fill
                 GUI.color = new Color(1.0f, 0.82f, 0.20f, 0.98f * loadingFadeAlpha);
                 GUI.DrawTexture(new Rect(barX, barY, fillW, barH), whiteTexture);
 
-                // Leading Spark Dot
-                float dotSize = 8f * uiScale;
-                float dotX = barX + fillW - (dotSize * 0.5f);
-                float dotY = barY + (barH - dotSize) * 0.5f;
-                float dotPulse = 0.8f + 0.2f * Mathf.Sin(Time.unscaledTime * 6f);
-                GUI.color = new Color(1.0f, 0.98f, 0.75f, dotPulse * loadingFadeAlpha);
+                // Leading Spark Dot — glow tied to fill position, no frame-rate jitter
+                float dotSize = barH * 1.5f;
+                float dotX = barX + fillW - (dotSize * 0.3f);
+                float dotY = barY - (dotSize - barH) * 0.5f;
+                float dotAlpha = loadingFadeAlpha * Mathf.Clamp01(loadingProgress * 3f);
+                GUI.color = new Color(1f, 1f, 0.85f, dotAlpha);
                 GUI.DrawTexture(new Rect(dotX, dotY, dotSize, dotSize), whiteTexture);
             }
 

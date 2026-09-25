@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const DIRECT_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v3.0.0/SpiderTempleEscape.apk';
-const GITHUB_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/download/v3.0.0/SpiderTempleEscape.apk';
+const LATEST_TAG = 'v3.1.0';
+const DIRECT_APK = `https://github.com/akhilboss118-an/spider-temple-escape/releases/download/${LATEST_TAG}/SpiderTempleEscape.apk`;
+const GITHUB_APK = `https://github.com/akhilboss118-an/spider-temple-escape/releases/download/${LATEST_TAG}/SpiderTempleEscape.apk`;
 const GITHUB_LATEST_APK = 'https://github.com/akhilboss118-an/spider-temple-escape/releases/latest/download/SpiderTempleEscape.apk';
 const RELEASES_PAGE = 'https://github.com/akhilboss118-an/spider-temple-escape/releases';
 
@@ -81,7 +82,7 @@ export default function DownloadPage() {
           lineHeight: '1.4',
           boxSizing: 'border-box'
         }}>
-          v3.0 Release · Photo Mode · Orbit Camera · Gallery Save · WhatsApp Share
+          v3.1 Release · Heart Collection Meter · XP & Ranks · Color Grading · Biome Worlds
         </div>
         
         <h1 style={{
@@ -96,8 +97,8 @@ export default function DownloadPage() {
 
         <p style={{ color: '#8a8a9a', fontSize: '14px', marginBottom: '24px' }}>
           {countdown > 0 
-            ? `Your v3.0 APK download will begin automatically in ${countdown}s...` 
-            : 'Your Android APK v3.0 download has started!'}
+            ? `Your v3.1 APK download will begin automatically in ${countdown}s...` 
+            : 'Your Android APK v3.1 download has started!'}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
@@ -121,7 +122,7 @@ export default function DownloadPage() {
               boxSizing: 'border-box'
             }}
           >
-            📥 Download APK v3.0 (~132 MB)
+            📥 Download APK v3.1 (~133 MB)
           </button>
 
           <a
@@ -144,7 +145,7 @@ export default function DownloadPage() {
               boxSizing: 'border-box'
             }}
           >
-            ⚡ Download from GitHub Releases (v3.0.0)
+            ⚡ Download from GitHub Releases (v3.1.0)
           </a>
         </div>
 

@@ -18,9 +18,8 @@ namespace Runner.Effects
 
     /// <summary>
     /// Dynamic Environmental Biome & Atmosphere Manager:
-    /// - Smoothly transitions lighting, ambient color, and fog across distinct biomes based on distance traveled or map selection.
-    /// - Provides dynamic biome-themed road and curb materials to TrackManager for newly spawned chunks.
-    /// - Emits cinematic biome transition toasts and ambient sound transitions.
+    /// - Smoothly transitions lighting, ambient color, and fog based on distance traveled.
+    /// - Provides dynamic road and curb materials to TrackManager for newly spawned chunks.
     /// - Adds speed wind particles and ambient jungle mist.
     /// </summary>
     public class BiomeManager : MonoBehaviour
@@ -57,10 +56,11 @@ namespace Runner.Effects
         // Cached Lighting
         private Light directionalLight;
 
-        // Biome Material Caches
-        private Material jungleFloorMat;
-        private Material jungleCurbMat;
-        private Material[] floorVariants; // Road surface variety
+        // Biome Material Caches (indexed by BiomeType)
+        private const int BIOME_COUNT = 1;
+        private Material[] biomeFloorMats;
+        private Material[] biomeCurbMats;
+        private Material[][] biomeFloorVariants;
 
         // Interpolation Targets
         private Color targetFogColor;
@@ -127,7 +127,8 @@ namespace Runner.Effects
         {
             FindDirectionalLight();
             CurrentMapMode = SelectedMapMode.JungleCanopy;
-            SetBiomeInstant(BiomeType.JungleCanopy);
+            PlayerPrefs.SetInt(PREFS_SELECTED_MAP, (int)CurrentMapMode);
+            SetBiomeInstant(GetInitialBiomeForMode(CurrentMapMode));
         }
 
         public void SetSelectedMap(SelectedMapMode mode)
@@ -135,16 +136,32 @@ namespace Runner.Effects
             CurrentMapMode = SelectedMapMode.JungleCanopy;
             PlayerPrefs.SetInt(PREFS_SELECTED_MAP, (int)CurrentMapMode);
             PlayerPrefs.Save();
-            SetBiomeInstant(BiomeType.JungleCanopy);
+            BiomeType initial = GetInitialBiomeForMode(CurrentMapMode);
+            SetBiomeInstant(initial);
             if (Runner.Monster.MonsterChaser.Instance != null)
             {
-                Runner.Monster.MonsterChaser.Instance.ApplyBiomeMonster(BiomeType.JungleCanopy);
+                Runner.Monster.MonsterChaser.Instance.ApplyBiomeMonster(initial);
             }
+            ApplyBiomeAudio(initial);
+            Runner.Track.TrackManager.Instance?.RefreshBiomeMaterials();
+        }
+
+        private static void ApplyBiomeAudio(BiomeType biome)
+        {
+            var audio = Runner.Audio.AudioManager.Instance;
+            if (audio == null) return;
+            audio.CrossfadeBGMForBiome(biome);
+            audio.PlayAmbientForBiome(biome);
         }
 
         public static BiomeType GetInitialBiomeForMode(SelectedMapMode mode)
         {
             return BiomeType.JungleCanopy;
+        }
+
+        public static string GetMapDisplayName(SelectedMapMode mode)
+        {
+            return "JUNGLE CANOPY";
         }
 
         private void FindDirectionalLight()
@@ -188,6 +205,15 @@ namespace Runner.Effects
 
                 // Update Day/Night Cycle
                 UpdateDayNightCycle(GameManager.Instance.DistanceTraveled);
+
+                // Cross into the next biome when the distance threshold is reached
+                BiomeType desired = EvaluateBiomeForDistance(GameManager.Instance.DistanceTraveled);
+                if (desired != CurrentBiome)
+                {
+                    TransitionToBiome(desired);
+                    ApplyBiomeAudio(desired);
+                    Runner.Track.TrackManager.Instance?.RefreshBiomeMaterials();
+                }
             }
 
             // Smooth Atmospheric Lerp
@@ -199,25 +225,53 @@ namespace Runner.Effects
             return BiomeType.JungleCanopy;
         }
 
+        /// <summary>Colour multiplier applied to fog, ambient, light and sky.</summary>
+        private static Color GetBiomeTint(BiomeType biome)
+        {
+            return Color.white;
+        }
+
+        private static void GetBiomeFogRange(BiomeType biome, out float start, out float end)
+        {
+            start = 80.0f;
+            end = 175.0f;
+        }
+
+        private static float GetBiomeLightIntensity(BiomeType biome)
+        {
+            return 1.60f;
+        }
+
+        private static Color TintBiome(Color baseColor, BiomeType biome)
+        {
+            Color tint = GetBiomeTint(biome);
+            return new Color(
+                Mathf.Clamp01(baseColor.r * tint.r),
+                Mathf.Clamp01(baseColor.g * tint.g),
+                Mathf.Clamp01(baseColor.b * tint.b),
+                baseColor.a);
+        }
+
         private void TransitionToBiome(BiomeType newBiome)
         {
             CurrentBiome = newBiome;
 
-            string toastIcon = "🌿";
-            string toastTitle = "Entering Overgrown Jungle Canopy";
-
+            GetBiomeFogRange(newBiome, out float fogStart, out float fogEnd);
             SetAtmosphericTargets(
-                fogCol: new Color(0.68f, 0.88f, 0.95f),
-                fogStart: 80.0f, fogEnd: 175.0f,
-                ambientSky: new Color(0.78f, 0.95f, 1.0f),
-                ambientGround: new Color(0.48f, 0.52f, 0.38f),
-                lightCol: new Color(1.0f, 0.96f, 0.88f),
-                lightIntensity: 1.60f
+                fogCol: TintBiome(dayFogColor, newBiome),
+                fogStart: fogStart, fogEnd: fogEnd,
+                ambientSky: TintBiome(dayAmbientSky, newBiome),
+                ambientGround: TintBiome(new Color(0.48f, 0.52f, 0.38f), newBiome),
+                lightCol: TintBiome(dayLightColor, newBiome),
+                lightIntensity: GetBiomeLightIntensity(newBiome)
             );
 
-            if (Runner.UI.UIManager.Instance != null)
+            if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Playing)
             {
-                Runner.UI.UIManager.Instance.ShowToast(toastIcon, toastTitle, 2.5f);
+                if (Runner.UI.UIManager.Instance != null)
+                {
+                    Runner.UI.UIManager.Instance.ShowToast("🌿", "Entering Overgrown Jungle Canopy", 2.5f);
+                }
             }
 
             // Apply monster theme matching biome
@@ -226,30 +280,16 @@ namespace Runner.Effects
                 Runner.Monster.MonsterChaser.Instance.ApplyBiomeMonster(newBiome);
             }
 
-            // Skybox transitions per biome
+            // Jungle uses the classic temple skybox
             ApplyBiomeSkybox(newBiome);
         }
 
         private void ApplyBiomeSkybox(BiomeType biome)
         {
-            Material jungleSky = Resources.Load<Material>("Materials/Mat_TempleSkybox");
-            if (jungleSky != null)
-            {
-                RenderSettings.skybox = jungleSky;
-            }
-        }
+            Material baseSky = Resources.Load<Material>("Materials/Mat_TempleSkybox");
+            if (baseSky == null) return;
 
-        private Material CreateBiomeSkyboxMaterial(Color topColor, Color bottomColor, float blend)
-        {
-            Shader skyShader = Shader.Find("RenderFX/Skybox/Gradient");
-            if (skyShader == null) skyShader = Shader.Find("Skybox/Gradient");
-            if (skyShader == null) return RenderSettings.skybox;
-
-            Material mat = new Material(skyShader);
-            mat.SetColor("_TopColor", topColor);
-            mat.SetColor("_BottomColor", bottomColor);
-            mat.SetFloat("_Exponent", blend);
-            return mat;
+            RenderSettings.skybox = baseSky;
         }
 
         private void SetAtmosphericTargets(Color fogCol, float fogStart, float fogEnd, Color ambientSky, Color ambientGround, Color lightCol, float lightIntensity)
@@ -324,11 +364,19 @@ namespace Runner.Effects
                 lightIntensity = Mathf.Lerp(0.4f, 1.2f, phasePosition);
             }
 
+            // Bias the whole cycle towards the active biome's palette
+            fogColor = TintBiome(fogColor, CurrentBiome);
+            lightColor = TintBiome(lightColor, CurrentBiome);
+            ambientColor = TintBiome(ambientColor, CurrentBiome);
+            lightIntensity *= Mathf.Lerp(1.0f, GetBiomeLightIntensity(CurrentBiome) / 1.60f, 0.75f);
+
+            GetBiomeFogRange(CurrentBiome, out float fogStartDist, out float fogEndDist);
+
             SetAtmosphericTargets(
                 fogCol: fogColor,
-                fogStart: 80.0f, fogEnd: 175.0f,
+                fogStart: fogStartDist, fogEnd: fogEndDist,
                 ambientSky: ambientColor,
-                ambientGround: new Color(0.48f, 0.52f, 0.38f),
+                ambientGround: TintBiome(new Color(0.48f, 0.52f, 0.38f), CurrentBiome),
                 lightCol: lightColor,
                 lightIntensity: lightIntensity
             );
@@ -352,85 +400,101 @@ namespace Runner.Effects
         }
 
         #region Material Generation for Biomes
+        private static int BiomeIndex(BiomeType biome)
+        {
+            int idx = (int)biome;
+            return (idx < 0 || idx >= BIOME_COUNT) ? 0 : idx;
+        }
+
+        private void EnsureMaterialsReady()
+        {
+            if (biomeFloorMats == null || biomeCurbMats == null || biomeFloorVariants == null)
+            {
+                InitializeMaterials();
+            }
+        }
+
         private void InitializeMaterials()
         {
-            // Jungle Canopy Materials (Lush Mossy Stone & Carved Relief Curb)
-            jungleFloorMat = Resources.Load<Material>("Materials/Mat_Track");
-            if (jungleFloorMat == null)
+            if (biomeFloorMats == null)
+            {
+                biomeFloorMats = new Material[BIOME_COUNT];
+                biomeCurbMats = new Material[BIOME_COUNT];
+                biomeFloorVariants = new Material[BIOME_COUNT][];
+            }
+
+            // --- Jungle Canopy: lush mossy stone + carved relief curb ---
+            Material jungleFloor = Resources.Load<Material>("Materials/Mat_Track");
+            if (jungleFloor == null)
             {
                 Texture2D jungleFloorTex = Resources.Load<Texture2D>("Textures/Tex_Track");
-                jungleFloorMat = MaterialHelper.CreatePBRMaterial(
+                jungleFloor = MaterialHelper.CreatePBRMaterial(
                     new Color(0.28f, 0.32f, 0.25f),
                     albedo: jungleFloorTex,
                     smoothness: 0.25f,
                     emissionColor: new Color(0.02f, 0.04f, 0.01f) * 0.5f
                 );
-                jungleFloorMat.name = "Biome_Jungle_Floor";
+                jungleFloor.name = "Biome_Jungle_Floor";
             }
-            jungleCurbMat = Resources.Load<Material>("Materials/Mat_Curb");
-            if (jungleCurbMat == null)
+            Material jungleCurb = Resources.Load<Material>("Materials/Mat_Curb");
+            if (jungleCurb == null)
             {
                 Texture2D jungleCurbTex = Resources.Load<Texture2D>("Textures/Tex_Curb");
-                jungleCurbMat = MaterialHelper.CreatePBRMaterial(
+                jungleCurb = MaterialHelper.CreatePBRMaterial(
                     new Color(0.18f, 0.22f, 0.16f),
                     albedo: jungleCurbTex,
                     smoothness: 0.20f
                 );
-                jungleCurbMat.name = "Biome_Jungle_Curb";
+                jungleCurb.name = "Biome_Jungle_Curb";
             }
-
-            // Road Surface Variants (mossy stone, worn flagstone, cracked earth, vine-covered)
-            floorVariants = new Material[4];
-            floorVariants[0] = jungleFloorMat; // Base mossy stone
-            floorVariants[1] = CreateFloorVariant("Variant_WornFlagstone", new Color(0.32f, 0.30f, 0.26f), 0.30f);
-            floorVariants[2] = CreateFloorVariant("Variant_CrackedEarth", new Color(0.25f, 0.22f, 0.18f), 0.20f);
-            floorVariants[3] = CreateFloorVariant("Variant_VineCovered", new Color(0.22f, 0.30f, 0.20f), 0.28f);
+            biomeFloorMats[0] = jungleFloor;
+            biomeCurbMats[0] = jungleCurb;
+            biomeFloorVariants[0] = new Material[]
+            {
+                jungleFloor,
+                CreateBiomeVariant("Jungle_WornFlagstone", new Color(0.32f, 0.30f, 0.26f), 0.30f, new Color(0.02f, 0.02f, 0.02f)),
+                CreateBiomeVariant("Jungle_CrackedEarth", new Color(0.25f, 0.22f, 0.18f), 0.20f, new Color(0.02f, 0.02f, 0.02f)),
+                CreateBiomeVariant("Jungle_VineCovered", new Color(0.22f, 0.30f, 0.20f), 0.28f, new Color(0.02f, 0.04f, 0.02f))
+            };
         }
 
-        private Material CreateFloorVariant(string variantName, Color tint, float smoothness)
+        private Material CreateBiomeVariant(string variantName, Color tint, float smoothness, Color emission)
         {
             Texture2D tex = Resources.Load<Texture2D>("Textures/Tex_Track");
             Material mat = MaterialHelper.CreatePBRMaterial(
                 tint,
                 albedo: tex,
                 smoothness: smoothness,
-                emissionColor: tint * 0.08f
+                emissionColor: emission
             );
-            mat.name = $"Biome_Jungle_{variantName}";
+            mat.name = $"Biome_{variantName}";
             return mat;
         }
 
         public Material GetFloorMaterialForBiome(BiomeType biome)
         {
-            if (jungleFloorMat == null)
-            {
-                InitializeMaterials();
-            }
-            return jungleFloorMat;
+            EnsureMaterialsReady();
+            return biomeFloorMats[BiomeIndex(biome)];
         }
 
         /// <summary>
-        /// Returns a road surface variant based on chunk index for visual variety.
-        /// Cycles through 4 different surface textures (mossy stone, worn flagstone, cracked earth, vine-covered).
+        /// Returns a road surface variant for the active biome based on chunk index,
+        /// cycling through that biome's four surface textures.
         /// </summary>
         public Material GetFloorVariant(int chunkIndex)
         {
-            if (floorVariants == null || floorVariants.Length == 0)
-            {
-                InitializeMaterials();
-            }
-            int variantIdx = Mathf.Abs(chunkIndex) % floorVariants.Length;
-            Material variant = floorVariants[variantIdx];
-            return variant != null ? variant : jungleFloorMat;
+            EnsureMaterialsReady();
+            int biomeIdx = BiomeIndex(CurrentBiome);
+            Material[] variants = biomeFloorVariants[biomeIdx];
+            int variantIdx = Mathf.Abs(chunkIndex) % variants.Length;
+            Material variant = variants[variantIdx];
+            return variant != null ? variant : biomeFloorMats[biomeIdx];
         }
 
         public Material GetCurbMaterialForBiome(BiomeType biome)
         {
-            if (jungleCurbMat == null)
-            {
-                InitializeMaterials();
-            }
-            return jungleCurbMat;
+            EnsureMaterialsReady();
+            return biomeCurbMats[BiomeIndex(biome)];
         }
         #endregion
 

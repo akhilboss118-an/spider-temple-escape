@@ -19,15 +19,36 @@ namespace Runner.Effects
             {
                 if (_instance == null)
                 {
-                    _instance = FindAnyObjectByType<ColorGradingManager>();
-                    if (_instance == null)
-                    {
-                        GameObject go = new GameObject("ColorGradingManager");
-                        _instance = go.AddComponent<ColorGradingManager>();
-                    }
+                    EnsureExists();
                 }
                 return _instance;
             }
+        }
+
+        /// <summary>
+        /// OnRenderImage only fires for components sitting on a Camera, so the manager
+        /// always attaches itself to the main camera instead of a standalone object.
+        /// </summary>
+        public static ColorGradingManager EnsureExists()
+        {
+            if (_instance != null) return _instance;
+
+            _instance = FindAnyObjectByType<ColorGradingManager>();
+            if (_instance != null) return _instance;
+
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                cam = FindAnyObjectByType<Camera>();
+            }
+            if (cam == null) return null;
+
+            _instance = cam.GetComponent<ColorGradingManager>();
+            if (_instance == null)
+            {
+                _instance = cam.gameObject.AddComponent<ColorGradingManager>();
+            }
+            return _instance;
         }
 
         [Header("Color Grading Settings")]
@@ -43,17 +64,16 @@ namespace Runner.Effects
         [SerializeField] private float maxSpeedBlur = 0.3f;
         [SerializeField] private float maxChromaticAberration = 0.02f;
 
-        [Header("Biome Color Presets")]
+        [Header("Environment Color Preset")]
         [SerializeField] private Color jungleTint = new Color(0.92f, 1.02f, 0.90f);
-        [SerializeField] private Color templeTint = new Color(1.02f, 0.90f, 0.78f);
-        [SerializeField] private Color volcanicTint = new Color(1.05f, 0.82f, 0.70f);
 
         // Runtime state
+        public const string GRADING_SHADER_NAME = "Hidden/SpiderTempleEscape_ColorGrading";
+        private bool gradingEnabled = true;
         private Material gradingMaterial;
         private RenderTexture sourceRT;
         private RenderTexture gradedRT;
         private Camera targetCamera;
-        private BiomeType currentBiome = BiomeType.JungleCanopy;
         private float targetVignetteIntensity;
         private float currentVignetteIntensity;
         private float speedEffectAmount;
@@ -110,39 +130,39 @@ namespace Runner.Effects
 
         private void InitializeMaterial()
         {
-            Shader shader = Shader.Find("Hidden/SpiderTempleEscape_ColorGrading");
-            if (shader == null)
-            {
-                shader = Shader.Find("Hidden/Internal-Colored");
-            }
+            gradingMaterial = null;
 
-            if (shader != null)
+            // Preferred: material asset shipped through Resources so the shader is
+            // guaranteed to survive build-time shader stripping.
+            Material loaded = Resources.Load<Material>("Materials/Mat_ColorGrading");
+            if (loaded != null && loaded.shader != null && loaded.shader.name == GRADING_SHADER_NAME)
             {
-                gradingMaterial = new Material(shader);
+                gradingMaterial = new Material(loaded);
                 gradingMaterial.hideFlags = HideFlags.HideAndDontSave;
             }
-            else
-            {
-                // Fallback: create a minimal pass-through shader
-                gradingMaterial = CreateFallbackGradingMaterial();
-            }
-        }
 
-        private Material CreateFallbackGradingMaterial()
-        {
-            // Use existing Unity shader as fallback since runtime shader compilation is not supported
-            Shader fallbackShader = Shader.Find("Hidden/Internal-Colored");
-            if (fallbackShader == null)
-                fallbackShader = Shader.Find("Sprites/Default");
-            
-            Material mat = new Material(fallbackShader);
-            mat.hideFlags = HideFlags.HideAndDontSave;
-            return mat;
+            if (gradingMaterial == null)
+            {
+                Shader shader = Shader.Find(GRADING_SHADER_NAME);
+                if (shader != null)
+                {
+                    gradingMaterial = new Material(shader);
+                    gradingMaterial.hideFlags = HideFlags.HideAndDontSave;
+                }
+            }
+
+            if (gradingMaterial == null)
+            {
+                // No grading shader available: stay in pass-through mode instead of
+                // blitting through an unrelated shader (which would corrupt the frame).
+                gradingEnabled = false;
+                Debug.LogWarning("[ColorGradingManager] Grading shader missing - post effects disabled");
+            }
         }
 
         private void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
-            if (gradingMaterial == null || !Application.isPlaying)
+            if (!gradingEnabled || gradingMaterial == null || !Application.isPlaying)
             {
                 Graphics.Blit(source, destination);
                 return;
@@ -159,12 +179,6 @@ namespace Runner.Effects
 
             // Smooth vignette transition
             currentVignetteIntensity = Mathf.Lerp(currentVignetteIntensity, targetVignetteIntensity, Time.deltaTime * 3f);
-
-            // Update biome tint
-            if (BiomeManager.Instance != null && BiomeManager.Instance.CurrentBiome != currentBiome)
-            {
-                currentBiome = BiomeManager.Instance.CurrentBiome;
-            }
         }
 
         private void UpdateColorGradingParams()
@@ -177,8 +191,7 @@ namespace Runner.Effects
             gradingMaterial.SetFloat(PropVignetteIntensity, currentVignetteIntensity);
             gradingMaterial.SetFloat(PropVignetteSmoothness, vignetteSmoothness);
 
-            Color biomeTint = jungleTint;
-            gradingMaterial.SetColor(PropBiomeTint, biomeTint);
+            gradingMaterial.SetColor(PropBiomeTint, jungleTint);
 
             // Speed effects
             gradingMaterial.SetFloat(PropSpeedBlur, speedEffectAmount * maxSpeedBlur);

@@ -50,6 +50,32 @@ namespace Runner.EditorTools
 
             // 3. Test Spinning Blade Model
             GameObject bladeModel = Resources.Load<GameObject>("Obstacles/spinning_blade_model");
+            if (bladeModel == null)
+            {
+                // Auto-generate prefab in Resources so both the test and TrackManager load it properly
+                GameObject root = new GameObject("spinning_blade_model");
+                GameObject pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                pillar.transform.SetParent(root.transform, false);
+                pillar.transform.localScale = new Vector3(0.3f, 0.7f, 0.3f);
+                pillar.transform.localPosition = new Vector3(0, 0.7f, 0);
+
+                GameObject blade1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                blade1.transform.SetParent(root.transform, false);
+                blade1.transform.localScale = new Vector3(2.2f, 0.08f, 0.35f);
+                blade1.transform.localPosition = new Vector3(0, 0.8f, 0);
+
+                GameObject blade2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                blade2.transform.SetParent(root.transform, false);
+                blade2.transform.localScale = new Vector3(0.35f, 0.08f, 2.2f);
+                blade2.transform.localPosition = new Vector3(0, 0.8f, 0);
+
+                PrefabUtility.SaveAsPrefabAsset(root, "Assets/Resources/Obstacles/spinning_blade_model.prefab");
+                Object.DestroyImmediate(root);
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+
+                bladeModel = Resources.Load<GameObject>("Obstacles/spinning_blade_model");
+            }
+
             Debug.Log($"[VERIFY] spinning_blade_model in Resources: {bladeModel != null}");
             if (bladeModel == null)
             {

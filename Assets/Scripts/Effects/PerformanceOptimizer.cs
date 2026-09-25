@@ -30,6 +30,16 @@ namespace Runner.Effects
             }
         }
 
+        /// <summary>
+        /// Creates the optimizer if it does not exist yet, without forcing a getter
+        /// call. Safe to invoke on every scene load.
+        /// </summary>
+        public static PerformanceOptimizer EnsureExists()
+        {
+            if (_instance != null) return _instance;
+            return Instance;
+        }
+
         [Header("Quality Tiers")]
         [SerializeField] private float lowEndRamThreshold = 3.0f;
         [SerializeField] private float midEndRamThreshold = 4.5f;

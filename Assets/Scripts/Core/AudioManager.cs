@@ -57,7 +57,6 @@ namespace Runner.Audio
         // Generated procedural clips
         private AudioClip proceduralBgmClip;
         private AudioClip proceduralBgmIntenseClip;
-        private AudioClip proceduralBgmVolcanicClip;
         private AudioClip[] coinArpeggioClips;
         private AudioClip jumpClip;
         private AudioClip slideClip;
@@ -79,8 +78,6 @@ namespace Runner.Audio
 
         // New environmental audio clips
         private AudioClip ambientJungleClip;
-        private AudioClip ambientTempleClip;
-        private AudioClip ambientVolcanicClip;
         private AudioClip speedBoostClip;
         private AudioClip nearMissClip;
         private AudioClip coinComboClip;
@@ -284,9 +281,12 @@ namespace Runner.Audio
                     break;
                 case GameState.Playing:
                     targetPitch = 1.0f;
-                    if (!bgmSource.isPlaying) bgmSource.Play();
-                    PlayAmbientForBiome(Runner.Effects.BiomeManager.Instance != null ? 
-                        Runner.Effects.BiomeManager.Instance.CurrentBiome : Runner.Effects.BiomeType.JungleCanopy);
+                    Runner.Effects.BiomeType playingBiome = Runner.Effects.BiomeManager.Instance != null
+                        ? Runner.Effects.BiomeManager.Instance.CurrentBiome
+                        : Runner.Effects.BiomeType.JungleCanopy;
+                    CrossfadeBGMForBiome(playingBiome);
+                    if (bgmSource != null && !bgmSource.isPlaying) bgmSource.Play();
+                    PlayAmbientForBiome(playingBiome);
                     break;
                 case GameState.Paused:
                     targetPitch = 0.80f;
@@ -390,13 +390,7 @@ namespace Runner.Audio
         {
             if (ambientSource == null) return;
 
-            AudioClip ambientClip = null;
-            switch (biome)
-            {
-                case Runner.Effects.BiomeType.JungleCanopy:
-                    ambientClip = ambientJungleClip;
-                    break;
-            }
+            AudioClip ambientClip = ambientJungleClip;
 
             if (ambientClip != null && ambientSource.clip != ambientClip)
             {
@@ -590,19 +584,13 @@ namespace Runner.Audio
 
         // Biome music crossfade
         private AudioClip jungleMusicClip;
-        private AudioClip templeMusicClip;
-        private AudioClip volcanicMusicClip;
         private const float CROSSFADE_DURATION = 2.0f;
 
         public void CrossfadeBGMForBiome(Runner.Effects.BiomeType biome)
         {
             if (bgmSource == null) return;
 
-            AudioClip targetClip = biome switch
-            {
-                Runner.Effects.BiomeType.JungleCanopy => jungleMusicClip ?? proceduralBgmClip,
-                _ => proceduralBgmClip
-            };
+            AudioClip targetClip = jungleMusicClip ?? proceduralBgmClip;
 
             if (targetClip != null && bgmSource.clip != targetClip)
             {
@@ -692,8 +680,6 @@ namespace Runner.Audio
 
             // 16. Environmental ambient loops
             ambientJungleClip = CreateJungleAmbientClip("JungleAmbient", sampleRate);
-            ambientTempleClip = CreateTempleAmbientClip("TempleAmbient", sampleRate);
-            ambientVolcanicClip = CreateVolcanicAmbientClip("VolcanicAmbient", sampleRate);
 
             // 17. Intense music layer for dynamic intensity
             proceduralBgmIntenseClip = CreateIntenseMusicLayerClip("IntenseMusicLayer", sampleRate);
@@ -706,8 +692,6 @@ namespace Runner.Audio
 
             // 20. Biome music variations
             jungleMusicClip = proceduralBgmClip;
-            templeMusicClip = CreateTempleMusicClip("TempleMusic", sampleRate);
-            volcanicMusicClip = proceduralBgmVolcanicClip;
 
             // 21. Gender-specific sound variants (higher pitch for female characters)
             femaleJumpClip = CreateJumpWhooshClip("FemaleJumpWhoosh", sampleRate, pitchMultiplier: 1.3f);
@@ -1062,82 +1046,6 @@ namespace Runner.Audio
             return clip;
         }
 
-        private AudioClip CreateTempleAmbientClip(string name, int sampleRate)
-        {
-            // 8-second temple ambient with echoing drips and stone resonance
-            float duration = 8.0f;
-            int totalSamples = Mathf.RoundToInt(duration * sampleRate);
-            float[] data = new float[totalSamples];
-            System.Random rnd = new System.Random(4001);
-
-            // Low stone resonance drone
-            for (int i = 0; i < totalSamples; i++)
-            {
-                float t = (float)i / sampleRate;
-                float drone = Mathf.Sin(2.0f * Mathf.PI * 60f * t) * 0.2f;
-                drone += Mathf.Sin(2.0f * Mathf.PI * 90f * t) * 0.12f;
-                data[i] = drone;
-            }
-
-            // Water drip echoes
-            for (int d = 0; d < 10; d++)
-            {
-                float dripTime = (float)rnd.NextDouble() * duration;
-                int dripStart = Mathf.RoundToInt(dripTime * sampleRate);
-                int dripLen = Mathf.RoundToInt(0.15f * sampleRate);
-
-                for (int s = 0; s < dripLen && (dripStart + s) < totalSamples; s++)
-                {
-                    float dt_val = (float)s / dripLen;
-                    float env = Mathf.Exp(-dt_val * 8f);
-                    float freq = Mathf.Lerp(1800f, 600f, dt_val);
-                    data[dripStart + s] += Mathf.Sin(2f * Mathf.PI * freq * ((float)(dripStart + s) / sampleRate)) * env * 0.15f;
-                }
-            }
-
-            AudioClip clip = AudioClip.Create(name, totalSamples, 1, sampleRate, false);
-            clip.SetData(data, 0);
-            return clip;
-        }
-
-        private AudioClip CreateVolcanicAmbientClip(string name, int sampleRate)
-        {
-            // 8-second volcanic ambient with rumbling and crackling
-            float duration = 8.0f;
-            int totalSamples = Mathf.RoundToInt(duration * sampleRate);
-            float[] data = new float[totalSamples];
-            System.Random rnd = new System.Random(5001);
-
-            // Low volcanic rumble
-            for (int i = 0; i < totalSamples; i++)
-            {
-                float t = (float)i / sampleRate;
-                float rumble = Mathf.Sin(2.0f * Mathf.PI * 35f * t) * 0.25f;
-                rumble += Mathf.Sin(2.0f * Mathf.PI * 50f * t + Mathf.Sin(t * 0.3f) * 3f) * 0.15f;
-                float crackle = ((float)rnd.NextDouble() * 2f - 1f) * 0.08f;
-                data[i] = rumble + crackle;
-            }
-
-            // Occasional lava pops
-            for (int p = 0; p < 8; p++)
-            {
-                float popTime = (float)rnd.NextDouble() * duration;
-                int popStart = Mathf.RoundToInt(popTime * sampleRate);
-                int popLen = Mathf.RoundToInt(0.06f * sampleRate);
-
-                for (int s = 0; s < popLen && (popStart + s) < totalSamples; s++)
-                {
-                    float pt = (float)s / popLen;
-                    float env = Mathf.Exp(-pt * 15f);
-                    data[popStart + s] += ((float)rnd.NextDouble() * 2f - 1f) * env * 0.2f;
-                }
-            }
-
-            AudioClip clip = AudioClip.Create(name, totalSamples, 1, sampleRate, false);
-            clip.SetData(data, 0);
-            return clip;
-        }
-
         private AudioClip CreateIntenseMusicLayerClip(string name, int sampleRate)
         {
             // 4-bar intense percussion layer (synced to 150 BPM)
@@ -1246,39 +1154,6 @@ namespace Runner.Audio
             return clip;
         }
 
-        private AudioClip CreateTempleMusicClip(string name, int sampleRate)
-        {
-            float duration = 8.0f;
-            int totalSamples = Mathf.RoundToInt(duration * sampleRate);
-            float[] data = new float[totalSamples];
-
-            // Temple drone: A minor chord with stone percussion
-            float[] chordFreqs = { 220f, 261.63f, 329.63f, 440f };
-            for (int i = 0; i < totalSamples; i++)
-            {
-                float t = (float)i / sampleRate;
-                float env = 0.3f;
-
-                float sample = 0f;
-                foreach (float freq in chordFreqs)
-                {
-                    sample += Mathf.Sin(2.0f * Mathf.PI * freq * t) * 0.12f;
-                }
-
-                // Stone percussion hits
-                float beatPhase = (t % 1.6f) / 1.6f;
-                if (beatPhase < 0.05f)
-                {
-                    sample += Mathf.Sin(2.0f * Mathf.PI * 80f * t) * Mathf.Exp(-beatPhase * 60f) * 0.3f;
-                }
-
-                data[i] = sample * env;
-            }
-
-            AudioClip clip = AudioClip.Create(name, totalSamples, 1, sampleRate, false);
-            clip.SetData(data, 0);
-            return clip;
-        }
         #endregion
     }
 }

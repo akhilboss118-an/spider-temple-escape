@@ -105,9 +105,13 @@ namespace Runner.Monster
             if (magmaGolemVisual != null) magmaGolemVisual.SetActive(false);
             if (monsterBody != null) monsterBody.gameObject.SetActive(true);
 
+            // Classic zombie monster theming
+            Color eyeColor = new Color(0.2f, 0.8f, 0.2f);
+            Color bodyTint = Color.white;
+
             if (monsterEyeGlow != null)
             {
-                monsterEyeGlow.color = new Color(0.2f, 0.8f, 0.2f);
+                monsterEyeGlow.color = eyeColor;
                 monsterEyeGlow.intensity = 1.0f;
                 monsterEyeGlow.range = 3.0f;
             }
@@ -119,7 +123,7 @@ namespace Runner.Monster
 
             if (monsterMaterial != null)
             {
-                monsterMaterial.color = Color.white;
+                monsterMaterial.color = bodyTint;
             }
         }
 
